@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useSystemTheme } from './hooks/useTheme';
 import { useShoppingItems } from './hooks/useShoppingItems';
@@ -9,14 +9,19 @@ import AddItemForm from './components/AddItemForm';
 import FrequentChips from './components/FrequentChips';
 import ShoppingList from './components/ShoppingList';
 import SyncStatus from './components/SyncStatus';
-import CardsSheet from './components/CardsSheet';
 import { ShoppingBasket, Wallet } from 'lucide-react';
+
+// Kundenkarten-Overlay lazy laden: es zieht qrcode + jsbarcode nach, die erst
+// beim Öffnen der Karten gebraucht werden. So bleiben sie aus dem Initial-Bundle.
+const CardsSheet = lazy(() => import('./components/CardsSheet'));
 
 export default function App() {
   const [favorites, setFavorites] = useLocalStorage(STORAGE_KEYS.favorites, []);
   const [history, setHistory] = useLocalStorage(STORAGE_KEYS.history, {});
   const [cardsOpen, setCardsOpen] = useState(false);
   useSystemTheme();
+
+  const closeCards = useCallback(() => setCardsOpen(false), []);
 
   // Erledigte Artikel im (lokalen) Kaufverlauf verbuchen.
   const handlePurchase = useCallback(
@@ -116,7 +121,11 @@ export default function App() {
         />
       </div>
 
-      {cardsOpen && <CardsSheet onClose={() => setCardsOpen(false)} />}
+      {cardsOpen && (
+        <Suspense fallback={null}>
+          <CardsSheet onClose={closeCards} />
+        </Suspense>
+      )}
     </div>
   );
 }

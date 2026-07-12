@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { STORAGE_KEYS } from '../lib/storage';
@@ -105,7 +105,9 @@ function CardsSheet({ onClose }) {
     [onClose],
   );
 
-  const sorted = sortCards(cards);
+  // Memoisiert: vermeidet ein Neu-Sortieren pro Render und hält `toggle` stabil,
+  // damit die memoisierten CardView-Einträge nicht unnötig neu rendern.
+  const sorted = useMemo(() => sortCards(cards), [cards]);
   const effectiveOpenId = openId === undefined ? sorted[0]?.id : openId;
 
   const toggle = useCallback(
