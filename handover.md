@@ -1,8 +1,13 @@
 # Listly – Handover
 
-Stand: siehe letzter Commit auf `main` / Arbeitsbranch. Diese Datei fasst
-Architektur, Betrieb und Besonderheiten zusammen, damit jemand die Weiter­ent­wicklung
-ohne Vorwissen übernehmen kann.
+Stand: Juli 2026 (aktueller Branch-Tip). Diese Datei fasst Architektur, Betrieb
+und Besonderheiten zusammen, damit jemand die Weiter­ent­wicklung ohne Vorwissen
+übernehmen kann.
+
+> 🔒 **Datenschutz:** Persönliche Kundenkarten-Nummern gehören **nicht** in
+> dieses (öffentliche) Repo. Versehentlich committete Nummern wurden entfernt und
+> die **Git-Historie davon bereinigt** (Rewrite + force-push). Beispiel-Platzhalter
+> im Code daher immer generisch halten – niemals echte Nummern hardcoden.
 
 ---
 
@@ -182,8 +187,11 @@ Workbox-Cache wird via `cleanupOutdatedCaches/skipWaiting/clientsClaim` erneuert
 - **UI:** Akkordeon – nur eine Karte offen (erste per Default), Klick klappt um.
   Löschen sitzt in der farbigen Titelleiste. QR/Barcode werden auf **weißem**
   Grund gerendert (unabhängig vom Dark Mode scannbar).
-- **Schließen des Overlays:** X-Button, Swipe nach unten im oberen Bereich, oder
-  Klick auf die leere Fläche.
+- **Schließen des Overlays:** X-Button, Swipe nach unten im oberen Bereich (greift
+  ab Leiste oder wenn der Inhalt ganz oben steht, Schwelle ~90 px), oder Klick auf
+  die leere Fläche.
+- **Keine echten Nummern committen** (siehe Datenschutz-Hinweis oben): Platzhalter
+  im Formular generisch halten; die tatsächlichen Karten liegen nur lokal.
 
 ---
 
