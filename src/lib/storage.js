@@ -1,9 +1,11 @@
 // Zentrale localStorage-Schicht. Ersetzt das in Claude-Artifacts verfügbare
 // window.storage durch echtes localStorage bei identischer Datenstruktur:
-//   items      – aktuelle Liste:  [{ id, name, category, checked }]
-//   favorites  – Favoriten:        [name, ...]
-//   history    – Kaufverlauf:      { [normalizedName]: { name, category, count, lastPurchased } }
-//   theme      – 'light' | 'dark' | 'system'
+//   items         – aktuelle Liste:  [{ id, name, category, checked, createdAt }]
+//   favorites     – Favoriten:        [name, ...]
+//   history       – Kaufverlauf:      { [normalizedName]: { name, category, count, lastPurchased } }
+//   theme         – 'light' | 'dark' | 'system' (historisch, aktuell ungenutzt)
+//   cards         – Kundenkarten:     [{ id, retailer, name, code, codeType, number? }]
+//   schemaVersion – Ganzzahl; Version des localStorage-Schemas (siehe lib/schema.js)
 
 export const STORAGE_KEYS = {
   items: 'listly.items',
@@ -11,6 +13,7 @@ export const STORAGE_KEYS = {
   history: 'listly.history',
   theme: 'listly.theme',
   cards: 'listly.cards',
+  schemaVersion: 'listly.schemaVersion',
 };
 
 /** Liest und parst einen Wert; fällt bei Fehlern auf `fallback` zurück. */
