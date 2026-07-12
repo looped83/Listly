@@ -1,0 +1,94 @@
+/*
+ * Design-Tokens für Listly.
+ * Light Mode = warmer Papier-Look (Basis), Dark Mode = gedämpftes
+ * Tannengrün/Anthrazit. Akzente (Grün #3D6B4A, Amber #C77B3D) bleiben in beiden
+ * Modi erkennbar; im Dark Mode aufgehellt für WCAG-AA-Kontraste.
+ * Komponenten verwenden ausschließlich diese Variablen – keine hartcodierten Farben.
+ */
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #faf6ee;
+  --bg-elevated: #fffdf9;
+  --surface: #fffdf8;
+  --surface-hover: #f2ecdf;
+  --surface-sunken: #f4eede;
+
+  --border: #e7dfcf;
+  --border-strong: #d7cbb4;
+
+  --text: #292420;
+  --text-muted: #6d655a;
+  --text-subtle: #948b7d;
+
+  --accent: #3d6b4a;
+  --accent-hover: #345c40;
+  --accent-soft: #e6efe7;
+  --accent-text: #345c40;
+  --on-accent: #ffffff;
+
+  --amber: #c77b3d;
+  --amber-soft: #f6e7d4;
+  --amber-text: #a85f28;
+
+  --danger: #b3402f;
+  --danger-soft: #f6ded9;
+
+  --shadow-sm: 0 1px 2px rgba(51, 40, 24, 0.08);
+  --shadow-md: 0 4px 16px rgba(51, 40, 24, 0.1);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #16201b;
+  --bg-elevated: #1b2620;
+  --surface: #1f2c25;
+  --surface-hover: #273529;
+  --surface-sunken: #182119;
+
+  --border: #2e3d34;
+  --border-strong: #3a4c40;
+
+  --text: #ece7db;
+  --text-muted: #a4b0a4;
+  --text-subtle: #7d8a7e;
+
+  --accent: #6bb183;
+  --accent-hover: #7cc093;
+  --accent-soft: #223529;
+  --accent-text: #83c199;
+  --on-accent: #0f1712;
+
+  --amber: #e0995a;
+  --amber-soft: #33281c;
+  --amber-text: #e6a468;
+
+  --danger: #e0705f;
+  --danger-soft: #33211d;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+:root {
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --content-width: 640px;
+}
