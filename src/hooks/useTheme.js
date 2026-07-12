@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 // theme-color der <meta>-Angabe je aktivem Modus (an die CSS-Tokens angelehnt).
-const META_THEME_COLOR = { light: '#faf6ee', dark: '#16201b' };
+const META_THEME_COLOR = { light: '#faf6ee', dark: '#000000' };
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
 function getSystemTheme() {

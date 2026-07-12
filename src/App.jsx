@@ -8,6 +8,7 @@ import { frequentSuggestions } from './lib/suggestions';
 import AddItemForm from './components/AddItemForm';
 import FrequentChips from './components/FrequentChips';
 import ShoppingList from './components/ShoppingList';
+import SyncStatus from './components/SyncStatus';
 import { ShoppingBasket } from 'lucide-react';
 
 export default function App() {
@@ -23,7 +24,7 @@ export default function App() {
     [setHistory],
   );
 
-  const { items, addItem, toggleItem, removeItem, clearChecked } = useShoppingItems({
+  const { items, status, addItem, toggleItem, removeItem, clearChecked } = useShoppingItems({
     onPurchase: handlePurchase,
   });
 
@@ -80,6 +81,7 @@ export default function App() {
             <p className="header__subtitle">Deine vegane Einkaufsliste</p>
           </div>
         </div>
+        <SyncStatus status={status} />
       </header>
 
       <main className="content">

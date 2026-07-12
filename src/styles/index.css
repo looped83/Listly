@@ -112,6 +112,40 @@ input {
   color: var(--text-muted);
 }
 
+/* ---------- Live-Sync-Anzeige (oben rechts) ---------- */
+.sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.sync[data-tone='ok'] {
+  color: var(--accent-text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.sync[data-tone='pending'] {
+  color: var(--amber-text);
+  border-color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.sync[data-tone='error'] {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
 /* ---------- Add form ---------- */
 .add-form {
   position: relative;

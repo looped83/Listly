@@ -43,34 +43,36 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #16201b;
-  --bg-elevated: #1b2620;
-  --surface: #1f2c25;
-  --surface-hover: #273529;
-  --surface-sunken: #182119;
+  /* Echtes Schwarz (neutral, kein Farbstich); Flächen dezent aufgehellt. */
+  --bg: #000000;
+  --bg-elevated: #0e0e0e;
+  --surface: #151515;
+  --surface-hover: #202020;
+  --surface-sunken: #0a0a0a;
 
-  --border: #2e3d34;
-  --border-strong: #3a4c40;
+  --border: #272727;
+  --border-strong: #383838;
 
-  --text: #ece7db;
-  --text-muted: #a4b0a4;
-  --text-subtle: #7d8a7e;
+  --text: #f4f4f3;
+  --text-muted: #a6a6a6;
+  --text-subtle: #6f6f6f;
 
-  --accent: #6bb183;
-  --accent-hover: #7cc093;
-  --accent-soft: #223529;
-  --accent-text: #83c199;
-  --on-accent: #0f1712;
+  /* Akzente bleiben erkennbar grün/amber, aufgehellt für Kontrast auf Schwarz. */
+  --accent: #5fb37a;
+  --accent-hover: #71c48b;
+  --accent-soft: #10241a;
+  --accent-text: #79c791;
+  --on-accent: #04120a;
 
   --amber: #e0995a;
-  --amber-soft: #33281c;
+  --amber-soft: #2a1e12;
   --amber-text: #e6a468;
 
-  --danger: #e0705f;
-  --danger-soft: #33211d;
+  --danger: #e5675a;
+  --danger-soft: #2a1514;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.6);
 }
 
 :root {
