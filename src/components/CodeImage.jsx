@@ -26,7 +26,15 @@ export const Barcode = memo(function Barcode({ value, format = 'CODE128' }) {
 
   useEffect(() => {
     if (!ref.current) return;
-    const opts = { displayValue: false, margin: 0, height: 64, width: 2, background: 'transparent' };
+    const opts = {
+      displayValue: true,
+      fontSize: 16,
+      textMargin: 4,
+      margin: 0,
+      height: 64,
+      width: 2,
+      background: 'transparent',
+    };
     try {
       JsBarcode(ref.current, value, { ...opts, format });
     } catch {

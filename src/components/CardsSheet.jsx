@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { STORAGE_KEYS } from '../lib/storage';
 import {
@@ -18,34 +18,44 @@ const createId = () =>
     ? crypto.randomUUID()
     : `card-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-const emptyForm = { retailer: 'lidl', name: RETAILERS.lidl.label, number: '', code: '', codeType: 'qr' };
+const emptyForm = { retailer: 'lidl', name: RETAILERS.lidl.label, code: '', codeType: 'qr' };
 
-/** Eine Kundenkarte – zeigt den exakten Code (QR oder Barcode) und die Nummer. */
-const CardView = memo(function CardView({ card, onDelete }) {
+/** Eine Kundenkarte als aufklappbares Akkordeon-Element. */
+const CardView = memo(function CardView({ card, expanded, onToggle, onDelete }) {
   const meta = retailerMeta(card.retailer);
   const content = cardContent(card);
   const codeType = cardCodeType(card);
   return (
-    <li className="card">
-      <div className="card__head" style={{ background: meta.color }}>
+    <li className="card" data-expanded={expanded}>
+      <button
+        type="button"
+        className="card__head"
+        style={{ background: meta.color }}
+        onClick={() => onToggle(card.id)}
+        aria-expanded={expanded}
+      >
         <span className="card__label">{card.name || meta.label}</span>
-        <button
-          type="button"
-          className="card__delete"
-          onClick={() => onDelete(card.id)}
-          aria-label={`${card.name || meta.label} löschen`}
-        >
-          <Trash2 size={16} aria-hidden="true" />
-        </button>
-      </div>
-      <div className="card__codes">
-        {codeType === 'barcode' ? (
-          <Barcode value={content} format={barcodeFormat(content)} />
-        ) : (
-          <QRCode value={content} />
-        )}
-        {card.number && <span className="card__number">{card.number}</span>}
-      </div>
+        <ChevronDown className="card__chevron" size={20} aria-hidden="true" />
+      </button>
+
+      {expanded && (
+        <div className="card__codes">
+          {codeType === 'barcode' ? (
+            <Barcode value={content} format={barcodeFormat(content)} />
+          ) : (
+            <QRCode value={content} />
+          )}
+          {card.number && <span className="card__number">{card.number}</span>}
+          <button
+            type="button"
+            className="text-button card__delete"
+            onClick={() => onDelete(card.id)}
+          >
+            <Trash2 size={16} aria-hidden="true" />
+            Löschen
+          </button>
+        </div>
+      )}
     </li>
   );
 });
@@ -55,6 +65,16 @@ function CardsSheet({ onClose }) {
   const [cards, setCards] = useLocalStorage(STORAGE_KEYS.cards, []);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  // undefined = "Standard" (erste Karte offen); sonst explizit gewählte/keine.
+  const [openId, setOpenId] = useState(undefined);
+
+  const sorted = sortCards(cards);
+  const effectiveOpenId = openId === undefined ? sorted[0]?.id : openId;
+
+  const toggle = useCallback(
+    (id) => setOpenId((prev) => ((prev === undefined ? sorted[0]?.id : prev) === id ? null : id)),
+    [sorted],
+  );
 
   const update = useCallback((patch) => setForm((prev) => ({ ...prev, ...patch })), []);
 
@@ -70,20 +90,14 @@ function CardsSheet({ onClose }) {
   const save = useCallback(
     (e) => {
       e.preventDefault();
-      const number = form.number.trim();
       const code = form.code.trim();
-      if (!number && !code) return;
+      if (!code) return;
+      const id = createId();
       setCards((prev) => [
         ...prev,
-        {
-          id: createId(),
-          retailer: form.retailer,
-          name: form.name.trim() || RETAILERS[form.retailer].label,
-          number,
-          code,
-          codeType: form.codeType,
-        },
+        { id, retailer: form.retailer, name: form.name.trim() || RETAILERS[form.retailer].label, code, codeType: form.codeType },
       ]);
+      setOpenId(id); // neue Karte gleich aufgeklappt zeigen
       setForm(emptyForm);
       setAdding(false);
     },
@@ -110,8 +124,14 @@ function CardsSheet({ onClose }) {
         )}
 
         <ul className="cards">
-          {sortCards(cards).map((card) => (
-            <CardView key={card.id} card={card} onDelete={remove} />
+          {sorted.map((card) => (
+            <CardView
+              key={card.id}
+              card={card}
+              expanded={card.id === effectiveOpenId}
+              onToggle={toggle}
+              onDelete={remove}
+            />
           ))}
         </ul>
 
@@ -138,16 +158,8 @@ function CardsSheet({ onClose }) {
               placeholder="Name der Karte"
               aria-label="Name der Karte"
             />
-            <input
-              className="card-form__input"
-              value={form.number}
-              onChange={(e) => update({ number: e.target.value })}
-              placeholder="Angezeigte Nummer (optional)"
-              autoComplete="off"
-              aria-label="Angezeigte Nummer"
-            />
             <label className="card-form__field-label" htmlFor="card-code">
-              Code-Inhalt (exakt aus der Original-App; leer = Nummer)
+              Code-Inhalt (exakt aus der Original-App)
             </label>
             <textarea
               id="card-code"
