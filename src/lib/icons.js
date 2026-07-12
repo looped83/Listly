@@ -9,7 +9,22 @@ export const DEFAULT_EMOJI = '🛒';
 const normalize = (name) => name.trim().toLowerCase();
 
 const categoryById = new Map(products.categories.map((c) => [c.id, c]));
+const categoryOrder = new Map(products.categories.map((c, i) => [c.id, i]));
 const productByName = new Map(products.products.map((p) => [normalize(p.name), p]));
+
+const OTHER_CATEGORY = { id: '__other', name: 'Sonstiges', emoji: '🛒', order: 999 };
+
+/** Metadaten (Name, Emoji, Reihenfolge) einer Kategorie – Fallback „Sonstiges“. */
+export function categoryInfo(categoryId) {
+  const category = categoryId ? categoryById.get(categoryId) : null;
+  if (!category) return OTHER_CATEGORY;
+  return {
+    id: category.id,
+    name: category.name,
+    emoji: category.emoji,
+    order: categoryOrder.get(category.id),
+  };
+}
 
 /**
  * Löst das Emoji für einen Artikel auf:

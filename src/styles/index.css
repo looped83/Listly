@@ -661,18 +661,29 @@ input {
 }
 
 .card__head {
-  width: 100%;
+  display: flex;
+  align-items: stretch;
+  color: #ffffff;
+}
+
+.card__toggle {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
   padding: var(--space-4);
-  color: #ffffff;
+  color: inherit;
   text-align: left;
 }
 
 .card__label {
   font-weight: 600;
   font-size: 1.05rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card__chevron {
@@ -684,15 +695,19 @@ input {
   transform: rotate(180deg);
 }
 
-/* „Löschen“ im weißen Code-Bereich (daher dunkle Farbe). */
+/* Löschen-Icon in der farbigen Titelleiste. */
 .card__delete {
-  color: #b3402f;
-  margin-top: var(--space-1);
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  color: rgba(255, 255, 255, 0.85);
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .card__delete:hover {
-  background: #f6ded9;
-  color: #8f3325;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
 }
 
 /* QR/Barcode immer auf Weiß – damit sie unabhängig vom Farbschema scannbar sind. */
@@ -707,6 +722,8 @@ input {
 
 .code__qr {
   display: block;
+  max-width: 100%;
+  height: auto;
   border-radius: 8px;
 }
 
@@ -837,4 +854,29 @@ input {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
+}
+
+/* ---------- Kategorie-Gruppen in der Einkaufsliste ---------- */
+.list-group {
+  margin-bottom: var(--space-4);
+}
+
+.list-group:last-child {
+  margin-bottom: 0;
+}
+
+.list-group__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+}
+
+.list-group__emoji {
+  font-size: 0.95rem;
 }

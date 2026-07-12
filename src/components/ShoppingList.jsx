@@ -2,14 +2,31 @@ import { memo, useMemo } from 'react';
 import { ClipboardList, Trash2 } from 'lucide-react';
 import ListItem from './ListItem';
 import { normalizeName } from '../lib/history';
+import { categoryInfo } from '../lib/icons';
 
-/** Rendert die aktuelle Liste, getrennt nach offen und erledigt. */
+/** Rendert die aktuelle Liste: offene Artikel nach Kategorie gruppiert, dann erledigte. */
 function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove, onClearChecked }) {
   const { open, done } = useMemo(() => {
     const groups = { open: [], done: [] };
     for (const item of items) (item.checked ? groups.done : groups.open).push(item);
     return groups;
   }, [items]);
+
+  // Offene Artikel nach Kategorie gruppieren (in Kategorie-Reihenfolge).
+  const openGroups = useMemo(() => {
+    const byCategory = new Map();
+    for (const item of open) {
+      const key = item.category || '__other';
+      if (!byCategory.has(key)) byCategory.set(key, []);
+      byCategory.get(key).push(item);
+    }
+    return [...byCategory.entries()]
+      .map(([key, groupItems]) => ({
+        info: categoryInfo(key === '__other' ? null : key),
+        items: groupItems,
+      }))
+      .sort((a, b) => a.info.order - b.info.order);
+  }, [open]);
 
   if (items.length === 0) {
     return (
@@ -41,7 +58,17 @@ function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove
           <span className="list-section__count">{open.length} offen</span>
         </div>
         {open.length > 0 ? (
-          <ul className="list">{renderItems(open)}</ul>
+          openGroups.map((group) => (
+            <div className="list-group" key={group.info.id}>
+              <h3 className="list-group__header">
+                <span className="list-group__emoji" aria-hidden="true">
+                  {group.info.emoji}
+                </span>
+                {group.info.name}
+              </h3>
+              <ul className="list">{renderItems(group.items)}</ul>
+            </div>
+          ))
         ) : (
           <p className="empty__text" style={{ paddingLeft: 4 }}>
             Alles erledigt! 🎉

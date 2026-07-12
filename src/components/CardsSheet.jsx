@@ -27,33 +27,34 @@ const CardView = memo(function CardView({ card, expanded, onToggle, onDelete }) 
   const codeType = cardCodeType(card);
   return (
     <li className="card" data-expanded={expanded}>
-      <button
-        type="button"
-        className="card__head"
-        style={{ background: meta.color }}
-        onClick={() => onToggle(card.id)}
-        aria-expanded={expanded}
-      >
-        <span className="card__label">{card.name || meta.label}</span>
-        <ChevronDown className="card__chevron" size={20} aria-hidden="true" />
-      </button>
+      <div className="card__head" style={{ background: meta.color }}>
+        <button
+          type="button"
+          className="card__toggle"
+          onClick={() => onToggle(card.id)}
+          aria-expanded={expanded}
+        >
+          <span className="card__label">{card.name || meta.label}</span>
+          <ChevronDown className="card__chevron" size={20} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="card__delete"
+          onClick={() => onDelete(card.id)}
+          aria-label={`${card.name || meta.label} löschen`}
+        >
+          <Trash2 size={18} aria-hidden="true" />
+        </button>
+      </div>
 
       {expanded && (
         <div className="card__codes">
           {codeType === 'barcode' ? (
             <Barcode value={content} format={barcodeFormat(content)} />
           ) : (
-            <QRCode value={content} />
+            <QRCode value={content} size={264} />
           )}
           {card.number && <span className="card__number">{card.number}</span>}
-          <button
-            type="button"
-            className="text-button card__delete"
-            onClick={() => onDelete(card.id)}
-          >
-            <Trash2 size={16} aria-hidden="true" />
-            Löschen
-          </button>
         </div>
       )}
     </li>
