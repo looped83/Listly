@@ -68,24 +68,30 @@ function CardsSheet({ onClose }) {
   // undefined = "Standard" (erste Karte offen); sonst explizit gewählte/keine.
   const [openId, setOpenId] = useState(undefined);
 
-  // Swipe-nach-unten zum Schließen (oberer Bereich).
+  // Swipe-nach-unten zum Schließen: wirksam, wenn die Geste in der Leiste
+  // beginnt oder der scrollbare Bereich bereits ganz oben steht.
+  const bodyRef = useRef(null);
   const dragStartY = useRef(0);
   const dragging = useRef(false);
+  const canDismiss = useRef(false);
   const [dragY, setDragY] = useState(0);
 
   const onDragStart = useCallback((e) => {
+    const inBar = Boolean(e.target.closest?.('.sheet__bar'));
+    const atTop = (bodyRef.current?.scrollTop ?? 0) <= 0;
+    canDismiss.current = inBar || atTop;
     dragStartY.current = e.touches[0].clientY;
     dragging.current = true;
   }, []);
   const onDragMove = useCallback((e) => {
-    if (!dragging.current) return;
+    if (!dragging.current || !canDismiss.current) return;
     setDragY(Math.max(0, e.touches[0].clientY - dragStartY.current));
   }, []);
   const onDragEnd = useCallback(() => {
     if (!dragging.current) return;
     dragging.current = false;
     setDragY((current) => {
-      if (current > 100) onClose();
+      if (current > 90) onClose();
       return 0;
     });
   }, [onClose]);
@@ -143,14 +149,12 @@ function CardsSheet({ onClose }) {
       aria-modal="true"
       aria-label="Kundenkarten"
       onClick={closeOnBackdrop}
+      onTouchStart={onDragStart}
+      onTouchMove={onDragMove}
+      onTouchEnd={onDragEnd}
       style={{ transform: dragY ? `translateY(${dragY}px)` : undefined, transition: dragY ? 'none' : 'transform 0.25s ease' }}
     >
-      <div
-        className="sheet__bar"
-        onTouchStart={onDragStart}
-        onTouchMove={onDragMove}
-        onTouchEnd={onDragEnd}
-      >
+      <div className="sheet__bar">
         <span className="sheet__grabber" aria-hidden="true" />
         <h2 className="sheet__title">Kundenkarten</h2>
         <button type="button" className="icon-button" onClick={onClose} aria-label="Schließen">
@@ -158,7 +162,7 @@ function CardsSheet({ onClose }) {
         </button>
       </div>
 
-      <div className="sheet__body" onClick={closeOnBackdrop}>
+      <div className="sheet__body" ref={bodyRef} onClick={closeOnBackdrop}>
         {cards.length === 0 && !adding && (
           <p className="sheet__hint">
             Noch keine Karte hinterlegt. Füge deine Karten hinzu – sie werden nur lokal auf diesem
