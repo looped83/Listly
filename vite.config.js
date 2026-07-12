@@ -4,6 +4,10 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // theme_color entspricht dem Papier-Look des Light Mode; im Betrieb wird die
 // <meta name="theme-color"> zur Laufzeit an den aktiven Modus angepasst.
+//
+// `test` wird nur von Vitest gelesen (vite build/dev ignoriert unbekannte
+// Felder) – eine separate vitest.config.js hätte den React-/PWA-Plugin-Setup
+// duplizieren müssen.
 export default defineConfig({
   // Relative Asset-Pfade: die App funktioniert am Server-Root, unter einem
   // Unterpfad und auch direkt aus dem Dateisystem geöffnet (file://).
@@ -46,4 +50,10 @@ export default defineConfig({
       },
     }),
   ],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/setupTests.js'],
+    css: false,
+  },
 });
