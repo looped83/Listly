@@ -214,7 +214,7 @@ function CardsSheet({ onClose }) {
               className="card-form__input card-form__textarea"
               value={form.code}
               onChange={(e) => update({ code: e.target.value })}
-              placeholder="z. B. [redacted]"
+              placeholder="Code-Inhalt einfügen"
               autoComplete="off"
               rows={2}
             />

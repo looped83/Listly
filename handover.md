@@ -168,13 +168,17 @@ Workbox-Cache wird via `cleanupOutdatedCaches/skipWaiting/clientsClaim` erneuert
     CODE128 – siehe `barcodeFormat`).
 - **Wichtig – warum „exakter Inhalt“:** Original-QRs kodieren oft **mehr als die
   gedruckte Nummer** (Prüfziffer/Token). Aus reiner Nummer erzeugte Codes sehen
-  anders aus und scannen ggf. nicht. Die echten Inhalte wurden aus Screenshots
-  ausgelesen. Bekannte Werte (nicht committen – nur zur Referenz):
-  - **Lidl** (QR): `[redacted]` (gedruckte Nr. + Prüfziffer `1`)
-  - **Payback** (Barcode): `[redacted]`
-  - **dm** (QR): langer Token, beginnt mit `[redacted]…` → **kann zeitlich
+  anders aus und scannen ggf. nicht. Die echten Inhalte lassen sich aus einem
+  Screenshot der jeweiligen Karte dekodieren (z. B. mit einer QR-Decode-Bibliothek
+  wie `jsqr`/`@zxing/library` bzw. für 1D-Barcodes einem Barcode-Reader).
+  Konkrete Karten­inhalte werden hier **bewusst nicht dokumentiert**
+  (persönliche Daten, öffentliches Repo); sie liegen nur lokal auf den Geräten.
+  Merkmale je Händler:
+  - **Lidl** (QR): gedruckte Kartennummer **plus** eine zusätzliche Prüfziffer.
+  - **Payback** (Barcode, CODE128/EAN-13): die 13-stellige Payback-Nummer.
+  - **dm** (QR): langer kombinierter Token (dm + Payback) → **kann zeitlich
     rotieren**; falls er an der Kasse nicht mehr geht, neuen Screenshot dekodieren.
-  - **REWE** (QR): `[redacted]`
+  - **REWE** (QR): strukturierter Loyalty-Payload (`REWEDTP#…`) mit der Treue-Nummer.
 - **UI:** Akkordeon – nur eine Karte offen (erste per Default), Klick klappt um.
   Löschen sitzt in der farbigen Titelleiste. QR/Barcode werden auf **weißem**
   Grund gerendert (unabhängig vom Dark Mode scannbar).
