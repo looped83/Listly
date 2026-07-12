@@ -431,7 +431,10 @@ input {
 
 .list-item[data-checked='true'] {
   background: var(--surface-sunken);
-  opacity: 0.62;
+}
+
+.list-item[data-checked='true'] .list-item__icon {
+  opacity: 0.5;
 }
 
 .list-item__check {

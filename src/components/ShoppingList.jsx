@@ -4,7 +4,20 @@ import ListItem from './ListItem';
 import { normalizeName } from '../lib/history';
 import { categoryInfo } from '../lib/icons';
 
-/** Rendert die aktuelle Liste: offene Artikel nach Kategorie gruppiert, dann erledigte. */
+/** Artikel nach Kategorie gruppieren (in Kategorie-Reihenfolge). */
+function groupByCategory(list) {
+  const byCategory = new Map();
+  for (const item of list) {
+    const key = item.category || '__other';
+    if (!byCategory.has(key)) byCategory.set(key, []);
+    byCategory.get(key).push(item);
+  }
+  return [...byCategory.entries()]
+    .map(([key, items]) => ({ info: categoryInfo(key === '__other' ? null : key), items }))
+    .sort((a, b) => a.info.order - b.info.order);
+}
+
+/** Rendert die aktuelle Liste: offene und erledigte Artikel je nach Kategorie gruppiert. */
 function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove, onClearChecked }) {
   const { open, done } = useMemo(() => {
     const groups = { open: [], done: [] };
@@ -12,21 +25,8 @@ function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove
     return groups;
   }, [items]);
 
-  // Offene Artikel nach Kategorie gruppieren (in Kategorie-Reihenfolge).
-  const openGroups = useMemo(() => {
-    const byCategory = new Map();
-    for (const item of open) {
-      const key = item.category || '__other';
-      if (!byCategory.has(key)) byCategory.set(key, []);
-      byCategory.get(key).push(item);
-    }
-    return [...byCategory.entries()]
-      .map(([key, groupItems]) => ({
-        info: categoryInfo(key === '__other' ? null : key),
-        items: groupItems,
-      }))
-      .sort((a, b) => a.info.order - b.info.order);
-  }, [open]);
+  const openGroups = useMemo(() => groupByCategory(open), [open]);
+  const doneGroups = useMemo(() => groupByCategory(done), [done]);
 
   if (items.length === 0) {
     return (
@@ -50,6 +50,20 @@ function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove
       />
     ));
 
+  const renderGroup = (group, showEmoji) => (
+    <div className="list-group" key={group.info.id}>
+      <h3 className="list-group__header">
+        {showEmoji && (
+          <span className="list-group__emoji" aria-hidden="true">
+            {group.info.emoji}
+          </span>
+        )}
+        {group.info.name}
+      </h3>
+      <ul className="list">{renderItems(group.items)}</ul>
+    </div>
+  );
+
   return (
     <>
       <section aria-label="Offene Artikel">
@@ -58,17 +72,7 @@ function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove
           <span className="list-section__count">{open.length} offen</span>
         </div>
         {open.length > 0 ? (
-          openGroups.map((group) => (
-            <div className="list-group" key={group.info.id}>
-              <h3 className="list-group__header">
-                <span className="list-group__emoji" aria-hidden="true">
-                  {group.info.emoji}
-                </span>
-                {group.info.name}
-              </h3>
-              <ul className="list">{renderItems(group.items)}</ul>
-            </div>
-          ))
+          openGroups.map((group) => renderGroup(group, true))
         ) : (
           <p className="empty__text" style={{ paddingLeft: 4 }}>
             Alles erledigt! 🎉
@@ -82,7 +86,7 @@ function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove
             <h2 className="list-section__title">Erledigt</h2>
             <span className="list-section__count">{done.length}</span>
           </div>
-          <ul className="list">{renderItems(done)}</ul>
+          {doneGroups.map((group) => renderGroup(group, false))}
           <div className="list-actions">
             <button type="button" className="text-button" onClick={onClearChecked}>
               <Trash2 size={16} aria-hidden="true" />
