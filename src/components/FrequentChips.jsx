@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Sparkles, X } from 'lucide-react';
-import { getItemIcon } from '../lib/icons';
+import ProductIcon from './ProductIcon';
 import { normalizeName } from '../lib/history';
 
 /**
@@ -19,7 +19,6 @@ function FrequentChips({ items, onAdd, onRemove }) {
       </h2>
       <div className="chips__list">
         {items.map((entry) => {
-          const Icon = getItemIcon(entry.name, entry.category);
           return (
             <div className="chip" key={normalizeName(entry.name)}>
               <button
@@ -27,7 +26,7 @@ function FrequentChips({ items, onAdd, onRemove }) {
                 className="chip__add"
                 onClick={() => onAdd(entry.name, entry.category)}
               >
-                <Icon size={16} className="chip__icon" aria-hidden="true" />
+                <ProductIcon name={entry.name} category={entry.category} className="chip__icon" />
                 <span className="chip__name">{entry.name}</span>
                 <span className="chip__count">×{entry.count}</span>
               </button>

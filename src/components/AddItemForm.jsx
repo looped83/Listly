@@ -1,7 +1,7 @@
 import { memo, useCallback, useId, useMemo, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { buildSuggestions } from '../lib/suggestions';
-import { getItemIcon } from '../lib/icons';
+import ProductIcon from './ProductIcon';
 import { normalizeName } from '../lib/history';
 
 // Kennzeichnung der Vorschlagsquelle; Basisartikel erhalten bewusst kein Tag.
@@ -12,7 +12,6 @@ const SOURCE_LABEL = {
 
 /** Ein einzelner Vorschlagseintrag inkl. passendem Icon. */
 const SuggestionRow = memo(function SuggestionRow({ suggestion, active, onPick, onHover }) {
-  const Icon = getItemIcon(suggestion.name, suggestion.category);
   return (
     <li>
       <button
@@ -25,9 +24,11 @@ const SuggestionRow = memo(function SuggestionRow({ suggestion, active, onPick, 
         onClick={() => onPick(suggestion)}
         onMouseEnter={onHover}
       >
-        <span className="suggestion__icon">
-          <Icon size={18} aria-hidden="true" />
-        </span>
+        <ProductIcon
+          name={suggestion.name}
+          category={suggestion.category}
+          className="suggestion__icon"
+        />
         <span className="suggestion__name">{suggestion.name}</span>
         {SOURCE_LABEL[suggestion.source] && (
           <span className="suggestion__tag">{SOURCE_LABEL[suggestion.source]}</span>

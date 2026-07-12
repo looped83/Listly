@@ -1,14 +1,12 @@
 import { memo, useCallback, useRef, useState } from 'react';
 import { Check, Star, Trash2, X } from 'lucide-react';
-import { getItemIcon } from '../lib/icons';
+import ProductIcon from './ProductIcon';
 
 const SWIPE_THRESHOLD = 80; // px, ab hier wird beim Loslassen gelöscht
 const MAX_SWIPE = 120; // px, maximaler Ausschlag
 
 /** Eine Zeile der Einkaufsliste. Per Swipe nach links löschbar. */
 function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove }) {
-  const Icon = getItemIcon(item.name, item.category);
-
   const start = useRef({ x: 0, y: 0 });
   const dragging = useRef(false);
   const horizontal = useRef(false);
@@ -86,9 +84,7 @@ function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove }) {
           <Check size={16} strokeWidth={3} aria-hidden="true" />
         </button>
 
-        <span className="list-item__icon">
-          <Icon size={20} aria-hidden="true" />
-        </span>
+        <ProductIcon name={item.name} category={item.category} className="list-item__icon" />
 
         <span className="list-item__name">{item.name}</span>
 
