@@ -36,6 +36,9 @@ gemeinsam in Echtzeit genutzt.
 - **qrcode** + **jsbarcode** – Code-Erzeugung für Kundenkarten (Client-seitig)
 - **vite-plugin-pwa** – Manifest + Service Worker
 - Fonts (Fraunces, Inter, IBM Plex Mono) sind **lokal** eingebunden (kein CDN).
+- **Code-Splitting:** `@supabase/supabase-js` (nur im Cloud-Modus) und das
+  Kundenkarten-Modul mit `qrcode`/`jsbarcode` (nur beim Öffnen der Karten) werden
+  **lazy** als eigene Chunks geladen – das initiale JS bleibt schlank.
 
 ```bash
 npm install
@@ -65,7 +68,7 @@ src/
 │   ├── ListItem.jsx        #   Einzelzeile inkl. Swipe-to-delete
 │   ├── ProductIcon.jsx     #   rendert das Emoji eines Artikels
 │   ├── SyncStatus.jsx      #   Live/Verbinde/Offline-Anzeige (oben rechts)
-│   ├── CardsSheet.jsx      #   Kundenkarten-Overlay (Akkordeon, Add/Delete)
+│   ├── CardsSheet.jsx      #   Kundenkarten-Overlay (Akkordeon) – via React.lazy geladen
 │   └── CodeImage.jsx       #   <QRCode> und <Barcode> (qrcode / jsbarcode)
 ├── hooks/
 │   ├── useLocalStorage.js  #   State ↔ localStorage (synchrones Schreiben)
@@ -73,7 +76,7 @@ src/
 │   └── useTheme.js         #   automatischer Dark Mode (prefers-color-scheme)
 ├── lib/
 │   ├── storage.js          #   localStorage-Keys + read/write
-│   ├── supabase.js         #   Client (nur bei gesetzter Config aktiv)
+│   ├── supabase.js         #   Supabase-Client, lazy per dynamischem Import (getSupabase)
 │   ├── supabaseConfig.js   #   ← URL, anon-Key, LIST_ID
 │   ├── history.js          #   Kaufverlauf (Häufigkeit verbuchen)
 │   ├── suggestions.js      #   Autocomplete- & Chip-Logik
@@ -119,6 +122,9 @@ Artikel-Objekt (in App/State): `{ id, name, category, checked, createdAt }`.
   `SUPABASE_ANON_KEY`, `LIST_ID` (aktuell `"rene-und-lutz"`).
 - Sind URL + Key gesetzt → **Cloud-Modus** (`isCloudEnabled` in `lib/supabase.js`).
   Sonst automatischer Fallback auf `localStorage`.
+- **Lazy geladen:** `@supabase/supabase-js` wird erst im Cloud-Modus per
+  dynamischem Import geholt (`getSupabase()`, Ergebnis gecacht) → eigener Chunk,
+  kleiner Initial-Bundle. Alle DB-Zugriffe in `useShoppingItems` sind daher `async`.
 - **`useShoppingItems.js`** kapselt beides: Initialladen (`select`), Realtime-Abo
   (`postgres_changes` gefiltert auf `list_id`), optimistische Updates, sowie
   add/toggle/remove/clearChecked. Bei Fehlern wird neu geladen (`refetch`).
