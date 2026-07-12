@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   favorites: 'listly.favorites',
   history: 'listly.history',
   theme: 'listly.theme',
+  cards: 'listly.cards',
 };
 
 /** Liest und parst einen Wert; fällt bei Fehlern auf `fallback` zurück. */

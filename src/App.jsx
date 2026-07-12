@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useSystemTheme } from './hooks/useTheme';
 import { useShoppingItems } from './hooks/useShoppingItems';
@@ -9,11 +9,13 @@ import AddItemForm from './components/AddItemForm';
 import FrequentChips from './components/FrequentChips';
 import ShoppingList from './components/ShoppingList';
 import SyncStatus from './components/SyncStatus';
-import { ShoppingBasket } from 'lucide-react';
+import CardsSheet from './components/CardsSheet';
+import { ShoppingBasket, Wallet } from 'lucide-react';
 
 export default function App() {
   const [favorites, setFavorites] = useLocalStorage(STORAGE_KEYS.favorites, []);
   const [history, setHistory] = useLocalStorage(STORAGE_KEYS.history, {});
+  const [cardsOpen, setCardsOpen] = useState(false);
   useSystemTheme();
 
   // Erledigte Artikel im (lokalen) Kaufverlauf verbuchen.
@@ -78,7 +80,18 @@ export default function App() {
           </span>
           <h1 className="header__title">Listly</h1>
         </div>
-        <SyncStatus status={status} />
+        <div className="header__actions">
+          <button
+            type="button"
+            className="icon-button icon-button--header"
+            onClick={() => setCardsOpen(true)}
+            aria-label="Kundenkarten öffnen"
+            title="Kundenkarten"
+          >
+            <Wallet size={20} aria-hidden="true" />
+          </button>
+          <SyncStatus status={status} />
+        </div>
       </header>
 
       <main className="content">
@@ -102,6 +115,8 @@ export default function App() {
           existingNames={existingNames}
         />
       </div>
+
+      {cardsOpen && <CardsSheet onClose={() => setCardsOpen(false)} />}
     </div>
   );
 }

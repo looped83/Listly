@@ -560,3 +560,220 @@ input {
   white-space: nowrap;
   border: 0;
 }
+
+/* ---------- Header actions & Kundenkarten-Button ---------- */
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.icon-button--header {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+}
+
+.icon-button--header:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* ---------- Kundenkarten-Sheet ---------- */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet__bar {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(env(safe-area-inset-top), var(--space-4)) var(--space-4) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.sheet__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.4rem;
+}
+
+.sheet__body {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
+}
+
+.sheet__hint {
+  margin: 0 0 var(--space-4);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.cards {
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  color: #ffffff;
+}
+
+.card__label {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.card__delete {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.card__delete:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+/* QR/Barcode immer auf Weiß – damit sie unabhängig vom Farbschema scannbar sind. */
+.card__codes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+  background: #ffffff;
+}
+
+.code__qr {
+  display: block;
+  border-radius: 8px;
+}
+
+.code__barcode {
+  width: 100%;
+  max-width: 280px;
+  height: 64px;
+}
+
+.card__number {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: #222222;
+}
+
+/* ---------- Karte hinzufügen / Formular ---------- */
+.button-add-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.button-add-card:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.card-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+
+.card-form__retailers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.card-form__retailer {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.card-form__retailer[data-active='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.card-form__input {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.card-form__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.card-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.button-primary {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.button-primary:hover {
+  background: var(--accent-hover);
+}
