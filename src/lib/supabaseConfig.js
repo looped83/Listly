@@ -16,8 +16,9 @@
 //  supabase/schema.sql). Bei "offener geteilter Link" ist der Zugriff bewusst
 //  nur durch die (geheime) LIST_ID geschützt.
 //
-export const SUPABASE_URL = '';
-export const SUPABASE_ANON_KEY = '';
+export const SUPABASE_URL = 'https://jdjnncjrrreseqxyvyrp.supabase.co';
+export const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impkam5uY2pycnJlc2VxeHl2eXJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NTMxNDAsImV4cCI6MjA5OTQyOTE0MH0.Nv1imt0UiiZN_5g1W7uC9Oa9RXyCUQO_P4MmXtmOX8k';
 
 //  Gemeinsame Kennung eurer Liste. Beliebiger, schwer zu erratender Text –
 //  beide Geräte nutzen automatisch denselben Wert, weil er fest in der
