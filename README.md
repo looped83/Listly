@@ -46,6 +46,13 @@ npm install      # Abhängigkeiten installieren
 npm run dev      # Dev-Server starten (http://localhost:5173)
 ```
 
+> ⚠️ **Weiße Seite?** Die App muss immer über einen Server laufen. Das direkte
+> Öffnen der Datei `index.html` bzw. `dist/index.html` per Doppelklick
+> (`file://…`) zeigt eine **weiße Seite** – Browser blockieren ES-Module und
+> Service Worker über `file://`. Nutze stattdessen `npm run dev` (Entwicklung)
+> oder `npm run preview` (gebautes Bundle) und öffne die angezeigte
+> `http://localhost:…`-Adresse.
+
 ## Build & Vorschau
 
 ```bash
