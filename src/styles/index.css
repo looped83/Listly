@@ -596,14 +596,28 @@ input {
 }
 
 .sheet__bar {
+  position: relative;
   width: 100%;
   max-width: var(--content-width);
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: max(env(safe-area-inset-top), var(--space-4)) var(--space-4) var(--space-4);
+  padding: max(env(safe-area-inset-top), var(--space-5)) var(--space-4) var(--space-4);
   border-bottom: 1px solid var(--border);
+  /* Swipe-nach-unten hier abgreifen, nicht scrollen. */
+  touch-action: none;
+}
+
+.sheet__grabber {
+  position: absolute;
+  top: calc(max(env(safe-area-inset-top), var(--space-2)));
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
 }
 
 .sheet__title {

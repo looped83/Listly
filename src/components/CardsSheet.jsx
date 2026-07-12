@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
 import { ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { STORAGE_KEYS } from '../lib/storage';
@@ -68,6 +68,36 @@ function CardsSheet({ onClose }) {
   // undefined = "Standard" (erste Karte offen); sonst explizit gewählte/keine.
   const [openId, setOpenId] = useState(undefined);
 
+  // Swipe-nach-unten zum Schließen (oberer Bereich).
+  const dragStartY = useRef(0);
+  const dragging = useRef(false);
+  const [dragY, setDragY] = useState(0);
+
+  const onDragStart = useCallback((e) => {
+    dragStartY.current = e.touches[0].clientY;
+    dragging.current = true;
+  }, []);
+  const onDragMove = useCallback((e) => {
+    if (!dragging.current) return;
+    setDragY(Math.max(0, e.touches[0].clientY - dragStartY.current));
+  }, []);
+  const onDragEnd = useCallback(() => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    setDragY((current) => {
+      if (current > 100) onClose();
+      return 0;
+    });
+  }, [onClose]);
+
+  // Klick auf leere (schwarze) Fläche schließt das Overlay.
+  const closeOnBackdrop = useCallback(
+    (e) => {
+      if (e.target === e.currentTarget) onClose();
+    },
+    [onClose],
+  );
+
   const sorted = sortCards(cards);
   const effectiveOpenId = openId === undefined ? sorted[0]?.id : openId;
 
@@ -107,15 +137,28 @@ function CardsSheet({ onClose }) {
   const remove = useCallback((id) => setCards((prev) => prev.filter((c) => c.id !== id)), [setCards]);
 
   return (
-    <div className="sheet" role="dialog" aria-modal="true" aria-label="Kundenkarten">
-      <div className="sheet__bar">
+    <div
+      className="sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Kundenkarten"
+      onClick={closeOnBackdrop}
+      style={{ transform: dragY ? `translateY(${dragY}px)` : undefined, transition: dragY ? 'none' : 'transform 0.25s ease' }}
+    >
+      <div
+        className="sheet__bar"
+        onTouchStart={onDragStart}
+        onTouchMove={onDragMove}
+        onTouchEnd={onDragEnd}
+      >
+        <span className="sheet__grabber" aria-hidden="true" />
         <h2 className="sheet__title">Kundenkarten</h2>
         <button type="button" className="icon-button" onClick={onClose} aria-label="Schließen">
           <X size={22} aria-hidden="true" />
         </button>
       </div>
 
-      <div className="sheet__body">
+      <div className="sheet__body" onClick={closeOnBackdrop}>
         {cards.length === 0 && !adding && (
           <p className="sheet__hint">
             Noch keine Karte hinterlegt. Füge deine Karten hinzu – sie werden nur lokal auf diesem
