@@ -50,16 +50,9 @@ function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove
       />
     ));
 
-  const renderGroup = (group, showEmoji) => (
+  const renderGroup = (group) => (
     <div className="list-group" key={group.info.id}>
-      <h3 className="list-group__header">
-        {showEmoji && (
-          <span className="list-group__emoji" aria-hidden="true">
-            {group.info.emoji}
-          </span>
-        )}
-        {group.info.name}
-      </h3>
+      <h3 className="list-group__header">{group.info.name}</h3>
       <ul className="list">{renderItems(group.items)}</ul>
     </div>
   );
@@ -72,7 +65,7 @@ function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove
           <span className="list-section__count">{open.length} offen</span>
         </div>
         {open.length > 0 ? (
-          openGroups.map((group) => renderGroup(group, true))
+          openGroups.map((group) => renderGroup(group))
         ) : (
           <p className="empty__text" style={{ paddingLeft: 4 }}>
             Alles erledigt! 🎉
@@ -86,7 +79,7 @@ function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove
             <h2 className="list-section__title">Erledigt</h2>
             <span className="list-section__count">{done.length}</span>
           </div>
-          {doneGroups.map((group) => renderGroup(group, false))}
+          {doneGroups.map((group) => renderGroup(group))}
           <div className="list-actions">
             <button type="button" className="text-button" onClick={onClearChecked}>
               <Trash2 size={16} aria-hidden="true" />

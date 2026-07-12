@@ -13,10 +13,12 @@ const BASE_PRODUCTS = products.products.map((p) => ({
  * Basisliste – priorisiert in genau dieser Reihenfolge, dedupliziert, gefiltert
  * nach der Eingabe. Artikel, die bereits auf der Liste stehen (`excludeNames`,
  * normalisiert), werden ausgeblendet.
+ *
+ * Bei leerer Eingabe (Fokus ohne Text) werden Vorschläge trotzdem gezeigt –
+ * dann führen die häufigsten Artikel aus dem Kaufverlauf.
  */
 export function buildSuggestions(query, { history, favorites, excludeNames }, limit = 6) {
   const q = normalizeName(query);
-  if (!q) return [];
 
   const seen = new Set(excludeNames);
   const result = [];
@@ -24,7 +26,7 @@ export function buildSuggestions(query, { history, favorites, excludeNames }, li
   const consider = (name, category, source) => {
     if (result.length >= limit) return;
     const key = normalizeName(name);
-    if (seen.has(key) || !key.includes(q)) return;
+    if (seen.has(key) || (q && !key.includes(q))) return;
     seen.add(key);
     result.push({ name, category, source });
   };
