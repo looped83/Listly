@@ -1,13 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocalStorage } from './useLocalStorage';
-import { STORAGE_KEYS } from '../lib/storage';
+import { useEffect, useState } from 'react';
 
-// theme_color der <meta>-Angabe je aktivem Modus (an die CSS-Tokens angelehnt).
-const META_THEME_COLOR = {
-  light: '#faf6ee',
-  dark: '#16201b',
-};
-
+// theme-color der <meta>-Angabe je aktivem Modus (an die CSS-Tokens angelehnt).
+const META_THEME_COLOR = { light: '#faf6ee', dark: '#16201b' };
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
 function getSystemTheme() {
@@ -16,40 +10,25 @@ function getSystemTheme() {
 }
 
 /**
- * Verwaltet das Farbschema:
- * - 'system' folgt prefers-color-scheme (reaktiv),
- * - 'light'/'dark' überschreiben manuell,
- * - Auswahl wird in localStorage gespeichert,
- * - setzt data-theme am <html> und aktualisiert die theme-color-Meta.
+ * Wendet automatisch das Farbschema der Systemeinstellung an
+ * (prefers-color-scheme) und hält es reaktiv – ohne manuellen Umschalter.
+ * Setzt data-theme am <html> und aktualisiert die theme-color-Meta.
  */
-export function useTheme() {
-  const [preference, setPreference] = useLocalStorage(STORAGE_KEYS.theme, 'system');
-  const [systemTheme, setSystemTheme] = useState(getSystemTheme);
+export function useSystemTheme() {
+  const [theme, setTheme] = useState(getSystemTheme);
 
   useEffect(() => {
     if (!window.matchMedia) return undefined;
     const media = window.matchMedia(DARK_QUERY);
-    const handleChange = (event) => setSystemTheme(event.matches ? 'dark' : 'light');
+    const handleChange = (event) => setTheme(event.matches ? 'dark' : 'light');
     media.addEventListener('change', handleChange);
     return () => media.removeEventListener('change', handleChange);
   }, []);
 
-  const resolvedTheme = preference === 'system' ? systemTheme : preference;
-
   useEffect(() => {
-    const root = document.documentElement;
-    root.setAttribute('data-theme', resolvedTheme);
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', META_THEME_COLOR[resolvedTheme]);
-  }, [resolvedTheme]);
+    document.documentElement.setAttribute('data-theme', theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', META_THEME_COLOR[theme]);
+  }, [theme]);
 
-  // Zyklus für den manuellen Umschalter: light → dark → system → light.
-  const cycleTheme = useCallback(() => {
-    setPreference((prev) => (prev === 'light' ? 'dark' : prev === 'dark' ? 'system' : 'light'));
-  }, [setPreference]);
-
-  return useMemo(
-    () => ({ preference, resolvedTheme, setPreference, cycleTheme }),
-    [preference, resolvedTheme, setPreference, cycleTheme],
-  );
+  return theme;
 }

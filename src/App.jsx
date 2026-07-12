@@ -1,12 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { useTheme } from './hooks/useTheme';
+import { useSystemTheme } from './hooks/useTheme';
 import { useShoppingItems } from './hooks/useShoppingItems';
 import { STORAGE_KEYS } from './lib/storage';
 import { cleanName, normalizeName, recordPurchase } from './lib/history';
 import { frequentSuggestions } from './lib/suggestions';
-import ThemeToggle from './components/ThemeToggle';
-import SyncStatus from './components/SyncStatus';
 import AddItemForm from './components/AddItemForm';
 import FrequentChips from './components/FrequentChips';
 import ShoppingList from './components/ShoppingList';
@@ -15,7 +13,7 @@ import { ShoppingBasket } from 'lucide-react';
 export default function App() {
   const [favorites, setFavorites] = useLocalStorage(STORAGE_KEYS.favorites, []);
   const [history, setHistory] = useLocalStorage(STORAGE_KEYS.history, {});
-  const { preference, cycleTheme } = useTheme();
+  useSystemTheme();
 
   // Erledigte Artikel im (lokalen) Kaufverlauf verbuchen.
   const handlePurchase = useCallback(
@@ -25,7 +23,7 @@ export default function App() {
     [setHistory],
   );
 
-  const { items, status, addItem, toggleItem, removeItem, clearChecked } = useShoppingItems({
+  const { items, addItem, toggleItem, removeItem, clearChecked } = useShoppingItems({
     onPurchase: handlePurchase,
   });
 
@@ -56,6 +54,20 @@ export default function App() {
     [setFavorites],
   );
 
+  // Einen Artikel aus dem Kaufverlauf (und damit den Vorschlags-Chips) löschen.
+  const removeFromHistory = useCallback(
+    (rawName) => {
+      const key = normalizeName(rawName);
+      setHistory((prev) => {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    },
+    [setHistory],
+  );
+
   return (
     <div className="app">
       <header className="header">
@@ -68,13 +80,10 @@ export default function App() {
             <p className="header__subtitle">Deine vegane Einkaufsliste</p>
           </div>
         </div>
-        <div className="header__actions">
-          <SyncStatus status={status} />
-          <ThemeToggle preference={preference} onCycle={cycleTheme} />
-        </div>
       </header>
 
       <main className="content">
+        <FrequentChips items={frequentItems} onAdd={addItem} onRemove={removeFromHistory} />
         <ShoppingList
           items={items}
           favoriteSet={favoriteSet}
@@ -85,9 +94,8 @@ export default function App() {
         />
       </main>
 
-      {/* Untere Eingabeleiste – in Daumen-Reichweite, direkt nutzbar. */}
+      {/* Untere Eingabeleiste – positionsstabil, in Daumen-Reichweite. */}
       <div className="dock">
-        <FrequentChips items={frequentItems} onAdd={addItem} />
         <AddItemForm
           onAdd={addItem}
           history={history}
