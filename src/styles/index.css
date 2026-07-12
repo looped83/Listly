@@ -112,6 +112,52 @@ input {
   color: var(--text-muted);
 }
 
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* ---------- Sync status badge ---------- */
+.sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.sync[data-tone='ok'] {
+  color: var(--accent-text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.sync[data-tone='pending'] {
+  color: var(--amber-text);
+  border-color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.sync[data-tone='error'] {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+@media (max-width: 400px) {
+  .sync__label {
+    display: none;
+  }
+}
+
 /* ---------- Theme toggle ---------- */
 .theme-toggle {
   display: inline-flex;

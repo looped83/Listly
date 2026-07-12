@@ -86,6 +86,34 @@ Danach ist die App unter `https://<user>.github.io/<repo>/` erreichbar
 laden (Strg+Shift+R). Da `base: './'` gesetzt ist, funktioniert die App sowohl
 unter diesem Unterpfad als auch am Server-Root.
 
+## Geteilte Liste (Supabase) – optional
+
+Standardmäßig speichert Listly alles **lokal** (localStorage). Damit sich mehrere
+Personen/Geräte **dieselbe Liste in Echtzeit** teilen, kann eine kostenlose
+[Supabase](https://supabase.com)-Datenbank angebunden werden. Nur die aktuelle
+**Liste** wird geteilt; Favoriten und Kaufverlauf bleiben pro Gerät lokal.
+
+**Einrichtung (einmalig, ~10 Min):**
+
+1. Auf [supabase.com](https://supabase.com) kostenlos ein Projekt anlegen.
+2. Im Dashboard: **SQL Editor → New query**, den Inhalt von
+   [`supabase/schema.sql`](supabase/schema.sql) einfügen und **Run** klicken.
+   (Legt die Tabelle an, aktiviert die Zugriffsregeln und Realtime.)
+3. Unter **Project Settings → API** die **Project URL** und den **anon public**
+   Key kopieren.
+4. In [`src/lib/supabaseConfig.js`](src/lib/supabaseConfig.js) eintragen
+   (`SUPABASE_URL`, `SUPABASE_ANON_KEY`), optional `LIST_ID` anpassen.
+5. Committen und pushen – der Deploy-Workflow baut und veröffentlicht automatisch.
+
+Danach zeigt der Header **„Live“** statt „Lokal“, und alle Geräte, die die App
+öffnen, sehen denselben Stand (Änderungen erscheinen innerhalb ~1 Sekunde).
+
+> ⚠️ **Datenschutz-Hinweis:** Beim gewählten Modell „offener geteilter Link“ (kein
+> Login) sind `SUPABASE_URL`, der anon-Key und die `LIST_ID` in der öffentlich
+> ausgelieferten App enthalten. Wer diese kennt, kann die Liste theoretisch lesen
+> und ändern. Für eine Einkaufsliste ist das meist unkritisch – lege dort keine
+> sensiblen Daten ab. Für echten Zugriffsschutz wäre eine Login-Variante nötig.
+
 ## Icons anpassen
 
 Die PWA-Icons unter [`public/icons/`](public/icons) sind Platzhalter
@@ -118,12 +146,16 @@ src/
 │   ├── FrequentChips.jsx   #   Schnellauswahl häufig gekaufter Artikel
 │   ├── ShoppingList.jsx    #   Liste (offen / erledigt)
 │   ├── ListItem.jsx        #   Einzelzeile
+│   ├── SyncStatus.jsx      #   Anzeige Live/Lokal-Sync
 │   └── ThemeToggle.jsx     #   Farbschema-Umschalter
 ├── hooks/
 │   ├── useLocalStorage.js  #   State ↔ localStorage
+│   ├── useShoppingItems.js #   Liste: geteilt (Supabase) oder lokal
 │   └── useTheme.js         #   Farbschema + prefers-color-scheme
 ├── lib/
 │   ├── storage.js          #   localStorage-Zugriff (Keys, read/write)
+│   ├── supabase.js         #   Supabase-Client (nur bei Konfiguration aktiv)
+│   ├── supabaseConfig.js   #   ← hier Zugangsdaten eintragen
 │   ├── history.js          #   Kaufverlauf (Häufigkeit verbuchen)
 │   ├── suggestions.js      #   Autocomplete- & Chip-Logik
 │   └── icons.js            #   Icon-Auflösung Produkt → Kategorie → Fallback

@@ -1,28 +1,35 @@
 import { useCallback, useMemo } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useTheme } from './hooks/useTheme';
+import { useShoppingItems } from './hooks/useShoppingItems';
 import { STORAGE_KEYS } from './lib/storage';
 import { cleanName, normalizeName, recordPurchase } from './lib/history';
-import { getKnownCategory } from './lib/icons';
 import { frequentSuggestions } from './lib/suggestions';
 import ThemeToggle from './components/ThemeToggle';
+import SyncStatus from './components/SyncStatus';
 import AddItemForm from './components/AddItemForm';
 import FrequentChips from './components/FrequentChips';
 import ShoppingList from './components/ShoppingList';
 import { ShoppingBasket } from 'lucide-react';
 
-const createId = () =>
-  typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
 export default function App() {
-  const [items, setItems] = useLocalStorage(STORAGE_KEYS.items, []);
   const [favorites, setFavorites] = useLocalStorage(STORAGE_KEYS.favorites, []);
   const [history, setHistory] = useLocalStorage(STORAGE_KEYS.history, {});
   const { preference, cycleTheme } = useTheme();
 
-  // Abgeleitete Nachschlage-Sets – memoisiert, um unnötige Neuberechnungen zu vermeiden.
+  // Erledigte Artikel im (lokalen) Kaufverlauf verbuchen.
+  const handlePurchase = useCallback(
+    (purchased) => {
+      setHistory((prev) => purchased.reduce((acc, item) => recordPurchase(acc, item), prev));
+    },
+    [setHistory],
+  );
+
+  const { items, status, addItem, toggleItem, removeItem, clearChecked } = useShoppingItems({
+    onPurchase: handlePurchase,
+  });
+
+  // Abgeleitete Nachschlage-Sets – memoisiert gegen unnötige Neuberechnungen.
   const existingNames = useMemo(
     () => new Set(items.map((item) => normalizeName(item.name))),
     [items],
@@ -34,43 +41,6 @@ export default function App() {
   const frequentItems = useMemo(
     () => frequentSuggestions(history, { excludeNames: existingNames }),
     [history, existingNames],
-  );
-
-  const addItem = useCallback(
-    (rawName, category) => {
-      const name = cleanName(rawName);
-      const key = normalizeName(name);
-      if (!key) return;
-
-      setItems((prev) => {
-        const existing = prev.find((item) => normalizeName(item.name) === key);
-        // Bereits vorhanden: reaktivieren statt Dublette anzulegen.
-        if (existing) {
-          return existing.checked
-            ? prev.map((item) => (item.id === existing.id ? { ...item, checked: false } : item))
-            : prev;
-        }
-        const resolvedCategory = category ?? getKnownCategory(name);
-        return [...prev, { id: createId(), name, category: resolvedCategory, checked: false }];
-      });
-    },
-    [setItems],
-  );
-
-  const toggleItem = useCallback(
-    (id) => {
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, checked: !item.checked } : item)),
-      );
-    },
-    [setItems],
-  );
-
-  const removeItem = useCallback(
-    (id) => {
-      setItems((prev) => prev.filter((item) => item.id !== id));
-    },
-    [setItems],
   );
 
   const toggleFavorite = useCallback(
@@ -86,19 +56,6 @@ export default function App() {
     [setFavorites],
   );
 
-  // Erledigte Artikel im Kaufverlauf verbuchen (Häufigkeit ++) und aus der Liste entfernen.
-  const clearChecked = useCallback(() => {
-    setItems((prev) => {
-      const checked = prev.filter((item) => item.checked);
-      if (checked.length > 0) {
-        setHistory((prevHistory) =>
-          checked.reduce((acc, item) => recordPurchase(acc, item), prevHistory),
-        );
-      }
-      return prev.filter((item) => !item.checked);
-    });
-  }, [setItems, setHistory]);
-
   return (
     <div className="app">
       <header className="header">
@@ -111,7 +68,10 @@ export default function App() {
             <p className="header__subtitle">Deine vegane Einkaufsliste</p>
           </div>
         </div>
-        <ThemeToggle preference={preference} onCycle={cycleTheme} />
+        <div className="header__actions">
+          <SyncStatus status={status} />
+          <ThemeToggle preference={preference} onCycle={cycleTheme} />
+        </div>
       </header>
 
       <main className="content">
