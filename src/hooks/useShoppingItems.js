@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isCloudEnabled, supabase, rowToItem, TABLE, LIST_ID } from '../lib/supabase';
+import { isCloudEnabled, getSupabase, rowToItem, TABLE, LIST_ID } from '../lib/supabase';
 import { readStorage, writeStorage, STORAGE_KEYS } from '../lib/storage';
 import { cleanName, normalizeName } from '../lib/history';
 import { getKnownCategory } from '../lib/icons';
@@ -43,6 +43,7 @@ export function useShoppingItems({ onPurchase } = {}) {
   // ── Cloud: Initialladen + Realtime-Abo ──────────────────────────────────────
   const refetch = useCallback(async () => {
     if (!isCloudEnabled) return;
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from(TABLE)
       .select('*')
@@ -60,37 +61,43 @@ export function useShoppingItems({ onPurchase } = {}) {
     if (!isCloudEnabled) return undefined;
 
     let active = true;
+    let channel = null;
     refetch();
 
-    const channel = supabase
-      .channel(`list_items:${LIST_ID}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: TABLE, filter: `list_id=eq.${LIST_ID}` },
-        (payload) => {
+    // Client wird lazy geladen; Abo erst aufbauen, wenn er bereit ist.
+    getSupabase().then((supabase) => {
+      if (!active || !supabase) return;
+      channel = supabase
+        .channel(`list_items:${LIST_ID}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: TABLE, filter: `list_id=eq.${LIST_ID}` },
+          (payload) => {
+            if (!active) return;
+            setItems((prev) => {
+              if (payload.eventType === 'DELETE') {
+                return prev.filter((it) => it.id !== payload.old.id);
+              }
+              const item = rowToItem(payload.new);
+              const exists = prev.some((it) => it.id === item.id);
+              const next = exists
+                ? prev.map((it) => (it.id === item.id ? item : it))
+                : [...prev, item];
+              return next.sort(byCreatedAt);
+            });
+          },
+        )
+        .subscribe((state) => {
           if (!active) return;
-          setItems((prev) => {
-            if (payload.eventType === 'DELETE') {
-              return prev.filter((it) => it.id !== payload.old.id);
-            }
-            const item = rowToItem(payload.new);
-            const exists = prev.some((it) => it.id === item.id);
-            const next = exists
-              ? prev.map((it) => (it.id === item.id ? item : it))
-              : [...prev, item];
-            return next.sort(byCreatedAt);
-          });
-        },
-      )
-      .subscribe((state) => {
-        if (!active) return;
-        if (state === 'SUBSCRIBED') setStatus('live');
-        else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT') setStatus('error');
-      });
+          if (state === 'SUBSCRIBED') setStatus('live');
+          else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT') setStatus('error');
+        });
+    });
 
     return () => {
       active = false;
-      supabase.removeChannel(channel);
+      // Abräumen, sobald der Client verfügbar ist (gecacht, kein erneuter Import).
+      if (channel) getSupabase().then((supabase) => supabase?.removeChannel(channel));
     };
   }, [refetch]);
 
@@ -120,6 +127,7 @@ export function useShoppingItems({ onPurchase } = {}) {
       applyItems((prev) => [...prev, item]); // optimistisch
 
       if (isCloudEnabled) {
+        const supabase = await getSupabase();
         const { error } = await supabase.from(TABLE).insert({
           id: item.id,
           list_id: LIST_ID,
@@ -144,6 +152,7 @@ export function useShoppingItems({ onPurchase } = {}) {
       applyItems((prev) => prev.map((it) => (it.id === id ? { ...it, checked } : it)));
 
       if (isCloudEnabled) {
+        const supabase = await getSupabase();
         const { error } = await supabase.from(TABLE).update({ checked }).eq('id', id);
         if (error) refetch();
       }
@@ -155,6 +164,7 @@ export function useShoppingItems({ onPurchase } = {}) {
     async (id) => {
       applyItems((prev) => prev.filter((it) => it.id !== id));
       if (isCloudEnabled) {
+        const supabase = await getSupabase();
         const { error } = await supabase.from(TABLE).delete().eq('id', id);
         if (error) refetch();
       }
@@ -171,6 +181,7 @@ export function useShoppingItems({ onPurchase } = {}) {
     applyItems((prev) => prev.filter((it) => !it.checked));
 
     if (isCloudEnabled) {
+      const supabase = await getSupabase();
       const { error } = await supabase
         .from(TABLE)
         .delete()
