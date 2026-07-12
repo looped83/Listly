@@ -69,6 +69,23 @@ npm run preview  # gebautes Bundle lokal servieren
 3. Über das Browser-Menü **„Zum Startbildschirm hinzufügen“ / „App installieren“**
    wählen. Listly startet danach im Standalone-Modus.
 
+## Deployment auf GitHub Pages
+
+Der Workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) baut
+die App bei jedem Push automatisch und veröffentlicht den fertigen `dist/`-Ordner
+im Branch `gh-pages`. **Wichtig:** GitHub Pages darf **nicht** die Quelldateien
+ausliefern, sondern muss den gebauten Branch nutzen.
+
+Einmalige Einstellung in **Settings → Pages → „Build and deployment“**:
+
+- **Source:** „Deploy from a branch“
+- **Branch:** `gh-pages` / `/ (root)`
+
+Danach ist die App unter `https://<user>.github.io/<repo>/` erreichbar
+(z. B. `https://looped83.github.io/Listly/`). Beim ersten Aufruf einmal hart neu
+laden (Strg+Shift+R). Da `base: './'` gesetzt ist, funktioniert die App sowohl
+unter diesem Unterpfad als auch am Server-Root.
+
 ## Icons anpassen
 
 Die PWA-Icons unter [`public/icons/`](public/icons) sind Platzhalter

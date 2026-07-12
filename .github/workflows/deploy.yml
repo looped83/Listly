@@ -1,8 +1,11 @@
 name: Deploy to GitHub Pages
 
-# Baut die App und veröffentlicht den dist/-Ordner auf GitHub Pages.
-# WICHTIG: In den Repo-Einstellungen unter Settings → Pages die Quelle
-# ("Source") auf "GitHub Actions" stellen (nicht "Deploy from a branch").
+# Baut die App und veröffentlicht den fertigen dist/-Ordner in den Branch
+# "gh-pages". Danach in den Repo-Einstellungen unter Settings → Pages die
+# Quelle auf "Deploy from a branch" → Branch "gh-pages" / "/ (root)" stellen.
+#
+# Dieser Weg funktioniert aus jedem Branch heraus (keine Einschränkung auf den
+# Default-Branch) und kommt ohne zusätzliche Actions von Drittanbietern aus.
 
 on:
   push:
@@ -12,17 +15,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
-# Gleichzeitige Deployments vermeiden; laufende dürfen abschließen.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: gh-pages-deploy
+  cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,16 +32,15 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      # .nojekyll verhindert die Jekyll-Verarbeitung durch GitHub Pages.
+      - run: touch dist/.nojekyll
+      - name: Publish to gh-pages branch
+        run: |
+          cd dist
+          git init -q
+          git checkout -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Deploy ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
