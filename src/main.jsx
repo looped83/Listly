@@ -1,7 +1,12 @@
 import { Component, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
+import { runMigrations } from './lib/schema';
 import './styles/index.css';
+
+// localStorage-Schema migrieren/validieren, BEVOR React (und damit die Hooks)
+// die App-Daten erstmals lesen. Idempotent und defensiv – wirft nie.
+runMigrations();
 
 // Zoom unterbinden (iOS beachtet user-scalable im Viewport nicht zuverlässig):
 // Pinch-Gesten und Doppeltipp-Zoom abfangen.

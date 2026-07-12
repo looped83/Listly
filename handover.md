@@ -104,12 +104,16 @@ Alle Keys in `src/lib/storage.js` (`STORAGE_KEYS`).
 | localStorage   | `listly.items`     | Liste **nur im lokalen Modus** (wenn Supabase nicht konfiguriert)   |
 | localStorage   | `listly.favorites` | Favoriten `["Hafermilch", …]` (pro Gerät)                           |
 | localStorage   | `listly.history`   | Kaufverlauf `{ [name]: { name, category, count, lastPurchased } }`   |
-| localStorage   | `listly.cards`     | Kundenkarten `[{ id, retailer, name, code, codeType }]` (pro Gerät) |
+| localStorage   | `listly.cards`     | Kundenkarten `[{ id, retailer, name, code, codeType, number? }]` (pro Gerät) |
 | localStorage   | `listly.theme`     | (historisch; wird aktuell **nicht** genutzt, Dark Mode folgt System)|
+| localStorage   | `listly.schemaVersion` | Ganzzahl: Version des localStorage-Schemas (siehe §12)          |
 
 **Wichtig:** Sobald Supabase konfiguriert ist (Standard), lebt die **Liste in
 Supabase** und wird geräteübergreifend synchronisiert. **Favoriten, Kaufverlauf
 und Kundenkarten sind bewusst lokal pro Gerät** – sie werden nicht geteilt.
+
+Der lokale Speicher ist **versioniert** – beim App-Start läuft eine idempotente
+Migrations-/Validierungspipeline (siehe **§12**), bevor Daten gelesen werden.
 
 Artikel-Objekt (in App/State): `{ id, name, category, checked, createdAt }`.
 `category` ist eine Kategorie-`id` aus `products.json` (oder `null` → „Sonstiges“).
@@ -266,3 +270,40 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **Anderes Supabase-Projekt:** neues Projekt anlegen, `schema.sql` ausführen,
   URL + anon-Key in `supabaseConfig.js` eintragen.
 - **Deploy anstoßen:** einfach pushen (Workflow läuft automatisch).
+- **Neue localStorage-Migration:** siehe §12.
+
+---
+
+## 12. localStorage-Schema & Migrationen
+
+Der lokale Speicher ist **explizit versioniert** (`listly.schemaVersion`). Beim
+App-Start ruft `src/main.jsx` **vor dem ersten Datenzugriff** `runMigrations()`
+aus **`src/lib/schema.js`** auf. Die Pipeline ist **idempotent** und **defensiv**:
+
+- **Startversion:** vorhandene Version · `0` (Altdaten ohne Versions-Key) ·
+  `SCHEMA_VERSION` (frische Installation ohne Daten).
+- **Migrationsschritte** (`MIGRATIONS`) laufen der Reihe nach, jeder **genau
+  einmal** (Versions-Gate) – ein erneuter Start wendet sie nicht doppelt an.
+- **Version 1** = das bestehende Datenmodell (items, favorites, history, cards,
+  theme). Der v0→v1-Schritt ist bewusst identisch (keine Strukturänderung).
+- **Defensive Validierung:** je Domäne ein reiner *Sanitizer*. Beschädigte Werte
+  fallen **isoliert** auf einen sicheren Standard zurück (nie der ganze Speicher);
+  **unbekannte Zusatzfelder bleiben erhalten**. Karten (`cards`) sind reine
+  Durchreiche (sensible, gerätelokale Daten – nur Nicht-Objekte werden verworfen).
+- **Zukünftige, höhere Version** im Speicher → die Pipeline fasst nichts an
+  (kein Downgrade).
+- Es werden **nur geänderte Keys** zurückgeschrieben; gültige Daten bleiben
+  byte-identisch → **kein sichtbares Verhalten ändert sich**.
+
+**Eine neue Migration hinzufügen** (`src/lib/schema.js`):
+
+1. `SCHEMA_VERSION` um 1 erhöhen.
+2. In `MIGRATIONS` einen Schritt `{ version, describe, migrate }` ergänzen.
+   `migrate(state)` erhält ein Snapshot-Objekt
+   `{ items, favorites, history, cards, theme }` und gibt ein neues zurück –
+   **pure** (keine Seiteneffekte, kein direkter localStorage-Zugriff).
+3. Schritt **idempotent/defensiv** halten (eine beschädigte Versionsmarke kann
+   eine erneute Anwendung auslösen).
+4. Falls Felder neu/geändert: passenden **Sanitizer** anpassen.
+5. **Test** in `src/lib/__tests__/schema.test.js` ergänzen (Vorlagen: leerer
+   Speicher, Altdaten ohne Version, Teil­beschädigung, Mehrfachlauf, Zukunfts­version).
