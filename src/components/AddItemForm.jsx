@@ -4,10 +4,10 @@ import { buildSuggestions } from '../lib/suggestions';
 import { getItemIcon } from '../lib/icons';
 import { normalizeName } from '../lib/history';
 
+// Kennzeichnung der Vorschlagsquelle; Basisartikel erhalten bewusst kein Tag.
 const SOURCE_LABEL = {
   history: 'Verlauf',
   favorite: 'Favorit',
-  base: 'Vegan',
 };
 
 /** Ein einzelner Vorschlagseintrag inkl. passendem Icon. */
@@ -29,7 +29,9 @@ const SuggestionRow = memo(function SuggestionRow({ suggestion, active, onPick, 
           <Icon size={18} aria-hidden="true" />
         </span>
         <span className="suggestion__name">{suggestion.name}</span>
-        <span className="suggestion__tag">{SOURCE_LABEL[suggestion.source]}</span>
+        {SOURCE_LABEL[suggestion.source] && (
+          <span className="suggestion__tag">{SOURCE_LABEL[suggestion.source]}</span>
+        )}
       </button>
     </li>
   );

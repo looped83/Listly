@@ -106,12 +106,6 @@ input {
   line-height: 1;
 }
 
-.header__subtitle {
-  margin: 2px 0 0;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-}
-
 /* ---------- Live-Sync-Anzeige (oben rechts) ---------- */
 .sync {
   display: inline-flex;

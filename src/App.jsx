@@ -76,10 +76,7 @@ export default function App() {
           <span className="header__logo">
             <ShoppingBasket size={24} aria-hidden="true" />
           </span>
-          <div>
-            <h1 className="header__title">Listly</h1>
-            <p className="header__subtitle">Deine vegane Einkaufsliste</p>
-          </div>
+          <h1 className="header__title">Listly</h1>
         </div>
         <SyncStatus status={status} />
       </header>
