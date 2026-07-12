@@ -1,101 +1,44 @@
-import {
-  Apple,
-  Banana,
-  Bean,
-  Carrot,
-  Cherry,
-  Citrus,
-  Coffee,
-  Cookie,
-  Croissant,
-  CupSoda,
-  Droplet,
-  Flame,
-  Grape,
-  IceCream,
-  Leaf,
-  Milk,
-  Nut,
-  Package,
-  Salad,
-  Sandwich,
-  ShoppingBasket,
-  Snowflake,
-  Soup,
-  Sparkles,
-  SprayCan,
-  Trash2,
-  Wheat,
-} from 'lucide-react';
 import products from '../data/products.json';
 
-// Registry aller im Datensatz referenzierten Icons. Bewusst statisch gehalten,
-// damit lucide-react getreeshaked werden kann (kein dynamischer Import).
-const ICON_REGISTRY = {
-  Apple,
-  Banana,
-  Bean,
-  Carrot,
-  Cherry,
-  Citrus,
-  Coffee,
-  Cookie,
-  Croissant,
-  CupSoda,
-  Droplet,
-  Flame,
-  Grape,
-  IceCream,
-  Leaf,
-  Milk,
-  Nut,
-  Package,
-  Salad,
-  Sandwich,
-  Snowflake,
-  Soup,
-  Sparkles,
-  SprayCan,
-  Trash2,
-  Wheat,
-};
+// Produkt- und Kategorie-Symbole sind Emoji (in products.json gepflegt) – das
+// bietet deutlich mehr Vielfalt als ein monochromer Icon-Satz und kostet nichts
+// im Bundle. UI-Symbole (Häkchen, Stern, …) bleiben lucide-Icons.
 
-// Fallback-Icon für unbekannte Artikel ohne Zuordnung.
-export const FallbackIcon = ShoppingBasket;
+export const DEFAULT_EMOJI = '🛒';
 
 const normalize = (name) => name.trim().toLowerCase();
 
-// Nachschlagetabellen einmalig aus der JSON aufbauen.
 const categoryById = new Map(products.categories.map((c) => [c.id, c]));
+const categoryOrder = new Map(products.categories.map((c, i) => [c.id, i]));
 const productByName = new Map(products.products.map((p) => [normalize(p.name), p]));
 
-/** Icon-Komponente zu einem Registry-Namen (mit Fallback). */
-export function iconByName(name) {
-  return ICON_REGISTRY[name] || FallbackIcon;
-}
+const OTHER_CATEGORY = { id: '__other', name: 'Sonstiges', emoji: '🛒', order: 999 };
 
-/** Kategorie-Metadaten (inkl. Icon-Komponente) zu einer Kategorie-ID. */
-export function getCategory(categoryId) {
-  const category = categoryById.get(categoryId);
-  if (!category) return null;
-  return { ...category, Icon: iconByName(category.icon) };
+/** Metadaten (Name, Emoji, Reihenfolge) einer Kategorie – Fallback „Sonstiges“. */
+export function categoryInfo(categoryId) {
+  const category = categoryId ? categoryById.get(categoryId) : null;
+  if (!category) return OTHER_CATEGORY;
+  return {
+    id: category.id,
+    name: category.name,
+    emoji: category.emoji,
+    order: categoryOrder.get(category.id),
+  };
 }
 
 /**
- * Löst das Icon für einen Artikel auf:
- * 1. produktspezifisches Icon, 2. Kategorie-Icon, 3. Fallback.
- * `category` kann optional mitgegeben werden (z. B. aus History/Favoriten).
+ * Löst das Emoji für einen Artikel auf:
+ * 1. produktspezifisches Emoji, 2. Kategorie-Emoji, 3. Standard.
  */
-export function getItemIcon(name, category) {
+export function getItemEmoji(name, category) {
   const product = productByName.get(normalize(name));
-  const resolvedCategory = category ?? product?.category;
+  if (product?.emoji) return product.emoji;
 
-  if (product?.icon) return iconByName(product.icon);
+  const categoryId = category ?? product?.category;
+  const cat = categoryId ? categoryById.get(categoryId) : null;
+  if (cat?.emoji) return cat.emoji;
 
-  const cat = resolvedCategory ? categoryById.get(resolvedCategory) : null;
-  if (cat?.icon) return iconByName(cat.icon);
-
-  return FallbackIcon;
+  return DEFAULT_EMOJI;
 }
 
 /** Bekannte Kategorie eines Artikels aus der Basisliste (oder null). */

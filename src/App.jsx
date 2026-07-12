@@ -1,28 +1,41 @@
-import { useCallback, useMemo } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { useTheme } from './hooks/useTheme';
+import { useSystemTheme } from './hooks/useTheme';
+import { useShoppingItems } from './hooks/useShoppingItems';
 import { STORAGE_KEYS } from './lib/storage';
 import { cleanName, normalizeName, recordPurchase } from './lib/history';
-import { getKnownCategory } from './lib/icons';
 import { frequentSuggestions } from './lib/suggestions';
-import ThemeToggle from './components/ThemeToggle';
 import AddItemForm from './components/AddItemForm';
 import FrequentChips from './components/FrequentChips';
 import ShoppingList from './components/ShoppingList';
-import { ShoppingBasket } from 'lucide-react';
+import SyncStatus from './components/SyncStatus';
+import { ShoppingBasket, Wallet } from 'lucide-react';
 
-const createId = () =>
-  typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+// Kundenkarten-Overlay lazy laden: es zieht qrcode + jsbarcode nach, die erst
+// beim Öffnen der Karten gebraucht werden. So bleiben sie aus dem Initial-Bundle.
+const CardsSheet = lazy(() => import('./components/CardsSheet'));
 
 export default function App() {
-  const [items, setItems] = useLocalStorage(STORAGE_KEYS.items, []);
   const [favorites, setFavorites] = useLocalStorage(STORAGE_KEYS.favorites, []);
   const [history, setHistory] = useLocalStorage(STORAGE_KEYS.history, {});
-  const { preference, cycleTheme } = useTheme();
+  const [cardsOpen, setCardsOpen] = useState(false);
+  useSystemTheme();
 
-  // Abgeleitete Nachschlage-Sets – memoisiert, um unnötige Neuberechnungen zu vermeiden.
+  const closeCards = useCallback(() => setCardsOpen(false), []);
+
+  // Erledigte Artikel im (lokalen) Kaufverlauf verbuchen.
+  const handlePurchase = useCallback(
+    (purchased) => {
+      setHistory((prev) => purchased.reduce((acc, item) => recordPurchase(acc, item), prev));
+    },
+    [setHistory],
+  );
+
+  const { items, status, addItem, toggleItem, removeItem, clearChecked } = useShoppingItems({
+    onPurchase: handlePurchase,
+  });
+
+  // Abgeleitete Nachschlage-Sets – memoisiert gegen unnötige Neuberechnungen.
   const existingNames = useMemo(
     () => new Set(items.map((item) => normalizeName(item.name))),
     [items],
@@ -34,43 +47,6 @@ export default function App() {
   const frequentItems = useMemo(
     () => frequentSuggestions(history, { excludeNames: existingNames }),
     [history, existingNames],
-  );
-
-  const addItem = useCallback(
-    (rawName, category) => {
-      const name = cleanName(rawName);
-      const key = normalizeName(name);
-      if (!key) return;
-
-      setItems((prev) => {
-        const existing = prev.find((item) => normalizeName(item.name) === key);
-        // Bereits vorhanden: reaktivieren statt Dublette anzulegen.
-        if (existing) {
-          return existing.checked
-            ? prev.map((item) => (item.id === existing.id ? { ...item, checked: false } : item))
-            : prev;
-        }
-        const resolvedCategory = category ?? getKnownCategory(name);
-        return [...prev, { id: createId(), name, category: resolvedCategory, checked: false }];
-      });
-    },
-    [setItems],
-  );
-
-  const toggleItem = useCallback(
-    (id) => {
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, checked: !item.checked } : item)),
-      );
-    },
-    [setItems],
-  );
-
-  const removeItem = useCallback(
-    (id) => {
-      setItems((prev) => prev.filter((item) => item.id !== id));
-    },
-    [setItems],
   );
 
   const toggleFavorite = useCallback(
@@ -86,18 +62,19 @@ export default function App() {
     [setFavorites],
   );
 
-  // Erledigte Artikel im Kaufverlauf verbuchen (Häufigkeit ++) und aus der Liste entfernen.
-  const clearChecked = useCallback(() => {
-    setItems((prev) => {
-      const checked = prev.filter((item) => item.checked);
-      if (checked.length > 0) {
-        setHistory((prevHistory) =>
-          checked.reduce((acc, item) => recordPurchase(acc, item), prevHistory),
-        );
-      }
-      return prev.filter((item) => !item.checked);
-    });
-  }, [setItems, setHistory]);
+  // Einen Artikel aus dem Kaufverlauf (und damit den Vorschlags-Chips) löschen.
+  const removeFromHistory = useCallback(
+    (rawName) => {
+      const key = normalizeName(rawName);
+      setHistory((prev) => {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    },
+    [setHistory],
+  );
 
   return (
     <div className="app">
@@ -106,15 +83,24 @@ export default function App() {
           <span className="header__logo">
             <ShoppingBasket size={24} aria-hidden="true" />
           </span>
-          <div>
-            <h1 className="header__title">Listly</h1>
-            <p className="header__subtitle">Deine vegane Einkaufsliste</p>
-          </div>
+          <h1 className="header__title">Listly</h1>
         </div>
-        <ThemeToggle preference={preference} onCycle={cycleTheme} />
+        <div className="header__actions">
+          <button
+            type="button"
+            className="icon-button icon-button--header"
+            onClick={() => setCardsOpen(true)}
+            aria-label="Kundenkarten öffnen"
+            title="Kundenkarten"
+          >
+            <Wallet size={20} aria-hidden="true" />
+          </button>
+          <SyncStatus status={status} />
+        </div>
       </header>
 
       <main className="content">
+        <FrequentChips items={frequentItems} onAdd={addItem} onRemove={removeFromHistory} />
         <ShoppingList
           items={items}
           favoriteSet={favoriteSet}
@@ -125,9 +111,8 @@ export default function App() {
         />
       </main>
 
-      {/* Untere Eingabeleiste – in Daumen-Reichweite, direkt nutzbar. */}
+      {/* Untere Eingabeleiste – positionsstabil, in Daumen-Reichweite. */}
       <div className="dock">
-        <FrequentChips items={frequentItems} onAdd={addItem} />
         <AddItemForm
           onAdd={addItem}
           history={history}
@@ -135,6 +120,12 @@ export default function App() {
           existingNames={existingNames}
         />
       </div>
+
+      {cardsOpen && (
+        <Suspense fallback={null}>
+          <CardsSheet onClose={closeCards} />
+        </Suspense>
+      )}
     </div>
   );
 }

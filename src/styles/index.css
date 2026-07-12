@@ -8,13 +8,22 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
+  /* Kein Scrollen/Wippen der Gesamtseite – nur die Liste scrollt intern. */
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* Doppeltipp-Zoom verhindern. */
+  touch-action: manipulation;
   background-color: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
@@ -51,12 +60,14 @@ input {
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
+  overflow: hidden;
 }
 
-/* Scrollbarer Inhaltsbereich zwischen Header und Eingabeleiste. */
+/* Einziger scrollbarer Bereich (zwischen Header und fixer Eingabeleiste). */
 .content {
   flex: 1 1 auto;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-2) var(--space-4) var(--space-4);
   -webkit-overflow-scrolling: touch;
 }
@@ -106,35 +117,38 @@ input {
   line-height: 1;
 }
 
-.header__subtitle {
-  margin: 2px 0 0;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-}
-
-/* ---------- Theme toggle ---------- */
-.theme-toggle {
+/* ---------- Live-Sync-Anzeige (oben rechts) ---------- */
+.sync {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 6px 10px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border-strong);
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 500;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
 }
 
-.theme-toggle:hover {
-  background: var(--surface-hover);
-  color: var(--text);
+.sync[data-tone='ok'] {
+  color: var(--accent-text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
-.theme-toggle__label {
-  min-width: 3.2em;
-  text-align: left;
+.sync[data-tone='pending'] {
+  color: var(--amber-text);
+  border-color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.sync[data-tone='error'] {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-soft);
 }
 
 /* ---------- Add form ---------- */
@@ -223,10 +237,11 @@ input {
 }
 
 .suggestion__icon {
-  display: grid;
-  place-items: center;
-  color: var(--accent-text);
   flex-shrink: 0;
+  width: 1.5rem;
+  text-align: center;
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 .suggestion__name {
@@ -248,9 +263,14 @@ input {
   background: var(--surface-sunken);
 }
 
-/* ---------- Frequent chips ---------- */
+/* ---------- Frequent chips (oben angeheftet, horizontal scrollbar) ---------- */
 .chips {
-  margin-bottom: var(--space-3);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  margin: 0 calc(-1 * var(--space-4)) var(--space-3);
+  padding: var(--space-2) var(--space-4);
 }
 
 .chips__heading {
@@ -270,44 +290,65 @@ input {
   flex-wrap: nowrap;
   gap: var(--space-2);
   overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 
-.chip {
-  flex-shrink: 0;
+.chips__list::-webkit-scrollbar {
+  display: none;
 }
 
 .chip {
   display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  align-items: stretch;
+  flex-shrink: 0;
+  scroll-snap-align: start;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--surface);
+  overflow: hidden;
+}
+
+.chip__add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
   color: var(--text);
   font-size: 0.85rem;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.05s ease;
+  white-space: nowrap;
+  transition: background 0.2s ease;
 }
 
-.chip:hover {
+.chip__add:hover {
   background: var(--accent-soft);
-  border-color: var(--accent);
-}
-
-.chip:active {
-  transform: scale(0.96);
 }
 
 .chip__icon {
-  color: var(--accent-text);
+  flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .chip__count {
   font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--text-subtle);
+}
+
+.chip__remove {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  color: var(--text-subtle);
+  border-left: 1px solid var(--border);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.chip__remove:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 /* ---------- List ---------- */
@@ -341,7 +382,37 @@ input {
   gap: var(--space-2);
 }
 
+/* Swipe-to-delete: Wrapper mit rotem „Löschen“-Hintergrund; die Zeile darüber
+   gleitet beim Wischen nach links. */
+.swipe {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.swipe__hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: var(--space-4);
+  background: var(--danger);
+  color: #fff;
+}
+
+.swipe[data-removing='true'] {
+  transition: max-height 0.2s ease, margin 0.2s ease;
+  max-height: 0;
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.swipe[data-removing='true'] .list-item {
+  transform: translateX(-110%);
+}
+
 .list-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -350,12 +421,20 @@ input {
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
+  touch-action: pan-y;
   transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.list-item[data-animating='true'] {
+  transition: transform 0.2s ease, background 0.2s ease, opacity 0.2s ease;
 }
 
 .list-item[data-checked='true'] {
   background: var(--surface-sunken);
-  opacity: 0.62;
+}
+
+.list-item[data-checked='true'] .list-item__icon {
+  opacity: 0.5;
 }
 
 .list-item__check {
@@ -377,10 +456,11 @@ input {
 }
 
 .list-item__icon {
-  display: grid;
-  place-items: center;
-  color: var(--accent-text);
   flex-shrink: 0;
+  width: 1.6rem;
+  text-align: center;
+  font-size: 1.25rem;
+  line-height: 1;
 }
 
 .list-item__name {
@@ -484,4 +564,322 @@ input {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ---------- Header actions & Kundenkarten-Button ---------- */
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.icon-button--header {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+}
+
+.icon-button--header:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* ---------- Kundenkarten-Sheet ---------- */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet__bar {
+  position: relative;
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(env(safe-area-inset-top), var(--space-5)) var(--space-4) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  /* Swipe-nach-unten hier abgreifen, nicht scrollen. */
+  touch-action: none;
+}
+
+.sheet__grabber {
+  position: absolute;
+  top: calc(max(env(safe-area-inset-top), var(--space-2)));
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+
+.sheet__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.4rem;
+}
+
+.sheet__body {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
+}
+
+.sheet__hint {
+  margin: 0 0 var(--space-4);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.cards {
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.card__head {
+  display: flex;
+  align-items: stretch;
+  color: #ffffff;
+}
+
+.card__toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  color: inherit;
+  text-align: left;
+}
+
+.card__label {
+  font-weight: 600;
+  font-size: 1.05rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card__chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.card[data-expanded='true'] .card__chevron {
+  transform: rotate(180deg);
+}
+
+/* Löschen-Icon in der farbigen Titelleiste. */
+.card__delete {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  color: rgba(255, 255, 255, 0.85);
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.card__delete:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+/* QR/Barcode immer auf Weiß – damit sie unabhängig vom Farbschema scannbar sind. */
+.card__codes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+  background: #ffffff;
+}
+
+.code__qr {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.code__barcode {
+  width: 100%;
+  max-width: 280px;
+  height: 64px;
+}
+
+.card__number {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: #222222;
+}
+
+/* ---------- Karte hinzufügen / Formular ---------- */
+.button-add-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.button-add-card:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.card-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+
+.card-form__retailers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.card-form__retailer {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.card-form__retailer[data-active='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.card-form__input {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.card-form__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.card-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.button-primary {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.button-primary:hover {
+  background: var(--accent-hover);
+}
+
+/* ---------- Kundenkarten-Formular: Code-Inhalt & Typ ---------- */
+.card-form__field-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: calc(-1 * var(--space-1));
+}
+
+.card-form__textarea {
+  resize: vertical;
+  min-height: 2.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.card-form__types {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.card-form__type {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.card-form__type[data-active='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* ---------- Kategorie-Gruppen in der Einkaufsliste ---------- */
+.list-group {
+  margin-bottom: var(--space-4);
+}
+
+.list-group:last-child {
+  margin-bottom: 0;
+}
+
+.list-group__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+}
+
+.list-group__emoji {
+  font-size: 0.95rem;
 }

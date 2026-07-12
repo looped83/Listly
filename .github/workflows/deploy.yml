@@ -1,0 +1,52 @@
+name: Deploy to GitHub Pages
+
+# Baut, testet und veröffentlicht die App bei jedem Push auf "main" über die
+# offizielle GitHub-Pages-Actions-Pipeline. Es wird ausschließlich der frisch
+# gebaute dist/-Ordner als Pages-Artefakt hochgeladen – kein gh-pages-Branch,
+# kein committetes Build-Artefakt.
+#
+# Einmalige Repo-Einstellung: Settings → Pages → Build and deployment →
+# Source: "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Minimal nötige Rechte: Pages veröffentlichen + OIDC-Token für deploy-pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Laufende Deployments nicht abbrechen (empfohlen für Pages).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
