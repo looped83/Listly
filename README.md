@@ -72,15 +72,18 @@ npm run preview  # gebautes Bundle lokal servieren
 
 ## Deployment auf GitHub Pages
 
-Der Workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) baut
-die App bei jedem Push automatisch und veröffentlicht den fertigen `dist/`-Ordner
-im Branch `gh-pages`. **Wichtig:** GitHub Pages darf **nicht** die Quelldateien
-ausliefern, sondern muss den gebauten Branch nutzen.
+Der Workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) baut,
+**testet** und veröffentlicht die App bei jedem Push auf `main` automatisch über
+die offizielle GitHub-Actions-Pages-Pipeline. Es wird ausschließlich der frisch
+gebaute `dist/`-Ordner als Pages-Artefakt hochgeladen – es gibt keinen
+`gh-pages`-Branch und kein committetes Build-Artefakt mehr. So entspricht der
+veröffentlichte Stand reproduzierbar dem Quellcode auf `main`.
 
-Einmalige Einstellung in **Settings → Pages → „Build and deployment“**:
+**Einmalige Einstellung** in **Settings → Pages → „Build and deployment”**:
 
-- **Source:** „Deploy from a branch“
-- **Branch:** `gh-pages` / `/ (root)`
+- **Source:** **„GitHub Actions”**
+
+(Kein Branch/Ordner mehr auswählen – die Quelle ist der Workflow.)
 
 Danach ist die App unter `https://<user>.github.io/<repo>/` erreichbar
 (z. B. `https://looped83.github.io/Listly/`). Beim ersten Aufruf einmal hart neu
