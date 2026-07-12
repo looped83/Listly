@@ -178,7 +178,7 @@ Workbox-Cache wird via `cleanupOutdatedCaches/skipWaiting/clientsClaim` erneuert
   - **Payback** (Barcode, CODE128/EAN-13): die 13-stellige Payback-Nummer.
   - **dm** (QR): langer kombinierter Token (dm + Payback) → **kann zeitlich
     rotieren**; falls er an der Kasse nicht mehr geht, neuen Screenshot dekodieren.
-  - **REWE** (QR): strukturierter Loyalty-Payload (`REWEDTP#…`) mit der Treue-Nummer.
+  - **REWE** (QR): strukturierter Loyalty-Payload mit der Treue-Nummer.
 - **UI:** Akkordeon – nur eine Karte offen (erste per Default), Klick klappt um.
   Löschen sitzt in der farbigen Titelleiste. QR/Barcode werden auf **weißem**
   Grund gerendert (unabhängig vom Dark Mode scannbar).
