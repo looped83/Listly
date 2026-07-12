@@ -6,7 +6,8 @@ import {
   RETAILERS,
   RETAILER_ORDER,
   barcodeFormat,
-  cleanNumber,
+  cardCodeType,
+  cardContent,
   retailerMeta,
   sortCards,
 } from '../lib/cards';
@@ -17,12 +18,13 @@ const createId = () =>
     ? crypto.randomUUID()
     : `card-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-const emptyForm = { retailer: 'lidl', name: RETAILERS.lidl.label, number: '' };
+const emptyForm = { retailer: 'lidl', name: RETAILERS.lidl.label, number: '', code: '', codeType: 'qr' };
 
-/** Eine einzelne Kundenkarte mit QR-Code und Barcode. */
+/** Eine Kundenkarte – zeigt den exakten Code (QR oder Barcode) und die Nummer. */
 const CardView = memo(function CardView({ card, onDelete }) {
   const meta = retailerMeta(card.retailer);
-  const number = cleanNumber(card.number);
+  const content = cardContent(card);
+  const codeType = cardCodeType(card);
   return (
     <li className="card">
       <div className="card__head" style={{ background: meta.color }}>
@@ -37,9 +39,12 @@ const CardView = memo(function CardView({ card, onDelete }) {
         </button>
       </div>
       <div className="card__codes">
-        <QRCode value={number} />
-        <Barcode value={number} format={barcodeFormat(number)} />
-        <span className="card__number">{card.number}</span>
+        {codeType === 'barcode' ? (
+          <Barcode value={content} format={barcodeFormat(content)} />
+        ) : (
+          <QRCode value={content} />
+        )}
+        {card.number && <span className="card__number">{card.number}</span>}
       </div>
     </li>
   );
@@ -51,18 +56,33 @@ function CardsSheet({ onClose }) {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
+  const update = useCallback((patch) => setForm((prev) => ({ ...prev, ...patch })), []);
+
   const pickRetailer = useCallback((retailer) => {
-    setForm((prev) => ({ ...prev, retailer, name: RETAILERS[retailer].label }));
+    setForm((prev) => ({
+      ...prev,
+      retailer,
+      name: RETAILERS[retailer].label,
+      codeType: RETAILERS[retailer].codeType,
+    }));
   }, []);
 
   const save = useCallback(
     (e) => {
       e.preventDefault();
-      const number = cleanNumber(form.number);
-      if (!number) return;
+      const number = form.number.trim();
+      const code = form.code.trim();
+      if (!number && !code) return;
       setCards((prev) => [
         ...prev,
-        { id: createId(), retailer: form.retailer, name: form.name.trim() || RETAILERS[form.retailer].label, number },
+        {
+          id: createId(),
+          retailer: form.retailer,
+          name: form.name.trim() || RETAILERS[form.retailer].label,
+          number,
+          code,
+          codeType: form.codeType,
+        },
       ]);
       setForm(emptyForm);
       setAdding(false);
@@ -70,10 +90,7 @@ function CardsSheet({ onClose }) {
     [form, setCards],
   );
 
-  const remove = useCallback(
-    (id) => setCards((prev) => prev.filter((c) => c.id !== id)),
-    [setCards],
-  );
+  const remove = useCallback((id) => setCards((prev) => prev.filter((c) => c.id !== id)), [setCards]);
 
   return (
     <div className="sheet" role="dialog" aria-modal="true" aria-label="Kundenkarten">
@@ -113,22 +130,52 @@ function CardsSheet({ onClose }) {
                 </button>
               ))}
             </div>
+
             <input
               className="card-form__input"
               value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              onChange={(e) => update({ name: e.target.value })}
               placeholder="Name der Karte"
               aria-label="Name der Karte"
             />
             <input
               className="card-form__input"
               value={form.number}
-              onChange={(e) => setForm((p) => ({ ...p, number: e.target.value }))}
-              placeholder="Kartennummer"
-              inputMode="numeric"
+              onChange={(e) => update({ number: e.target.value })}
+              placeholder="Angezeigte Nummer (optional)"
               autoComplete="off"
-              aria-label="Kartennummer"
+              aria-label="Angezeigte Nummer"
             />
+            <label className="card-form__field-label" htmlFor="card-code">
+              Code-Inhalt (exakt aus der Original-App; leer = Nummer)
+            </label>
+            <textarea
+              id="card-code"
+              className="card-form__input card-form__textarea"
+              value={form.code}
+              onChange={(e) => update({ code: e.target.value })}
+              placeholder="z. B. [redacted]"
+              autoComplete="off"
+              rows={2}
+            />
+
+            <div className="card-form__types">
+              {[
+                ['qr', 'QR-Code'],
+                ['barcode', 'Barcode'],
+              ].map(([value, label]) => (
+                <button
+                  type="button"
+                  key={value}
+                  className="card-form__type"
+                  data-active={form.codeType === value}
+                  onClick={() => update({ codeType: value })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             <div className="card-form__actions">
               <button type="button" className="text-button" onClick={() => setAdding(false)}>
                 Abbrechen

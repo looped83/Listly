@@ -777,3 +777,40 @@ input {
 .button-primary:hover {
   background: var(--accent-hover);
 }
+
+/* ---------- Kundenkarten-Formular: Code-Inhalt & Typ ---------- */
+.card-form__field-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: calc(-1 * var(--space-1));
+}
+
+.card-form__textarea {
+  resize: vertical;
+  min-height: 2.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.card-form__types {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.card-form__type {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.card-form__type[data-active='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
