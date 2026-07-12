@@ -18,8 +18,10 @@ export default defineConfig({
         short_name: 'Listly',
         description: 'Vegane Einkaufsliste mit Kaufverlauf – offline nutzbar.',
         lang: 'de',
-        start_url: '/',
-        scope: '/',
+        // Relativ zum Manifest-Ort – funktioniert am Server-Root ebenso wie
+        // unter einem Unterpfad (z. B. GitHub Pages: /Listly/).
+        start_url: './',
+        scope: './',
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#faf6ee',
