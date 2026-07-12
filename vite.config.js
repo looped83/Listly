@@ -5,6 +5,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 // theme_color entspricht dem Papier-Look des Light Mode; im Betrieb wird die
 // <meta name="theme-color"> zur Laufzeit an den aktiven Modus angepasst.
 export default defineConfig({
+  // Relative Asset-Pfade: die App funktioniert am Server-Root, unter einem
+  // Unterpfad und auch direkt aus dem Dateisystem geöffnet (file://).
+  base: './',
   plugins: [
     react(),
     VitePWA({

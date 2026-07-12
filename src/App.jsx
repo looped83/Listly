@@ -114,16 +114,7 @@ export default function App() {
         <ThemeToggle preference={preference} onCycle={cycleTheme} />
       </header>
 
-      <main>
-        <AddItemForm
-          onAdd={addItem}
-          history={history}
-          favorites={favorites}
-          existingNames={existingNames}
-        />
-
-        <FrequentChips items={frequentItems} onAdd={addItem} />
-
+      <main className="content">
         <ShoppingList
           items={items}
           favoriteSet={favoriteSet}
@@ -133,6 +124,17 @@ export default function App() {
           onClearChecked={clearChecked}
         />
       </main>
+
+      {/* Untere Eingabeleiste – in Daumen-Reichweite, direkt nutzbar. */}
+      <div className="dock">
+        <FrequentChips items={frequentItems} onAdd={addItem} />
+        <AddItemForm
+          onAdd={addItem}
+          history={history}
+          favorites={favorites}
+          existingNames={existingNames}
+        />
+      </div>
     </div>
   );
 }
