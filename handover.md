@@ -94,6 +94,7 @@ src/
 │   ├── checkout.js         #   reine Helfer: Zusammenfassung/Auswahl beim Einkaufsabschluss
 │   ├── itemFields.js       #   reine Helfer: Menge/Einheit/Notiz (Coerce/Parse/Format)
 │   ├── quickInput.js       #   reiner Parser: Schnelleingabe → { name, quantity, unit, note }
+│   ├── groupItems.js       #   reine Helfer: Artikel nach Kategorie gruppieren (Sonstiges zuletzt)
 │   └── schema.js           #   localStorage-Migrationen + Sanitizer (siehe §12)
 ├── data/products.json      # 356 Produkte / 16 Kategorien (Emoji je Produkt)
 ├── styles/
@@ -263,7 +264,13 @@ deployen.
   fix. **Zoom deaktiviert** (Viewport `user-scalable=no` + Abfangen von
   Pinch-Gesten/Doppeltipp in `main.jsx`).
 - **Liste:** offene und erledigte Artikel **nach Kategorie gruppiert**
-  (Überschriften ohne Emoji, in Kategorie-Reihenfolge). Kompakte Anzeige inkl.
+  (Überschriften ohne Emoji, in Kategorie-Reihenfolge aus `products.json`).
+  Gruppierung in `lib/groupItems.js` (`groupByCategory`, pure Funktion): leere
+  Kategorien entfallen, unbekannte/fehlende Kategorien landen gemeinsam zuletzt
+  unter „Sonstiges“, die Reihenfolge innerhalb einer Kategorie bleibt stabil. Jede
+  Kategorie-Überschrift zeigt zusätzlich die Artikelanzahl (visuelles Badge) und
+  trägt ein `aria-label` mit vollständigem Satz („Obst & Gemüse, 3 Artikel“) für
+  Screenreader. Kompakte Anzeige inkl.
   optionaler Menge/Einheit („2 × Hafermilch“, „500 g Mehl“) und Notizzeile
   darunter – beide nur, wenn tatsächlich gesetzt (kein leerer Platzhalter).
 - **Zeile (`ListItem.jsx`):** Icon + Name bilden **einen** tastaturbedienbaren
@@ -357,7 +364,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
   wäre nur mit echtem Login sinnvoll.
 - **`npm audit`** meldet eine Dev-Server-Warnung (esbuild, transitiv über Vite 5).
   Betrifft nur den lokalen Dev-Server, nicht das ausgelieferte Bundle.
-- **Tests:** Vitest + React Testing Library, `npm test` (172 Tests, 11 Dateien).
+- **Tests:** Vitest + React Testing Library, `npm test` (186 Tests, 13 Dateien).
   Läuft auch als Teil der Deploy-Pipeline (§6) – ein Testfehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
