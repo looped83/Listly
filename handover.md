@@ -23,9 +23,11 @@ gemeinsam in Echtzeit genutzt.
   `claude/feedback-undo-infrastructure-3aebrv`
 - **Geteilte Liste:** in Echtzeit über Supabase synchronisiert
 - **Kundenkarten:** Lidl/Payback/dm/REWE mit QR/Barcode, rein lokal gespeichert
+- **Bedienung:** einheitlicher, einkaufsorientierter Look; Hinzufügen über einen
+  schwebenden Plus-Button, der ein Bottom-Sheet mit Suche + Detailfeldern öffnet.
 - **Feedback:** zentrale Toast-/aria-live-Infrastruktur mit Undo für Löschen/
-  Abschließen; ein Bottom-Sheet-Dialog für den Einkaufsabschluss und einer für
-  die Artikel-Bearbeitung (Menge/Einheit/Notiz/Kategorie)
+  Abschließen; Bottom-Sheets für Einkaufsabschluss und Artikel-Bearbeitung
+  (Menge/Einheit/Notiz/Kategorie)
 
 ---
 
@@ -63,13 +65,13 @@ npm run preview    # gebautes Bundle lokal servieren
 
 ```
 src/
-├── App.jsx                 # Orchestrierung: State, Header, Liste, Dock, Overlays/Dialoge
+├── App.jsx                 # Orchestrierung: State, Header, Liste, FAB, Overlays/Dialoge
 ├── main.jsx                # Einstieg, ErrorBoundary, Zoom-Sperre (Gesten)
 ├── components/
-│   ├── AddItemForm.jsx     #   Suchfeld + Autovervollständigung (öffnet nach oben)
-│   ├── FrequentChips.jsx   #   „Häufig gekauft“-Chips (oben angeheftet, scrollbar)
-│   ├── ShoppingList.jsx    #   Liste, nach Kategorie gruppiert (offen + erledigt)
-│   ├── ListItem.jsx        #   Einzelzeile: Umschalt-Button, Favorit/Bearbeiten/Löschen, Swipe
+│   ├── AddItemSheet.jsx    #   Hinzufügen-Bottom-Sheet: Suche + Chips + Detailfelder (über FAB)
+│   ├── FrequentChips.jsx   #   „Häufig gekauft“-Chips (im Hinzufügen-Sheet)
+│   ├── ShoppingList.jsx    #   Liste, nach Kategorie gruppiert (offen + erledigt), Fortschritt
+│   ├── ListItem.jsx        #   Einzelzeile: großer Umschalt-Button + ⋯-Menü, Swipe
 │   ├── ProductIcon.jsx     #   rendert das Emoji eines Artikels
 │   ├── SyncStatus.jsx      #   Live/Verbinde/Offline-Anzeige (oben rechts)
 │   ├── Toast.jsx           #   Snackbar-Anzeige + aria-live-Regionen (polite/assertive)
@@ -79,23 +81,22 @@ src/
 │   └── CodeImage.jsx       #   <QRCode> und <Barcode> (qrcode / jsbarcode)
 ├── hooks/
 │   ├── useLocalStorage.js  #   State ↔ localStorage (Persistenz als Effekt, StrictMode-sicher)
-│   ├── useSessionStorage.js#   State ↔ sessionStorage (sitzungsbezogen, z. B. der Modus)
-│   ├── useWakeLock.js      #   Screen Wake Lock (progressive Enhancement, nie werfend)
 │   ├── useShoppingItems.js #   Liste: Supabase (Echtzeit) ODER lokal, inkl. aller Operationen
 │   ├── useToast.jsx        #   ToastProvider/useToast – zentrale Statusmeldungen + Undo
-│   ├── useDialogFocus.js   #   Fokusfalle/Escape/initialer Fokus/Fokusrückgabe für Dialoge
+│   ├── useDialogFocus.js   #   Fokusfalle/Escape/initialer Fokus/Fokusrückgabe für Dialoge/Sheets
 │   └── useTheme.js         #   automatischer Dark Mode (prefers-color-scheme)
 ├── lib/
 │   ├── storage.js          #   localStorage-Keys + read/write
 │   ├── supabase.js         #   Supabase-Client, lazy per dynamischem Import (getSupabase)
 │   ├── supabaseConfig.js   #   ← URL, anon-Key, LIST_ID
 │   ├── history.js          #   Kaufverlauf (Häufigkeit verbuchen)
-│   ├── suggestions.js      #   Autocomplete- & Chip-Logik
+│   ├── suggestions.js      #   Autocomplete: Kandidaten (Verlauf/Favorit/Basis) + Scoring
+│   ├── textMatch.js        #   reine Helfer: Normalisierung + deterministisches Trefferscoring
 │   ├── icons.js            #   Emoji-Auflösung + Kategorie-Infos/-Optionen
 │   ├── cards.js            #   Händler-Metadaten, Barcode-Format, Code-Inhalt
 │   ├── checkout.js         #   reine Helfer: Zusammenfassung/Auswahl beim Einkaufsabschluss
 │   ├── itemFields.js       #   reine Helfer: Menge/Einheit/Notiz (Coerce/Parse/Format)
-│   ├── quickInput.js       #   reiner Parser: Schnelleingabe → { name, quantity, unit, note }
+│   ├── quickInput.js       #   reiner Parser für Schnelleingabe (aktuell NICHT verdrahtet, s. §10)
 │   ├── groupItems.js       #   reine Helfer: Artikel nach Kategorie gruppieren (Sonstiges zuletzt)
 │   └── schema.js           #   localStorage-Migrationen + Sanitizer (siehe §12)
 ├── data/products.json      # 356 Produkte / 16 Kategorien (Emoji je Produkt)
@@ -262,62 +263,55 @@ deployen.
   (kein Umschalter). Farben ausschließlich über CSS-Tokens (`tokens.css`);
   `useTheme.js` setzt `data-theme` am `<html>` und die `theme-color`-Meta.
 - **Layout:** Gesamtseite nicht scrollbar/wippend (`body { overflow:hidden;
-  overscroll-behavior:none }`), nur der Listenbereich scrollt; Suchleiste unten
-  fix. **Zoom deaktiviert** (Viewport `user-scalable=no` + Abfangen von
-  Pinch-Gesten/Doppeltipp in `main.jsx`).
+  overscroll-behavior:none }`), nur der Listenbereich scrollt. Es gibt **keine
+  feste Eingabeleiste** mehr; Hinzufügen läuft über einen **schwebenden
+  Plus-Button (FAB)** unten rechts (`.fab`). **Zoom deaktiviert** (Viewport
+  `user-scalable=no` + Abfangen von Pinch-Gesten/Doppeltipp in `main.jsx`).
+- **Einheitlicher Einkaufs-Look (kein Modus-Umschalter):** die App hat **eine**
+  Standardansicht – große, leicht treffbare Zeilen, erledigte Artikel
+  standardmäßig eingeklappt. (Der frühere Plan/Shop-Umschalter und das
+  Bildschirm-wachhalten wurden dabei entfernt.)
 - **Liste:** offene und erledigte Artikel **nach Kategorie gruppiert**
   (Überschriften ohne Emoji, in Kategorie-Reihenfolge aus `products.json`).
   Gruppierung in `lib/groupItems.js` (`groupByCategory`, pure Funktion): leere
   Kategorien entfallen, unbekannte/fehlende Kategorien landen gemeinsam zuletzt
-  unter „Sonstiges“, die Reihenfolge innerhalb einer Kategorie bleibt stabil. Jede
-  Kategorie-Überschrift zeigt zusätzlich die Artikelanzahl (visuelles Badge) und
-  trägt ein `aria-label` mit vollständigem Satz („Obst & Gemüse, 3 Artikel“) für
-  Screenreader. Kompakte Anzeige inkl.
-  optionaler Menge/Einheit („2 × Hafermilch“, „500 g Mehl“) und Notizzeile
-  darunter – beide nur, wenn tatsächlich gesetzt (kein leerer Platzhalter).
-- **Zeile (`ListItem.jsx`):** Icon + Name bilden **einen** tastaturbedienbaren
-  Umschalt-Button (`aria-pressed`), kein verschachteltes `<button>`. Favorit,
-  Bearbeiten (Stift) und Löschen sind eigene Buttons mit ≥ 44×44 px
-  Trefferfläche. Zusätzlich **Swipe nach links** zum Löschen (Schwelle ~80 px;
-  vertikales Scrollen bleibt möglich).
-- **Artikel hinzufügen:** `addItem` liefert ein eindeutiges Ergebnis
+  unter „Sonstiges“, die Reihenfolge innerhalb einer Kategorie bleibt stabil. Die
+  **Artikelanzahl steht direkt hinter dem Kategorienamen** („Obst & Gemüse · 3“);
+  ein `aria-label` liefert Screenreadern den vollständigen Satz („Obst & Gemüse,
+  3 Artikel“). Kompakte Anzeige inkl. optionaler Menge/Einheit („2 × Hafermilch“,
+  „500 g Mehl“) und Notizzeile darunter – beide nur, wenn tatsächlich gesetzt
+  (kein leerer Platzhalter).
+- **Fortschritt & Erledigt (`ShoppingList.jsx`):** ein **Fortschrittsbalken**
+  „x von y erledigt" (`role="progressbar"`, aus `summarizeCheckout`) erscheint
+  **erst, sobald der erste Artikel abgehakt wurde** (`checkedCount > 0`). Die
+  **erledigten Artikel** sind standardmäßig **eingeklappt** (Disclosure,
+  `aria-expanded`); die primäre Aktion „Einkauf abschließen“ bleibt auch dann
+  erreichbar.
+- **Zeile (`ListItem.jsx`):** Icon + Name bilden **einen** großen,
+  tastaturbedienbaren Umschalt-Button (`aria-pressed`), kein verschachteltes
+  `<button>`. Favorit, Bearbeiten und Löschen liegen je Zeile in einem
+  zurückgenommenen **„Mehr"-Menü** (⋯): Escape schließt es und gibt den Fokus an
+  den ⋯-Button zurück, ein Klick außerhalb schließt es ebenfalls. Zusätzlich
+  **Swipe nach links** zum Löschen (Schwelle ~80 px; vertikales Scrollen bleibt
+  möglich).
+- **Artikel hinzufügen (`AddItemSheet.jsx`, geöffnet über den FAB):** ein
+  Bottom-Sheet mit **Produktsuche** (Autovervollständigung), den
+  **Häufig-gekauft-Chips** und **allen Detailfeldern** (Menge, Einheit, Kategorie,
+  Notiz) in einem Schritt. Interaktion: ein **Chip** fügt sofort hinzu (Sheet
+  bleibt offen für Folge-Adds), ein **Vorschlag** übernimmt Name + Kategorie ins
+  Formular (zum Ergänzen von Details), **„Hinzufügen"** übernimmt Name + Details.
+  Nach dem Hinzufügen bleibt das Sheet offen (Felder geleert, Suche fokussiert);
+  Schließen über X/Abbrechen/Escape/Backdrop. Barrierefreiheit über
+  `useDialogFocus` (Fokusfalle, Escape, initialer Fokus auf der Suche,
+  Fokusrückgabe an den FAB).
+- **Hinzufügen-Ergebnis:** `addItem` (im Hook) liefert ein eindeutiges Ergebnis
   (`added` / `alreadyOpen` / `reactivated` / `invalid`) statt still zu bleiben –
-  identisch für Tippen, Autovervollständigung und Häufig-gekauft-Chips. Bei
-  einer Dublette (Name case-/whitespace-insensitiv gleich) wird **nicht**
-  dupliziert: ein bereits offener Artikel bleibt unverändert, ein bereits
-  erledigter wird reaktiviert (wieder offen). Feedback über die Toast-
-  Infrastruktur, Fokus bleibt im Eingabefeld.
-- **Schnelleingabe (`lib/quickInput.js`):** beim **manuellen** Absenden von
-  Freitext zerlegt `parseQuickInput` die Eingabe konservativ in
-  `{ name, quantity, unit, note }`. Erkannt werden nur eindeutige Präfixmuster:
-  Multiplikator (`2x`/`2 ×`), Menge + bekannte Einheit (`500 g`, `1,5 l`) und reine
-  Ganzzahl-Anzahl (`3 Bananen`); `#` trennt eine Notiz ab (`Tofu #geräuchert`).
-  Im Zweifel bleibt die ganze Eingabe der Name – Produktnamen mit Zahlen (`0%
-  Joghurt`, `7Up`, `3-Minuten-Terrine`) werden nicht zerlegt. Einheiten werden auf
-  kanonische Kürzel normalisiert (Liste `QUICK_UNIT_ALIASES`, nur Maßeinheiten).
-  **Nur Freitext** wird geparst – ausgewählte Vorschläge/Chips behalten ihre
-  Metadaten. Die Dubletten-Erkennung läuft unverändert über den reinen Namen; ein
-  neuer Toast zeigt die interpretierte Menge kompakt (`itemLabel`). Nur bei einem
-  **neu** angelegten Artikel werden die Felder gesetzt (omit-empty).
-- **Einkaufsmodus (`App.jsx`, `mode` in `useSessionStorage`):** klar getrennter
-  Modus neben dem Planungsmodus, umgeschaltet über einen Kopfleisten-Button (kein
-  automatischer Wechsel). Nur **sitzungsbezogen** gespeichert (`listly.mode`,
-  sessionStorage – überlebt Reload, nicht dauerhaft). Der `.app`-Root trägt
-  `data-mode`; CSS-Varianten liefern u. a. **größere, leicht treffbare Zeilen**.
-  Im Shop-Modus zeigt `ShoppingList` einen **Fortschritt** „x von y erledigt"
-  (`role="progressbar"`, aus `summarizeCheckout`), klappt **erledigte Artikel**
-  standardmäßig ein (Disclosure, `aria-expanded`), und `ListItem` verschiebt
-  Favorit/Bearbeiten/Löschen in ein per-Zeile **„Mehr"-Menü** (⋯, Escape schließt +
-  Fokusrückgabe, Klick außerhalb schließt). Das **Eingabedock** ist einklappbar,
-  bleibt aber über „Artikel hinzufügen" erreichbar (klappt auf und fokussiert das
-  Feld). Der Planungsmodus bleibt unverändert (Default `'plan'`).
-- **Bildschirm wach halten (`useWakeLock.js`):** progressive Enhancement über die
-  Screen Wake Lock API, gekoppelt an den Einkaufsmodus (also an die bewusste
-  Nutzeraktion). Feature-Detection – fehlt die API, passiert lautlos nichts. Der
-  Lock wird bei Sichtbarkeit angefordert, beim Verlassen/Unmount/Seitenwechsel
-  freigegeben und bei Rückkehr (`visibilitychange`) kontrolliert neu angefordert;
-  alle Aufrufe sind in try/catch gekapselt (nie werfend).
-- **Artikel bearbeiten:** Stift-Button öffnet `ItemEditDialog.jsx` (Name,
+  identisch für Suche, Vorschlag und Chip. Bei einer Dublette (Name case-/
+  whitespace-insensitiv gleich) wird **nicht** dupliziert: ein bereits offener
+  Artikel bleibt unverändert, ein bereits erledigter wird reaktiviert (wieder
+  offen). Feedback über die Toast-Infrastruktur.
+- **Artikel bearbeiten:** über das ⋯-Menü öffnet der Stift-Eintrag
+  `ItemEditDialog.jsx` (Name,
   Menge, Einheit, Kategorie, Notiz). Validierung: Name darf nicht leer sein,
   Menge muss eine positive Zahl sein (Komma **und** Punkt als
   Dezimaltrennzeichen werden akzeptiert), Einheit/Notiz werden getrimmt und
@@ -342,12 +336,22 @@ deployen.
   `CheckoutDialog` und `ItemEditDialog` – Fokusfalle (Tab/Shift+Tab zirkulieren
   im Panel), Escape schließt, initialer Fokus beim Öffnen, Fokusrückgabe an das
   auslösende Element beim Schließen.
-- **Suche/Autocomplete:** Vorschläge erscheinen **schon beim Fokus** (leere
-  Eingabe) – angeführt von den **häufigsten** Artikeln aus dem Verlauf, dann
-  Favoriten, dann Basisliste; beim Tippen Teilstring-Filter. Dropdown öffnet nach
-  oben. Priorisierung/Logik in `lib/suggestions.js`.
-- **Häufig-gekauft-Chips:** horizontale, scrollbare Leiste oben; Artikel per Tap
-  hinzufügen, per × aus dem Verlauf entfernen (`FrequentChips.jsx`).
+- **Suche/Autocomplete (`lib/suggestions.js` + `lib/textMatch.js`):** Kandidaten
+  stammen – dedupliziert – aus Kaufverlauf (nach Häufigkeit), Favoriten und
+  Basisliste; diese Reihenfolge ist die Herkunftspriorität. Die Bewertung ist
+  **deterministisch und nachvollziehbar** (keine externe Such-/„KI"-Bibliothek):
+  Trefferstufen **exakt › Synonym › Präfix › Token-Präfix › Teilstring ›
+  Singular/Plural › Fuzzy**. `textMatch.normalizeText` macht Groß-/Kleinschreibung,
+  Diakritika und Umlaut-Schreibweisen robust (**„ä" ≡ „a" ≡ „ae"**), `stemDe`
+  deckt einfache Plurale ab, eine kleine explizite Synonymliste bildet z. B.
+  „oat milk" → „Hafermilch". Fuzzy (Sellers-Editierdistanz) nur ab 4 Zeichen mit
+  strenger Schwelle. Ergebnis stabil sortiert, dedupliziert, auf 6 begrenzt. Bei
+  leerer Eingabe führen die häufigsten Verlaufsartikel. Wird im Hinzufügen-Sheet
+  genutzt (§ „Artikel hinzufügen").
+- **Häufig-gekauft-Chips (`FrequentChips.jsx`):** die meistgekauften
+  Verlaufsartikel, die nicht schon auf der Liste stehen – als scrollbare
+  Chip-Leiste **im Hinzufügen-Sheet**. Tap fügt hinzu, das × entfernt den Artikel
+  aus dem Verlauf.
 - **Icons:** Emoji je Produkt/Kategorie (in `products.json`), Auflösung Produkt →
   Kategorie → Standard `🛒` in `lib/icons.js` (`getItemEmoji`).
 
@@ -372,10 +376,18 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 
 ## 10. Bekannte Einschränkungen & Ideen
 
-- **Suche:** exakte Teilstring-Treffer stehen oben; reichen sie nicht bis zum
-  Limit, füllen tippfehler-tolerante Fuzzy-Treffer auf (Editierdistanz, ab 3
-  Zeichen Eingabelänge – siehe `lib/suggestions.js`). Keine vollständige
-  natürlichsprachliche Eingabe (z. B. „2 Äpfel und Milch“ in einem Feld).
+- **Suche:** deterministisches Trefferscoring (siehe §8, `lib/textMatch.js`), aber
+  **keine** vollständige natürlichsprachliche Eingabe (z. B. „2 Äpfel und Milch“
+  in einem Feld); Menge/Einheit werden im Hinzufügen-Sheet über eigene Felder
+  erfasst, nicht aus dem Suchtext geparst.
+- **`lib/quickInput.js` ist aktuell nicht verdrahtet (loses Ende):** der Parser
+  („2 hafermilch" → `{ name, quantity, … }`) wurde von der früheren, entfernten
+  `AddItemForm` genutzt. Das Hinzufügen-Sheet verwendet stattdessen explizite
+  Detailfelder. Modul + Tests bleiben bestehen; entweder ins Sheet-Suchfeld
+  integrieren oder bei Gelegenheit (mit Test) entfernen.
+- **Bildschirm-wachhalten entfernt:** mit dem Wegfall des Einkaufsmodus gibt es
+  kein Screen-Wake-Lock mehr. Bei Bedarf als kleine, bewusste Einstellung
+  wieder aufnehmbar (früherer `useWakeLock`-Hook ist in der Git-Historie).
 - **Keine Mengen-Zusammenrechnung:** eine Zusammenführung beim Umbenennen
   (siehe §8) summiert Mengen bewusst **nicht** (Einheiten könnten
   unterschiedlich/inkompatibel sein) – der bearbeitete Artikel gewinnt.
@@ -384,7 +396,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
   wäre nur mit echtem Login sinnvoll.
 - **`npm audit`** meldet eine Dev-Server-Warnung (esbuild, transitiv über Vite 5).
   Betrifft nur den lokalen Dev-Server, nicht das ausgelieferte Bundle.
-- **Tests:** Vitest + React Testing Library, `npm test` (201 Tests, 14 Dateien).
+- **Tests:** Vitest + React Testing Library, `npm test` (256 Tests, 15 Dateien).
   Läuft auch als Teil der Deploy-Pipeline (§6) – ein Testfehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
@@ -401,8 +413,12 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **Deploy anstoßen:** PR nach **`main`** mergen (nur das löst das Deployment
   aus, siehe §6 – Push auf einen Feature-Branch allein reicht nicht).
 - **Neue localStorage-Migration:** siehe §12.
-- **Schnelleingabe-Einheit ergänzen:** `QUICK_UNIT_ALIASES` in
-  `src/lib/quickInput.js` erweitern (Alias → kanonisches Kürzel), Test ergänzen.
+- **Synonym/Suchverhalten anpassen:** `SYNONYM_SOURCE` bzw. die Scoring-Regeln in
+  `src/lib/textMatch.js` erweitern; tabellengetriebene Tests in
+  `src/lib/__tests__/textMatch.test.js` / `suggestions.test.js` ergänzen.
+- **Feld im Hinzufügen-Sheet ändern:** `src/components/AddItemSheet.jsx`
+  (Suche + Chips + Detailfelder). Die eigentliche Anlege-Logik/Dubletten liegt in
+  `useShoppingItems.addItem`; App-Verdrahtung (Toast, Sheet öffnen) in `App.jsx`.
 - **Neues Artikelfeld (wie Menge/Einheit/Notiz):** Sanitizer in `schema.js`
   erweitern + `SCHEMA_VERSION` hochzählen (§12), Coerce-Helfer in
   `lib/itemFields.js` ergänzen, `ItemEditDialog.jsx` um das Feld erweitern,
