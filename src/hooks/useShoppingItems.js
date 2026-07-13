@@ -103,17 +103,52 @@ export function useShoppingItems({ onPurchase } = {}) {
   }, [refetch]);
 
   // ── Operationen ─────────────────────────────────────────────────────────────
+  const toggleItem = useCallback(
+    async (id, forcedValue) => {
+      const current = itemsRef.current.find((it) => it.id === id);
+      if (!current) return;
+      const checked = typeof forcedValue === 'boolean' ? forcedValue : !current.checked;
+
+      applyItems((prev) => prev.map((it) => (it.id === id ? { ...it, checked } : it)));
+
+      if (isCloudEnabled) {
+        const supabase = await getSupabase();
+        const { error } = await supabase.from(TABLE).update({ checked }).eq('id', id);
+        if (error) refetch();
+      }
+    },
+    [applyItems, refetch],
+  );
+
+  /**
+   * Fügt einen Artikel hinzu – oder erkennt eine Dublette (nach Name,
+   * groß-/kleinschreibungs- und leerzeicheninsensitiv) und reagiert eindeutig
+   * darauf. Liefert ein Ergebnisobjekt statt still zu bleiben, damit jede
+   * Eingabequelle (manuelle Eingabe, Autovervollständigung, Chips) identisches
+   * Feedback anzeigen kann:
+   *   - { status: 'added', item }        – neu angelegt
+   *   - { status: 'alreadyOpen', item }  – steht bereits offen auf der Liste
+   *   - { status: 'reactivated', item }  – war erledigt, wieder auf offen gesetzt
+   *   - { status: 'invalid' }            – leerer/blanker Name
+   *
+   * Bewusst synchron (keine Cloud-Roundtrip-Wartezeit): Dubletten-Prüfung und
+   * optimistisches Update laufen komplett vor jedem `await`, daher liest jeder
+   * Aufruf stets den aktuellen `itemsRef`-Stand – keine stale Closures, keine
+   * Race Conditions durch parallele Aufrufe aus verschiedenen Quellen.
+   */
   const addItem = useCallback(
-    async (rawName, category) => {
+    (rawName, category) => {
       const name = cleanName(rawName);
       const key = normalizeName(name);
-      if (!key) return;
+      if (!key) return { status: 'invalid' };
 
       const existing = itemsRef.current.find((it) => normalizeName(it.name) === key);
       if (existing) {
-        // Bereits vorhanden: nur reaktivieren, keine Dublette.
-        if (existing.checked) await toggleItem(existing.id, false);
-        return;
+        if (existing.checked) {
+          toggleItem(existing.id, false); // optimistisch synchron; Cloud-Sync im Hintergrund
+          return { status: 'reactivated', item: { ...existing, checked: false } };
+        }
+        return { status: 'alreadyOpen', item: existing };
       }
 
       const resolvedCategory = category ?? getKnownCategory(name);
@@ -128,34 +163,42 @@ export function useShoppingItems({ onPurchase } = {}) {
       applyItems((prev) => [...prev, item]); // optimistisch
 
       if (isCloudEnabled) {
-        const supabase = await getSupabase();
-        const { error } = await supabase.from(TABLE).insert({
-          id: item.id,
-          list_id: LIST_ID,
-          name: item.name,
-          category: item.category,
-          checked: false,
-        });
-        if (error) refetch();
+        (async () => {
+          const supabase = await getSupabase();
+          const { error } = await supabase.from(TABLE).insert({
+            id: item.id,
+            list_id: LIST_ID,
+            name: item.name,
+            category: item.category,
+            checked: false,
+          });
+          if (error) refetch();
+        })();
       }
+
+      return { status: 'added', item };
     },
-    // toggleItem ist stabil (siehe unten); Auslassen vermeidet Zirkularität.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [applyItems, refetch],
+    [applyItems, refetch, toggleItem],
   );
 
-  const toggleItem = useCallback(
-    async (id, forcedValue) => {
-      const current = itemsRef.current.find((it) => it.id === id);
-      if (!current) return;
-      const checked = typeof forcedValue === 'boolean' ? forcedValue : !current.checked;
-
-      applyItems((prev) => prev.map((it) => (it.id === id ? { ...it, checked } : it)));
+  // Aktualisiert Felder eines Artikels (Name, Kategorie, Menge, Einheit, Notiz).
+  // Reiner State-Patch; die Cloud-Aktualisierung läuft im Hintergrund.
+  const updateItem = useCallback(
+    (id, patch) => {
+      applyItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
 
       if (isCloudEnabled) {
-        const supabase = await getSupabase();
-        const { error } = await supabase.from(TABLE).update({ checked }).eq('id', id);
-        if (error) refetch();
+        (async () => {
+          const supabase = await getSupabase();
+          const dbPatch = {};
+          if ('name' in patch) dbPatch.name = patch.name;
+          if ('category' in patch) dbPatch.category = patch.category;
+          if ('quantity' in patch) dbPatch.quantity = patch.quantity;
+          if ('unit' in patch) dbPatch.unit = patch.unit || null;
+          if ('note' in patch) dbPatch.note = patch.note || null;
+          const { error } = await supabase.from(TABLE).update(dbPatch).eq('id', id);
+          if (error) refetch();
+        })();
       }
     },
     [applyItems, refetch],
@@ -213,30 +256,41 @@ export function useShoppingItems({ onPurchase } = {}) {
     [applyItems, refetch],
   );
 
-  // Verbucht erledigte Artikel im Kaufverlauf und entfernt sie aus der Liste.
-  // Gibt die archivierten Artikel zurück, damit der Aufruf Undo anbieten kann.
-  const clearChecked = useCallback(() => {
-    const checked = itemsRef.current.filter((it) => it.checked);
-    if (checked.length === 0) return [];
+  // Schließt den Einkauf ab: verbucht die betroffenen Artikel im Kaufverlauf und
+  // entfernt sie aus der aktiven Liste. Standardmäßig nur abgehakte Artikel;
+  // mit includeOpen bewusst alle. Gibt die abgeschlossenen Artikel zurück, damit
+  // der Aufrufer eine Undo-Aktion anbieten kann.
+  const completeCheckout = useCallback(
+    (includeOpen = false) => {
+      const completed = itemsRef.current.filter((it) => includeOpen || it.checked);
+      if (completed.length === 0) return [];
 
-    onPurchase?.(checked); // Kaufverlauf (lokal) aktualisieren – im Event-Handler,
-    //                         nicht im State-Updater, daher unter StrictMode einmalig.
+      onPurchase?.(completed); // Kaufverlauf (lokal) aktualisieren – im Event-Handler,
+      //                          nicht im State-Updater, daher unter StrictMode einmalig.
 
-    applyItems((prev) => prev.filter((it) => !it.checked));
+      const completedIds = new Set(completed.map((it) => it.id));
+      applyItems((prev) => prev.filter((it) => !completedIds.has(it.id)));
 
-    if (isCloudEnabled) {
-      (async () => {
-        const supabase = await getSupabase();
-        const { error } = await supabase
-          .from(TABLE)
-          .delete()
-          .eq('list_id', LIST_ID)
-          .eq('checked', true);
-        if (error) refetch();
-      })();
-    }
-    return checked;
-  }, [applyItems, onPurchase, refetch]);
+      if (isCloudEnabled) {
+        (async () => {
+          const supabase = await getSupabase();
+          const { error } = await supabase.from(TABLE).delete().in('id', [...completedIds]);
+          if (error) refetch();
+        })();
+      }
+      return completed;
+    },
+    [applyItems, onPurchase, refetch],
+  );
 
-  return { items, status, addItem, toggleItem, removeItem, restoreItems, clearChecked };
+  return {
+    items,
+    status,
+    addItem,
+    toggleItem,
+    updateItem,
+    removeItem,
+    restoreItems,
+    completeCheckout,
+  };
 }

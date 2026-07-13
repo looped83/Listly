@@ -414,14 +414,14 @@ input {
 .list-item {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
+  align-items: stretch;
+  gap: var(--space-1);
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
   touch-action: pan-y;
+  overflow: hidden; /* rundet Hover-/Fokus-Flächen der inneren Buttons mit ab */
   transition: background 0.2s ease, opacity 0.2s ease;
 }
 
@@ -435,6 +435,28 @@ input {
 
 .list-item[data-checked='true'] .list-item__icon {
   opacity: 0.5;
+}
+
+/*
+ * Hauptbereich (Kreis + Icon + Name): EIN Button, der den Erledigt-Status
+ * umschaltet – die Trefferfläche deckt die gesamte Zeile ab (min. 44px hoch),
+ * nicht nur den kleinen Kreis. Größe/Layout der Kinder bleiben zwischen
+ * erledigt/offen identisch, damit das Umschalten keinen Layoutsprung auslöst.
+ */
+.list-item__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-3);
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.list-item__toggle:hover {
+  background: var(--surface-hover);
 }
 
 .list-item__check {
@@ -463,17 +485,52 @@ input {
   line-height: 1;
 }
 
-.list-item__name {
+/* Textblock: Name (mit optionalem Mengen-Präfix) + optionale Notiz darunter. */
+.list-item__text {
+  display: flex;
+  flex-direction: column;
   flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.list-item__name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.list-item__qty {
+  margin-right: 0.35em;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.list-item__note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 .list-item[data-checked='true'] .list-item__name {
   text-decoration: line-through;
   color: var(--text-muted);
+}
+
+.list-item[data-checked='true'] .list-item__qty {
+  color: var(--text-muted);
+}
+
+/* Favorit + Bearbeiten + Löschen: eigene Trefferflächen neben dem Hauptbereich. */
+.list-item__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  padding-right: var(--space-2);
 }
 
 .icon-button {
@@ -485,6 +542,13 @@ input {
   color: var(--text-subtle);
   flex-shrink: 0;
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* In den Listenzeilen mindestens 44×44px Trefferfläche – die Icons selbst
+   bleiben unverändert 18px groß, nur die klickbare Fläche wächst. */
+.list-item__actions .icon-button {
+  width: 44px;
+  height: 44px;
 }
 
 .icon-button:hover {
@@ -499,6 +563,12 @@ input {
 .icon-button--danger:hover {
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+/* Fokusringe innerhalb der (abgerundeten, überlaufversteckten) Zeile nach
+   innen zeichnen, damit sie nicht von .swipe/.list-item abgeschnitten werden. */
+.swipe :focus-visible {
+  outline-offset: -2px;
 }
 
 /* ---------- Purge / clear controls ---------- */
@@ -1034,4 +1104,256 @@ input {
   .toast__message {
     font-size: 0.88rem;
   }
+}
+
+/* ---------- Einkauf-abschließen: Button ---------- */
+/*
+ * Primäre Aktion am Ende der Erledigt-Sektion. Volle Breite, gut sichtbar,
+ * ausreichend große Trefferfläche.
+ */
+.button-checkout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s ease, transform 0.05s ease;
+}
+
+.button-checkout:hover {
+  background: var(--accent-hover);
+}
+
+.button-checkout:active {
+  transform: scale(0.99);
+}
+
+/* ---------- Abschluss-Dialog (mobiles Bottom Sheet) ---------- */
+.dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0;
+  animation: dialog-backdrop 0.18s ease;
+}
+
+.dialog__panel {
+  width: 100%;
+  max-width: var(--content-width);
+  background: var(--bg-elevated);
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  box-shadow: var(--shadow-md);
+  padding: var(--space-5) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+  animation: dialog-slide 0.22s ease;
+}
+
+.dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* Ausreichend große Trefferfläche für die Schließen-Schaltfläche. */
+.dialog__head .icon-button {
+  width: 44px;
+  height: 44px;
+  margin-right: calc(-1 * var(--space-2));
+}
+
+.dialog__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.3rem;
+}
+
+.dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.dialog__counts {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.dialog__count {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.dialog__count strong {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--text);
+}
+
+.dialog__consequence {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.dialog__option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 0.92rem;
+}
+
+.dialog__option input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  accent-color: var(--accent);
+}
+
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Trefferfläche der Dialog-Buttons großzügig halten. */
+.dialog__actions .text-button,
+.dialog__actions .button-primary {
+  min-height: 44px;
+}
+
+@keyframes dialog-backdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-slide {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog,
+  .dialog__panel {
+    animation: none;
+  }
+}
+
+/* Ab Tablet-Breite mittig statt am unteren Rand. */
+@media (min-width: 640px) {
+  .dialog {
+    align-items: center;
+  }
+
+  .dialog__panel {
+    border-radius: var(--radius-lg);
+    border-bottom: 1px solid var(--border);
+    margin: 0 var(--space-4);
+  }
+}
+
+/* ---------- Formularfelder (Bearbeiten-Dialog) ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.field__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.field__input {
+  width: 100%;
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+  min-height: 44px;
+}
+
+.field__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.field__input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.field__textarea {
+  resize: vertical;
+  min-height: 3rem;
+  line-height: 1.4;
+}
+
+.field__error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+/* Menge + Einheit nebeneinander: Menge schmaler, Einheit füllt den Rest. */
+.field-row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.field--qty {
+  flex: 0 0 40%;
+}
+
+.field--unit {
+  flex: 1 1 auto;
+  min-width: 0;
 }

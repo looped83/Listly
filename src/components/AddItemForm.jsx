@@ -1,4 +1,13 @@
-import { memo, useCallback, useId, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useId,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Plus } from 'lucide-react';
 import { buildSuggestions } from '../lib/suggestions';
 import ProductIcon from './ProductIcon';
@@ -38,12 +47,25 @@ const SuggestionRow = memo(function SuggestionRow({ suggestion, active, onPick, 
   );
 });
 
-function AddItemForm({ onAdd, history, favorites, existingNames }) {
+/**
+ * Eingabefeld für neue Artikel. Stellt per Ref eine `focus()`-Methode bereit,
+ * damit auch Aufrufer außerhalb des Formulars (z. B. nach dem Hinzufügen über
+ * einen Chip) den Fokus sinnvoll auf das Eingabefeld zurücklegen können, statt
+ * ihn beim Verschwinden des angeklickten Elements zu verlieren.
+ */
+const AddItemForm = forwardRef(function AddItemForm(
+  { onAdd, history, favorites, existingNames },
+  forwardedRef,
+) {
   const [value, setValue] = useState('');
   const [activeIndex, setActiveIndex] = useState(-1);
   const [focused, setFocused] = useState(false);
   const inputRef = useRef(null);
   const listId = useId();
+
+  useImperativeHandle(forwardedRef, () => ({
+    focus: () => inputRef.current?.focus(),
+  }));
 
   const suggestions = useMemo(
     () => buildSuggestions(value, { history, favorites, excludeNames: existingNames }),
@@ -141,6 +163,6 @@ function AddItemForm({ onAdd, history, favorites, existingNames }) {
       )}
     </form>
   );
-}
+});
 
 export default memo(AddItemForm);

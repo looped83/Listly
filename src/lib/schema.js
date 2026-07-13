@@ -32,9 +32,12 @@
 //    5. Test in `__tests__/schema.test.js` ergänzen (siehe vorhandene Fälle).
 
 import { STORAGE_KEYS } from './storage';
+import { coerceQuantity, coerceUnit, coerceNote } from './itemFields';
 
-// Aktuelle Zielversion des Schemas. Version 1 = das bestehende Datenmodell.
-export const SCHEMA_VERSION = 1;
+// Aktuelle Zielversion des Schemas.
+//   Version 1 = Basis-Datenmodell (items, favorites, history, cards, theme).
+//   Version 2 = Artikel um optionale Felder quantity/unit/note erweitert.
+export const SCHEMA_VERSION = 2;
 
 const createId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -48,14 +51,19 @@ const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArr
 // Zusatzfelder) bleiben erhalten; nur eindeutig defekte Einträge werden
 // verworfen. Ist der ganze Wert defekt, greift der Domänen-Standard.
 
-/** Liste: Array von `{ id, name, category, checked, createdAt? }`. */
+/**
+ * Liste: Array von `{ id, name, category, checked, createdAt?, quantity?, unit?, note? }`.
+ * Die optionalen Felder quantity/unit/note werden normalisiert und nur bei
+ * Bedarf geschrieben (omit-empty) – so bleiben Altdaten unverändert gültig und
+ * der Speicher schlank.
+ */
 export function sanitizeItems(value) {
   if (!Array.isArray(value)) return [];
   const out = [];
   for (const entry of value) {
     if (!isPlainObject(entry)) continue;
     if (typeof entry.name !== 'string' || entry.name.trim() === '') continue;
-    const { id, name, category, checked, createdAt, ...rest } = entry;
+    const { id, name, category, checked, createdAt, quantity, unit, note, ...rest } = entry;
     const clean = {
       ...rest, // unbekannte Zusatzfelder erhalten
       id: typeof id === 'string' && id ? id : createId(),
@@ -64,6 +72,14 @@ export function sanitizeItems(value) {
       checked: Boolean(checked),
     };
     if (typeof createdAt === 'string') clean.createdAt = createdAt;
+
+    const q = coerceQuantity(quantity);
+    if (q !== null) clean.quantity = q;
+    const u = coerceUnit(unit);
+    if (u) clean.unit = u;
+    const n = coerceNote(note);
+    if (n) clean.note = n;
+
     out.push(clean);
   }
   return out;
@@ -129,6 +145,14 @@ export const MIGRATIONS = [
     version: 1,
     describe:
       'Baseline v1: bestehende Keys (items, favorites, history, cards, theme) unverändert als Schema-Version 1 übernehmen.',
+    migrate: (state) => state,
+  },
+  {
+    version: 2,
+    describe:
+      'v2: Artikel um optionale Felder quantity/unit/note erweitern. Additiv und ' +
+      'rückwärtskompatibel – Altartikel bleiben unverändert gültig; die eigentliche ' +
+      'Normalisierung/Begrenzung übernimmt der (bei jedem Start laufende) sanitizeItems.',
     migrate: (state) => state,
   },
 ];

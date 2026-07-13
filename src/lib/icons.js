@@ -6,6 +6,9 @@ import products from '../data/products.json';
 
 export const DEFAULT_EMOJI = '🛒';
 
+// Kategorie-Auswahl für den Bearbeiten-Dialog (id + Anzeigename, in Reihenfolge).
+export const CATEGORY_OPTIONS = products.categories.map((c) => ({ id: c.id, name: c.name }));
+
 const normalize = (name) => name.trim().toLowerCase();
 
 const categoryById = new Map(products.categories.map((c) => [c.id, c]));
