@@ -105,6 +105,55 @@ describe('useShoppingItems – addItem Ergebnis-Status', () => {
     expect(result.current.items).toHaveLength(0);
   });
 
+  it('übernimmt Menge/Einheit/Notiz aus der Schnelleingabe an einem neuen Artikel', () => {
+    const { result } = renderHook(() => useShoppingItems());
+
+    let outcome;
+    act(() => {
+      outcome = result.current.addItem('Tofu', undefined, {
+        quantity: 500,
+        unit: 'g',
+        note: 'fest',
+      });
+    });
+
+    expect(outcome.status).toBe('added');
+    expect(outcome.item).toMatchObject({ name: 'Tofu', quantity: 500, unit: 'g', note: 'fest' });
+    expect(result.current.items[0]).toMatchObject({ quantity: 500, unit: 'g', note: 'fest' });
+  });
+
+  it('materialisiert leere Zusatzfelder nicht (omit-empty)', () => {
+    const { result } = renderHook(() => useShoppingItems());
+
+    act(() => {
+      result.current.addItem('Apfel', undefined, { quantity: null, unit: '', note: '' });
+    });
+
+    const item = result.current.items[0];
+    expect('quantity' in item).toBe(false);
+    expect('unit' in item).toBe(false);
+    expect('note' in item).toBe(false);
+  });
+
+  it('Dublettenerkennung läuft über den Namen – auch mit Mengen-Extras', () => {
+    const { result } = renderHook(() => useShoppingItems());
+
+    act(() => {
+      result.current.addItem('Hafermilch');
+    });
+
+    let outcome;
+    act(() => {
+      // Simuliert „2 × Hafermilch": geparster Name „Hafermilch" + extras.
+      outcome = result.current.addItem('Hafermilch', undefined, { quantity: 2, unit: '', note: '' });
+    });
+
+    expect(outcome.status).toBe('alreadyOpen');
+    expect(result.current.items).toHaveLength(1);
+    // Vorhandener Artikel wird NICHT mit der neuen Menge überschrieben.
+    expect('quantity' in result.current.items[0]).toBe(false);
+  });
+
   it('liest bei jedem Aufruf den aktuellen Stand (keine stale Closure über mehrere Renders)', () => {
     const { result } = renderHook(() => useShoppingItems());
 
