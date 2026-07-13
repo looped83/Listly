@@ -1,29 +1,23 @@
-import { useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { readStorage, writeStorage } from '../lib/storage';
 
 /**
- * State, der synchron mit localStorage gespiegelt wird.
- * Schreibt direkt im Setter (kein Effect) – vermeidet zusätzliche Re-Renders
- * und stellt sicher, dass Daten auch bei sofortigem App-Neustart persistiert sind.
+ * State, der mit localStorage gespiegelt wird.
+ * Persistenz läuft als Effekt (nicht im Setter): der State-Updater bleibt rein
+ * und darf unter React StrictMode gefahrlos doppelt laufen. writeStorage ist
+ * idempotent, ein Doppellauf des Effekts schadet daher nicht.
  *
  * @template T
  * @param {string} key
  * @param {T} initialValue
- * @returns {[T, (updater: T | ((prev: T) => T)) => void]}
+ * @returns {[T, import('react').Dispatch<import('react').SetStateAction<T>>]}
  */
 export function useLocalStorage(key, initialValue) {
   const [state, setState] = useState(() => readStorage(key, initialValue));
 
-  const setValue = useCallback(
-    (updater) => {
-      setState((prev) => {
-        const next = typeof updater === 'function' ? updater(prev) : updater;
-        writeStorage(key, next);
-        return next;
-      });
-    },
-    [key],
-  );
+  useEffect(() => {
+    writeStorage(key, state);
+  }, [key, state]);
 
-  return [state, setValue];
+  return [state, setState];
 }
