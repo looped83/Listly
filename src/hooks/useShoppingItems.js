@@ -3,6 +3,7 @@ import { isCloudEnabled, getSupabase, rowToItem, TABLE, LIST_ID } from '../lib/s
 import { readStorage, writeStorage, STORAGE_KEYS } from '../lib/storage';
 import { cleanName, normalizeName } from '../lib/history';
 import { getKnownCategory } from '../lib/icons';
+import { coerceQuantity, coerceUnit, coerceNote } from '../lib/itemFields';
 
 const createId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -135,9 +136,14 @@ export function useShoppingItems({ onPurchase } = {}) {
    * optimistisches Update laufen komplett vor jedem `await`, daher liest jeder
    * Aufruf stets den aktuellen `itemsRef`-Stand – keine stale Closures, keine
    * Race Conditions durch parallele Aufrufe aus verschiedenen Quellen.
+   *
+   * `extras` (optional, aus der Schnelleingabe) trägt Menge/Einheit/Notiz bei –
+   * sie werden nur an einem NEU angelegten Artikel gesetzt. Die Dubletten-
+   * Erkennung läuft unverändert allein über den (normalisierten) Namen; ein
+   * bereits vorhandener Artikel wird nicht mit einer neuen Menge überschrieben.
    */
   const addItem = useCallback(
-    (rawName, category) => {
+    (rawName, category, extras) => {
       const name = cleanName(rawName);
       const key = normalizeName(name);
       if (!key) return { status: 'invalid' };
@@ -160,18 +166,31 @@ export function useShoppingItems({ onPurchase } = {}) {
         createdAt: new Date().toISOString(),
       };
 
+      // Optionale Felder aus der Schnelleingabe – nur nicht-leere materialisieren
+      // (omit-empty, konsistent mit Sanitizer/Migration).
+      const quantity = coerceQuantity(extras?.quantity);
+      const unit = coerceUnit(extras?.unit);
+      const note = coerceNote(extras?.note);
+      if (quantity !== null) item.quantity = quantity;
+      if (unit) item.unit = unit;
+      if (note) item.note = note;
+
       applyItems((prev) => [...prev, item]); // optimistisch
 
       if (isCloudEnabled) {
         (async () => {
           const supabase = await getSupabase();
-          const { error } = await supabase.from(TABLE).insert({
+          const row = {
             id: item.id,
             list_id: LIST_ID,
             name: item.name,
             category: item.category,
             checked: false,
-          });
+          };
+          if (quantity !== null) row.quantity = quantity;
+          if (unit) row.unit = unit;
+          if (note) row.note = note;
+          const { error } = await supabase.from(TABLE).insert(row);
           if (error) refetch();
         })();
       }

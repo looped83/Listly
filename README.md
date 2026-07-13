@@ -8,6 +8,9 @@ installieren (offline-fähig).
 
 - **Artikel verwalten** – hinzufügen, abhaken, favorisieren; entfernen per
   ×-Button **oder Wischen nach links** (Swipe-to-delete).
+- **Schnelleingabe** – beim manuellen Hinzufügen erkennt Listly konservativ eine
+  führende Menge/Einheit und eine optionale Notiz (siehe unten). Im Zweifel bleibt
+  die Eingabe unverändert der Artikelname; ausgewählte Vorschläge werden nie zerlegt.
 - **Kaufverlauf** – abgehakte und „verbuchte“ Artikel merken sich ihre
   Kaufhäufigkeit. Häufig gekaufte Artikel erscheinen als horizontal scrollbare
   Schnellauswahl-Chips (einzeln über ihr ×-Symbol aus den Vorschlägen entfernbar).
@@ -26,6 +29,42 @@ installieren (offline-fähig).
 - **PWA** – installierbar, Standalone-Modus, Offline-Support via Service Worker.
 - **Lokale Fonts** – Fraunces, Inter & IBM Plex Mono sind selbst gehostet
   (kein CDN), für schnelle Ladezeiten und Offline-Fähigkeit.
+
+## Schnelleingabe (Menge / Einheit / Notiz)
+
+Beim **manuellen** Absenden im Eingabefeld erkennt Listly konservativ ein
+eindeutiges Präfix für Menge/Einheit sowie eine mit `#` eingeleitete Notiz. Die
+Zerlegung passiert **nur bei frei getipptem Text** – wählst du einen Vorschlag
+aus, wird er unverändert übernommen.
+
+| Eingabe               | Menge | Einheit | Name       | Notiz        |
+| --------------------- | ----- | ------- | ---------- | ------------ |
+| `2x Hafermilch`       | 2     | –       | Hafermilch | –            |
+| `2 × Hafermilch`      | 2     | –       | Hafermilch | –            |
+| `500 g Tofu`          | 500   | g       | Tofu       | –            |
+| `1,5 l Wasser`        | 1,5   | l       | Wasser     | –            |
+| `3 Bananen #reif`     | 3     | –       | Bananen    | reif         |
+| `Tofu #geräuchert`    | –     | –       | Tofu       | geräuchert   |
+
+**Regeln (bewusst konservativ):**
+
+- **Reihenfolge:** `#` trennt zuerst die Notiz ab; davor wird ein Mengen-Präfix
+  gesucht. Greift kein Muster, ist die komplette Eingabe der Name.
+- **Muster:** Multiplikator (`2x`, `2 ×`), Menge + bekannte Einheit (`500 g`),
+  oder reine **Ganzzahl** als Anzahl (`3 Bananen`).
+- **Dezimaltrenner:** Komma **und** Punkt (`1,5` = `1.5`).
+- **Erlaubte Einheiten** (werden normalisiert): `g` (`gr`, `gramm`), `kg` (`kilo`,
+  `kilogramm`), `mg`, `l` (`ltr`, `liter`), `ml` (`milliliter`), `cl`, `dl`.
+  Andere Wörter zählen nicht als Einheit.
+- **Fehlinterpretationsschutz:** Produktnamen mit Zahlen bleiben unangetastet –
+  z. B. `0% Joghurt`, `7Up`, `3-Minuten-Terrine` oder `2xHafermilch` (ohne
+  Leerzeichen) werden **nicht** zerlegt.
+- **Dublettenerkennung** läuft weiterhin über den reinen Namen – `2 × Hafermilch`
+  gilt als „Hafermilch".
+
+Die Logik steckt als reine Funktion in
+[`src/lib/quickInput.js`](src/lib/quickInput.js) (`parseQuickInput`); die
+Einheiten-Liste (`QUICK_UNIT_ALIASES`) ist dort leicht erweiterbar.
 
 ## Datenmodell (localStorage)
 

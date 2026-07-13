@@ -5,6 +5,7 @@ import { useShoppingItems } from './hooks/useShoppingItems';
 import { ToastProvider, useToast } from './hooks/useToast';
 import { STORAGE_KEYS } from './lib/storage';
 import { cleanName, normalizeName, recordPurchase } from './lib/history';
+import { itemLabel } from './lib/itemFields';
 import { frequentSuggestions } from './lib/suggestions';
 import { summarizeCheckout } from './lib/checkout';
 import AddItemForm from './components/AddItemForm';
@@ -125,11 +126,12 @@ function AppContent() {
   // erledigt) einheitlich und über die Toast-/aria-live-Infrastruktur gemeldet
   // werden.
   const handleAddItem = useCallback(
-    (rawName, category) => {
-      const result = addItem(rawName, category);
+    (rawName, category, extras) => {
+      const result = addItem(rawName, category, extras);
 
       if (result.status === 'added') {
-        notify(`„${result.item.name}“ hinzugefügt`, { tone: 'success' });
+        // Interpretierte Menge/Einheit kompakt zeigen (z. B. „2 × Hafermilch“).
+        notify(`„${itemLabel(result.item)}“ hinzugefügt`, { tone: 'success' });
       } else if (result.status === 'alreadyOpen') {
         notify(`„${result.item.name}“ steht bereits auf der Liste`);
       } else if (result.status === 'reactivated') {

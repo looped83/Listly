@@ -12,6 +12,7 @@ import { Plus } from 'lucide-react';
 import { buildSuggestions } from '../lib/suggestions';
 import ProductIcon from './ProductIcon';
 import { normalizeName } from '../lib/history';
+import { parseQuickInput } from '../lib/quickInput';
 
 // Kennzeichnung der Vorschlagsquelle; Basisartikel erhalten bewusst kein Tag.
 const SOURCE_LABEL = {
@@ -75,10 +76,10 @@ const AddItemForm = forwardRef(function AddItemForm(
   const showSuggestions = focused && suggestions.length > 0;
 
   const commit = useCallback(
-    (name, category) => {
+    (name, category, extras) => {
       const trimmed = name.trim();
       if (!trimmed) return;
-      onAdd(trimmed, category);
+      onAdd(trimmed, category, extras);
       setValue('');
       setActiveIndex(-1);
       inputRef.current?.focus();
@@ -95,10 +96,14 @@ const AddItemForm = forwardRef(function AddItemForm(
     (e) => {
       e.preventDefault();
       if (activeIndex >= 0 && suggestions[activeIndex]) {
+        // Ausgewählter Vorschlag: unverändert mit seinen Metadaten übernehmen –
+        // KEINE Schnelleingabe-Zerlegung (Vorschläge sind fertige Produktnamen).
         const s = suggestions[activeIndex];
         commit(s.name, s.category);
       } else {
-        commit(value);
+        // Freitext: konservativ auf Menge/Einheit/Notiz prüfen.
+        const { name, quantity, unit, note } = parseQuickInput(value);
+        commit(name, undefined, { quantity, unit, note });
       }
     },
     [activeIndex, suggestions, commit, value],

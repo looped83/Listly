@@ -93,6 +93,7 @@ src/
 │   ├── cards.js            #   Händler-Metadaten, Barcode-Format, Code-Inhalt
 │   ├── checkout.js         #   reine Helfer: Zusammenfassung/Auswahl beim Einkaufsabschluss
 │   ├── itemFields.js       #   reine Helfer: Menge/Einheit/Notiz (Coerce/Parse/Format)
+│   ├── quickInput.js       #   reiner Parser: Schnelleingabe → { name, quantity, unit, note }
 │   └── schema.js           #   localStorage-Migrationen + Sanitizer (siehe §12)
 ├── data/products.json      # 356 Produkte / 16 Kategorien (Emoji je Produkt)
 ├── styles/
@@ -277,6 +278,18 @@ deployen.
   dupliziert: ein bereits offener Artikel bleibt unverändert, ein bereits
   erledigter wird reaktiviert (wieder offen). Feedback über die Toast-
   Infrastruktur, Fokus bleibt im Eingabefeld.
+- **Schnelleingabe (`lib/quickInput.js`):** beim **manuellen** Absenden von
+  Freitext zerlegt `parseQuickInput` die Eingabe konservativ in
+  `{ name, quantity, unit, note }`. Erkannt werden nur eindeutige Präfixmuster:
+  Multiplikator (`2x`/`2 ×`), Menge + bekannte Einheit (`500 g`, `1,5 l`) und reine
+  Ganzzahl-Anzahl (`3 Bananen`); `#` trennt eine Notiz ab (`Tofu #geräuchert`).
+  Im Zweifel bleibt die ganze Eingabe der Name – Produktnamen mit Zahlen (`0%
+  Joghurt`, `7Up`, `3-Minuten-Terrine`) werden nicht zerlegt. Einheiten werden auf
+  kanonische Kürzel normalisiert (Liste `QUICK_UNIT_ALIASES`, nur Maßeinheiten).
+  **Nur Freitext** wird geparst – ausgewählte Vorschläge/Chips behalten ihre
+  Metadaten. Die Dubletten-Erkennung läuft unverändert über den reinen Namen; ein
+  neuer Toast zeigt die interpretierte Menge kompakt (`itemLabel`). Nur bei einem
+  **neu** angelegten Artikel werden die Felder gesetzt (omit-empty).
 - **Artikel bearbeiten:** Stift-Button öffnet `ItemEditDialog.jsx` (Name,
   Menge, Einheit, Kategorie, Notiz). Validierung: Name darf nicht leer sein,
   Menge muss eine positive Zahl sein (Komma **und** Punkt als
@@ -344,7 +357,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
   wäre nur mit echtem Login sinnvoll.
 - **`npm audit`** meldet eine Dev-Server-Warnung (esbuild, transitiv über Vite 5).
   Betrifft nur den lokalen Dev-Server, nicht das ausgelieferte Bundle.
-- **Tests:** Vitest + React Testing Library, `npm test` (133 Tests, 10 Dateien).
+- **Tests:** Vitest + React Testing Library, `npm test` (172 Tests, 11 Dateien).
   Läuft auch als Teil der Deploy-Pipeline (§6) – ein Testfehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
@@ -361,6 +374,8 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **Deploy anstoßen:** PR nach **`main`** mergen (nur das löst das Deployment
   aus, siehe §6 – Push auf einen Feature-Branch allein reicht nicht).
 - **Neue localStorage-Migration:** siehe §12.
+- **Schnelleingabe-Einheit ergänzen:** `QUICK_UNIT_ALIASES` in
+  `src/lib/quickInput.js` erweitern (Alias → kanonisches Kürzel), Test ergänzen.
 - **Neues Artikelfeld (wie Menge/Einheit/Notiz):** Sanitizer in `schema.js`
   erweitern + `SCHEMA_VERSION` hochzählen (§12), Coerce-Helfer in
   `lib/itemFields.js` ergänzen, `ItemEditDialog.jsx` um das Feld erweitern,
