@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 // App synct standardmäßig über Supabase (siehe supabaseConfig.js). Für den
@@ -80,6 +80,18 @@ async function addItem(user, name) {
   await screen.findByText(name);
 }
 
+/** Öffnet den Abschluss-Dialog über die primäre Aktion in der Erledigt-Sektion. */
+async function openCheckout(user) {
+  await user.click(await screen.findByRole('button', { name: 'Einkauf abschließen' }));
+  return screen.findByRole('dialog');
+}
+
+/** Öffnet den Dialog und bestätigt den Standardabschluss (nur Abgehaktes). */
+async function checkoutDefault(user) {
+  const dialog = await openCheckout(user);
+  await user.click(within(dialog).getByRole('button', { name: 'Einkauf abschließen' }));
+}
+
 describe('Feedback & Undo (local mode)', () => {
   beforeEach(() => {
     vi.stubGlobal('localStorage', createLocalStorageMock());
@@ -102,13 +114,13 @@ describe('Feedback & Undo (local mode)', () => {
     expect(await screen.findByRole('button', { name: 'Testartikel entfernen' })).toBeInTheDocument();
   });
 
-  it('archives checked items and restores list plus history via undo', async () => {
+  it('completes the purchase (default) and restores list plus history via undo', async () => {
     const user = userEvent.setup();
     render(<App />);
     await addItem(user, 'Testartikel');
 
     await user.click(screen.getByRole('button', { name: 'Testartikel als erledigt markieren' }));
-    await user.click(await screen.findByRole('button', { name: /Erledigte entfernen/ }));
+    await checkoutDefault(user);
 
     // Verbucht: Artikel verlässt die Liste, taucht als Verlaufs-Chip (×1) auf.
     expect(screen.queryByText('Erledigt')).not.toBeInTheDocument();
@@ -133,7 +145,7 @@ describe('Feedback & Undo (local mode)', () => {
     await addItem(user, 'Testartikel');
 
     await user.click(screen.getByRole('button', { name: 'Testartikel als erledigt markieren' }));
-    await user.click(await screen.findByRole('button', { name: /Erledigte entfernen/ }));
+    await checkoutDefault(user);
 
     // Genau einmal verbucht: der Chip zeigt ×1, niemals ×2.
     expect(await screen.findByText('×1')).toBeInTheDocument();
@@ -232,11 +244,11 @@ describe('Dubletten-Feedback beim Hinzufügen (local mode)', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    // Artikel erledigen und archivieren, damit er im Verlauf (und als
+    // Artikel erledigen und abschließen, damit er im Verlauf (und als
     // Häufig-gekauft-Chip) auftaucht.
     await addItem(user, 'Kichererbsen');
     await user.click(screen.getByRole('button', { name: 'Kichererbsen als erledigt markieren' }));
-    await user.click(await screen.findByRole('button', { name: /Erledigte entfernen/ }));
+    await checkoutDefault(user);
     await screen.findByText('×1');
 
     // Über den Häufig-gekauft-Chip erneut hinzufügen: derselbe Code-Pfad wie
@@ -253,5 +265,140 @@ describe('Dubletten-Feedback beim Hinzufügen (local mode)', () => {
     // Eingabefeld bleibt aber sinnvoll fokussiert für die nächste Eingabe.
     const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
     expect(input).toHaveFocus();
+  });
+});
+
+describe('Einkauf abschließen – Dialog (local mode)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', createLocalStorageMock());
+  });
+
+  it('bietet keinen Abschluss an, solange nichts abgehakt ist', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Testartikel');
+
+    // Nur offene Artikel → keine sinnlose Abschlussaktion.
+    expect(screen.queryByRole('button', { name: 'Einkauf abschließen' })).not.toBeInTheDocument();
+  });
+
+  it('zeigt Anzahl abgehakter und offener Artikel sowie die Konsequenz', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'GekauftA');
+    await addItem(user, 'GekauftB');
+    await addItem(user, 'Offen');
+    await user.click(screen.getByRole('button', { name: 'GekauftA als erledigt markieren' }));
+    await user.click(screen.getByRole('button', { name: 'GekauftB als erledigt markieren' }));
+
+    const dialog = await openCheckout(user);
+
+    // Zwei abgehakt, einer offen.
+    expect(within(dialog).getByText('2', { selector: '.dialog__count strong' })).toBeInTheDocument();
+    expect(within(dialog).getByText('1', { selector: '.dialog__count strong' })).toBeInTheDocument();
+    expect(within(dialog).getByText(/2 Artikel werden in den Kaufverlauf verbucht/)).toBeInTheDocument();
+    // Standard: offene Artikel bleiben erhalten.
+    expect(within(dialog).getByText(/1 offener Artikel bleibt auf der Liste/)).toBeInTheDocument();
+  });
+
+  it('verbucht standardmäßig nur abgehakte Artikel; offene bleiben bestehen', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Gekauft');
+    await addItem(user, 'Offen');
+    await user.click(screen.getByRole('button', { name: 'Gekauft als erledigt markieren' }));
+
+    await checkoutDefault(user);
+
+    // Abgehaktes ist weg und im Verlauf; Offenes bleibt auf der Liste.
+    expect(screen.queryByRole('button', { name: 'Gekauft als offen markieren' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Offen als erledigt markieren' })).toBeInTheDocument();
+    expect(screen.getByText('1 offen')).toBeInTheDocument();
+    expect(screen.getByText('×1')).toBeInTheDocument();
+  });
+
+  it('schließt mit „Alle als gekauft" auch offene Artikel ab und leert die Liste', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Gekauft');
+    await addItem(user, 'Offen');
+    await user.click(screen.getByRole('button', { name: 'Gekauft als erledigt markieren' }));
+
+    const dialog = await openCheckout(user);
+    await user.click(within(dialog).getByRole('checkbox'));
+    // Konsequenztext aktualisiert sich auf „Liste ist danach leer".
+    expect(within(dialog).getByText(/Die Liste ist danach leer/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Einkauf abschließen' }));
+
+    // Beide Artikel verbucht, Liste leer.
+    expect(screen.getByText('Deine Liste ist leer')).toBeInTheDocument();
+    // Beide als Verlaufs-Chips (je ×1).
+    expect(screen.getByRole('button', { name: 'Gekauft×1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Offen×1' })).toBeInTheDocument();
+  });
+
+  it('macht einen „Alle abschließen"-Abschluss vollständig rückgängig', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Gekauft');
+    await addItem(user, 'Offen');
+    await user.click(screen.getByRole('button', { name: 'Gekauft als erledigt markieren' }));
+
+    const dialog = await openCheckout(user);
+    await user.click(within(dialog).getByRole('checkbox'));
+    await user.click(within(dialog).getByRole('button', { name: 'Einkauf abschließen' }));
+
+    await user.click(await screen.findByRole('button', { name: /Rückgängig/ }));
+
+    // Vorheriger Zustand: „Gekauft" wieder erledigt, „Offen" wieder offen, kein Verlauf.
+    expect(
+      await screen.findByRole('button', { name: 'Gekauft als offen markieren' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Offen als erledigt markieren' })).toBeInTheDocument();
+    expect(screen.queryByText('×1')).not.toBeInTheDocument();
+  });
+
+  it('bricht ohne Wirkung ab (Abbrechen-Button)', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Testartikel');
+    await user.click(screen.getByRole('button', { name: 'Testartikel als erledigt markieren' }));
+
+    const dialog = await openCheckout(user);
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+
+    // Dialog zu, nichts verbucht, Artikel bleibt erledigt auf der Liste.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Testartikel als offen markieren' })).toBeInTheDocument();
+    expect(screen.queryByText('×1')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Rückgängig/ })).not.toBeInTheDocument();
+  });
+
+  it('bricht per Escape ab und gibt den Fokus an die auslösende Schaltfläche zurück', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Testartikel');
+    await user.click(screen.getByRole('button', { name: 'Testartikel als erledigt markieren' }));
+
+    const trigger = await screen.findByRole('button', { name: 'Einkauf abschließen' });
+    await user.click(trigger);
+    await screen.findByRole('dialog');
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // Fokus kehrt zur auslösenden Schaltfläche zurück.
+    expect(trigger).toHaveFocus();
+  });
+
+  it('legt den initialen Fokus auf die primäre Aktion', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Testartikel');
+    await user.click(screen.getByRole('button', { name: 'Testartikel als erledigt markieren' }));
+
+    const dialog = await openCheckout(user);
+
+    expect(within(dialog).getByRole('button', { name: 'Einkauf abschließen' })).toHaveFocus();
   });
 });

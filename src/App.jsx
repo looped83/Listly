@@ -6,9 +6,11 @@ import { ToastProvider, useToast } from './hooks/useToast';
 import { STORAGE_KEYS } from './lib/storage';
 import { cleanName, normalizeName, recordPurchase } from './lib/history';
 import { frequentSuggestions } from './lib/suggestions';
+import { summarizeCheckout } from './lib/checkout';
 import AddItemForm from './components/AddItemForm';
 import FrequentChips from './components/FrequentChips';
 import ShoppingList from './components/ShoppingList';
+import CheckoutDialog from './components/CheckoutDialog';
 import SyncStatus from './components/SyncStatus';
 import { ShoppingBasket, Wallet } from 'lucide-react';
 
@@ -28,10 +30,12 @@ function AppContent() {
   const [favorites, setFavorites] = useLocalStorage(STORAGE_KEYS.favorites, []);
   const [history, setHistory] = useLocalStorage(STORAGE_KEYS.history, {});
   const [cardsOpen, setCardsOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const { notify } = useToast();
   useSystemTheme();
 
   const closeCards = useCallback(() => setCardsOpen(false), []);
+  const closeCheckout = useCallback(() => setCheckoutOpen(false), []);
 
   // Erledigte Artikel im (lokalen) Kaufverlauf verbuchen. Reiner State-Update:
   // recordPurchase ist immutabel, daher unter StrictMode kein Doppelverbuchen.
@@ -42,8 +46,11 @@ function AppContent() {
     [setHistory],
   );
 
-  const { items, status, addItem, toggleItem, removeItem, restoreItems, clearChecked } =
+  const { items, status, addItem, toggleItem, removeItem, restoreItems, completeCheckout } =
     useShoppingItems({ onPurchase: handlePurchase });
+
+  // Abgeleitete Kennzahlen für den Abschluss-Dialog – reine Berechnung.
+  const checkoutSummary = useMemo(() => summarizeCheckout(items), [items]);
 
   // Ref auf das Eingabefeld (Dock): erlaubt es jeder Hinzufügen-Quelle (Tippen,
   // Autovervollständigung, Chips), den Fokus nach dem Hinzufügen sinnvoll dorthin
@@ -85,23 +92,29 @@ function AppContent() {
     [removeItem, restoreItems, notify],
   );
 
-  // Erledigte archivieren (verbuchen + entfernen) – mit Undo. Der Undo stellt den
-  // vollständigen Vorzustand her: die Artikel UND den vorherigen Kaufverlauf.
-  const handleClearChecked = useCallback(() => {
-    const historyBefore = history;
-    const archived = clearChecked();
-    if (archived.length === 0) return;
-    const label = archived.length === 1 ? '1 Artikel archiviert' : `${archived.length} Artikel archiviert`;
-    notify(label, {
-      action: {
-        label: 'Rückgängig',
-        onAction: () => {
-          setHistory(historyBefore);
-          restoreItems(archived);
+  // Abschluss bestätigen (aus dem Dialog): verbucht die betroffenen Artikel und
+  // entfernt sie – mit Undo, das den vollständigen Vorzustand wiederherstellt
+  // (die Artikel UND den vorherigen Kaufverlauf).
+  const handleConfirmCheckout = useCallback(
+    (includeOpen) => {
+      const historyBefore = history;
+      const completed = completeCheckout(includeOpen);
+      setCheckoutOpen(false);
+      if (completed.length === 0) return;
+      const label =
+        completed.length === 1 ? '1 Artikel abgeschlossen' : `${completed.length} Artikel abgeschlossen`;
+      notify(label, {
+        action: {
+          label: 'Rückgängig',
+          onAction: () => {
+            setHistory(historyBefore);
+            restoreItems(completed);
+          },
         },
-      },
-    });
-  }, [clearChecked, history, setHistory, restoreItems, notify]);
+      });
+    },
+    [completeCheckout, history, setHistory, restoreItems, notify],
+  );
 
   // Abgeleitete Nachschlage-Sets – memoisiert gegen unnötige Neuberechnungen.
   const existingNames = useMemo(
@@ -175,7 +188,7 @@ function AppContent() {
           onToggle={toggleItem}
           onToggleFavorite={toggleFavorite}
           onRemove={handleRemoveItem}
-          onClearChecked={handleClearChecked}
+          onCheckout={() => setCheckoutOpen(true)}
         />
       </main>
 
@@ -194,6 +207,15 @@ function AppContent() {
         <Suspense fallback={null}>
           <CardsSheet onClose={closeCards} />
         </Suspense>
+      )}
+
+      {checkoutOpen && (
+        <CheckoutDialog
+          checkedCount={checkoutSummary.checkedCount}
+          openCount={checkoutSummary.openCount}
+          onConfirm={handleConfirmCheckout}
+          onClose={closeCheckout}
+        />
       )}
     </div>
   );

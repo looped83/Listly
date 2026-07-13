@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { ClipboardList, Trash2 } from 'lucide-react';
+import { ClipboardList, ShoppingBag } from 'lucide-react';
 import ListItem from './ListItem';
 import { normalizeName } from '../lib/history';
 import { categoryInfo } from '../lib/icons';
@@ -18,7 +18,7 @@ function groupByCategory(list) {
 }
 
 /** Rendert die aktuelle Liste: offene und erledigte Artikel je nach Kategorie gruppiert. */
-function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove, onClearChecked }) {
+function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove, onCheckout }) {
   const { open, done } = useMemo(() => {
     const groups = { open: [], done: [] };
     for (const item of items) (item.checked ? groups.done : groups.open).push(item);
@@ -80,10 +80,12 @@ function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove
             <span className="list-section__count">{done.length}</span>
           </div>
           {doneGroups.map((group) => renderGroup(group))}
+          {/* Primäre Aktion – nur sichtbar, wenn es abgehakte Artikel gibt, sonst
+              gäbe es nichts abzuschließen. */}
           <div className="list-actions">
-            <button type="button" className="text-button" onClick={onClearChecked}>
-              <Trash2 size={16} aria-hidden="true" />
-              Erledigte entfernen &amp; verbuchen
+            <button type="button" className="button-checkout" onClick={onCheckout}>
+              <ShoppingBag size={18} aria-hidden="true" />
+              Einkauf abschließen
             </button>
           </div>
         </section>

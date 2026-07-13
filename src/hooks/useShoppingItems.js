@@ -233,30 +233,32 @@ export function useShoppingItems({ onPurchase } = {}) {
     [applyItems, refetch],
   );
 
-  // Verbucht erledigte Artikel im Kaufverlauf und entfernt sie aus der Liste.
-  // Gibt die archivierten Artikel zurück, damit der Aufruf Undo anbieten kann.
-  const clearChecked = useCallback(() => {
-    const checked = itemsRef.current.filter((it) => it.checked);
-    if (checked.length === 0) return [];
+  // Schließt den Einkauf ab: verbucht die betroffenen Artikel im Kaufverlauf und
+  // entfernt sie aus der aktiven Liste. Standardmäßig nur abgehakte Artikel;
+  // mit includeOpen bewusst alle. Gibt die abgeschlossenen Artikel zurück, damit
+  // der Aufrufer eine Undo-Aktion anbieten kann.
+  const completeCheckout = useCallback(
+    (includeOpen = false) => {
+      const completed = itemsRef.current.filter((it) => includeOpen || it.checked);
+      if (completed.length === 0) return [];
 
-    onPurchase?.(checked); // Kaufverlauf (lokal) aktualisieren – im Event-Handler,
-    //                         nicht im State-Updater, daher unter StrictMode einmalig.
+      onPurchase?.(completed); // Kaufverlauf (lokal) aktualisieren – im Event-Handler,
+      //                          nicht im State-Updater, daher unter StrictMode einmalig.
 
-    applyItems((prev) => prev.filter((it) => !it.checked));
+      const completedIds = new Set(completed.map((it) => it.id));
+      applyItems((prev) => prev.filter((it) => !completedIds.has(it.id)));
 
-    if (isCloudEnabled) {
-      (async () => {
-        const supabase = await getSupabase();
-        const { error } = await supabase
-          .from(TABLE)
-          .delete()
-          .eq('list_id', LIST_ID)
-          .eq('checked', true);
-        if (error) refetch();
-      })();
-    }
-    return checked;
-  }, [applyItems, onPurchase, refetch]);
+      if (isCloudEnabled) {
+        (async () => {
+          const supabase = await getSupabase();
+          const { error } = await supabase.from(TABLE).delete().in('id', [...completedIds]);
+          if (error) refetch();
+        })();
+      }
+      return completed;
+    },
+    [applyItems, onPurchase, refetch],
+  );
 
-  return { items, status, addItem, toggleItem, removeItem, restoreItems, clearChecked };
+  return { items, status, addItem, toggleItem, removeItem, restoreItems, completeCheckout };
 }
