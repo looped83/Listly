@@ -1,4 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, LIST_ID } from './supabaseConfig';
+import { coerceQuantity, coerceUnit, coerceNote } from './itemFields';
 
 // Cloud-Sync ist nur aktiv, wenn URL und Key konfiguriert sind. Andernfalls
 // bleibt Listly im lokalen Modus (localStorage) voll funktionsfähig.
@@ -27,13 +28,24 @@ export function getSupabase() {
   return clientPromise;
 }
 
-/** DB-Zeile → App-Artikel. */
+/**
+ * DB-Zeile → App-Artikel. Die optionalen Spalten quantity/unit/note werden
+ * defensiv gelesen: fehlen sie (ältere DB ohne die Spalten), greifen die
+ * Standardwerte, sodass Cloud-Sync auch ohne Schema-Update funktioniert.
+ */
 export function rowToItem(row) {
-  return {
+  const item = {
     id: row.id,
     name: row.name,
     category: row.category ?? null,
     checked: Boolean(row.checked),
     createdAt: row.created_at,
   };
+  const quantity = coerceQuantity(row.quantity);
+  if (quantity !== null) item.quantity = quantity;
+  const unit = coerceUnit(row.unit);
+  if (unit) item.unit = unit;
+  const note = coerceNote(row.note);
+  if (note) item.note = note;
+  return item;
 }

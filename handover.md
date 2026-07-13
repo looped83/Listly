@@ -286,6 +286,12 @@ aus **`src/lib/schema.js`** auf. Die Pipeline ist **idempotent** und **defensiv*
   einmal** (Versions-Gate) – ein erneuter Start wendet sie nicht doppelt an.
 - **Version 1** = das bestehende Datenmodell (items, favorites, history, cards,
   theme). Der v0→v1-Schritt ist bewusst identisch (keine Strukturänderung).
+- **Version 2** = Artikel um die optionalen Felder `quantity` (positive Zahl oder
+  entfällt), `unit` (kurze Zeichenkette, getrimmt/begrenzt) und `note`
+  (getrimmt/begrenzt) erweitert. Additiv und rückwärtskompatibel: Altartikel
+  bleiben unverändert gültig, leere Felder werden **nicht** materialisiert
+  (omit-empty). Normalisierung/Begrenzung erledigt `sanitizeItems` (siehe
+  `lib/itemFields.js`).
 - **Defensive Validierung:** je Domäne ein reiner *Sanitizer*. Beschädigte Werte
   fallen **isoliert** auf einen sicheren Standard zurück (nie der ganze Speicher);
   **unbekannte Zusatzfelder bleiben erhalten**. Karten (`cards`) sind reine

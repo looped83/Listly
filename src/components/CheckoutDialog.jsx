@@ -1,11 +1,6 @@
-import { memo, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { memo, useCallback, useId, useRef, useState } from 'react';
 import { ShoppingBag, X } from 'lucide-react';
-
-const FOCUSABLE =
-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-const getFocusable = (root) =>
-  root ? Array.from(root.querySelectorAll(FOCUSABLE)).filter((el) => el.offsetParent !== null) : [];
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 /**
  * Zugänglicher Abschluss-Dialog (mobiles Bottom Sheet). Zeigt die Konsequenz
@@ -29,55 +24,16 @@ const getFocusable = (root) =>
  */
 function CheckoutDialog({ checkedCount, openCount, onConfirm, onClose }) {
   const [includeOpen, setIncludeOpen] = useState(false);
-  const panelRef = useRef(null);
   const confirmRef = useRef(null);
   const titleId = useId();
   const descId = useId();
+  const { panelRef, onKeyDown } = useDialogFocus({ onClose, initialFocusRef: confirmRef });
 
   const total = checkedCount + openCount;
   // Wenn es keine offenen Artikel gibt, ist „alles" identisch mit „nur
   // Abgehaktes" – die bewusste Zusatzwahl entfällt dann.
   const canIncludeOpen = openCount > 0;
   const willComplete = includeOpen ? total : checkedCount;
-
-  // Fokusfalle + initialer Fokus + Rückgabe des Fokus.
-  useEffect(() => {
-    const previouslyFocused = document.activeElement;
-    confirmRef.current?.focus();
-
-    return () => {
-      // Nur zurückgeben, wenn das Element noch existiert (die auslösende
-      // Schaltfläche kann nach dem Abschluss aus dem DOM verschwunden sein).
-      if (previouslyFocused instanceof HTMLElement && document.contains(previouslyFocused)) {
-        previouslyFocused.focus();
-      }
-    };
-  }, []);
-
-  const onKeyDown = useCallback(
-    (e) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-        return;
-      }
-      if (e.key !== 'Tab') return;
-
-      const focusable = getFocusable(panelRef.current);
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    },
-    [onClose],
-  );
 
   const onBackdrop = useCallback(
     (e) => {

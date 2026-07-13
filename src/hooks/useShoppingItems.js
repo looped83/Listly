@@ -181,6 +181,29 @@ export function useShoppingItems({ onPurchase } = {}) {
     [applyItems, refetch, toggleItem],
   );
 
+  // Aktualisiert Felder eines Artikels (Name, Kategorie, Menge, Einheit, Notiz).
+  // Reiner State-Patch; die Cloud-Aktualisierung läuft im Hintergrund.
+  const updateItem = useCallback(
+    (id, patch) => {
+      applyItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+
+      if (isCloudEnabled) {
+        (async () => {
+          const supabase = await getSupabase();
+          const dbPatch = {};
+          if ('name' in patch) dbPatch.name = patch.name;
+          if ('category' in patch) dbPatch.category = patch.category;
+          if ('quantity' in patch) dbPatch.quantity = patch.quantity;
+          if ('unit' in patch) dbPatch.unit = patch.unit || null;
+          if ('note' in patch) dbPatch.note = patch.note || null;
+          const { error } = await supabase.from(TABLE).update(dbPatch).eq('id', id);
+          if (error) refetch();
+        })();
+      }
+    },
+    [applyItems, refetch],
+  );
+
   // Entfernt einen Artikel und liefert die entfernte Kopie zurück – so kann der
   // Aufrufer eine Undo-Aktion anbieten. Die Cloud-Löschung läuft im Hintergrund.
   const removeItem = useCallback(
@@ -260,5 +283,14 @@ export function useShoppingItems({ onPurchase } = {}) {
     [applyItems, onPurchase, refetch],
   );
 
-  return { items, status, addItem, toggleItem, removeItem, restoreItems, completeCheckout };
+  return {
+    items,
+    status,
+    addItem,
+    toggleItem,
+    updateItem,
+    removeItem,
+    restoreItems,
+    completeCheckout,
+  };
 }

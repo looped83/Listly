@@ -18,7 +18,15 @@ function groupByCategory(list) {
 }
 
 /** Rendert die aktuelle Liste: offene und erledigte Artikel je nach Kategorie gruppiert. */
-function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove, onCheckout }) {
+function ShoppingList({
+  items,
+  favoriteSet,
+  onToggle,
+  onToggleFavorite,
+  onRemove,
+  onEdit,
+  onCheckout,
+}) {
   const { open, done } = useMemo(() => {
     const groups = { open: [], done: [] };
     for (const item of items) (item.checked ? groups.done : groups.open).push(item);
@@ -47,6 +55,7 @@ function ShoppingList({ items, favoriteSet, onToggle, onToggleFavorite, onRemove
         onToggle={onToggle}
         onToggleFavorite={onToggleFavorite}
         onRemove={onRemove}
+        onEdit={onEdit}
       />
     ));
 

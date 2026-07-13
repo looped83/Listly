@@ -64,11 +64,11 @@ describe('runMigrations – gültige Altdaten ohne Versions-Key', () => {
 
     expect(result.status).toBe('ok');
     expect(result.from).toBe(0); // Altdaten → als Version 0 erkannt
-    expect(result.applied).toEqual([1]); // v0 → v1 genau einmal angewandt
+    expect(result.applied).toEqual([1, 2]); // v0 → v1 → v2 je genau einmal
     expect(read(storage, 'items')).toEqual(items);
     expect(read(storage, 'favorites')).toEqual(favorites);
     expect(read(storage, 'history')).toEqual(history);
-    expect(read(storage, 'schemaVersion')).toBe(1);
+    expect(read(storage, 'schemaVersion')).toBe(SCHEMA_VERSION);
   });
 });
 
@@ -89,7 +89,7 @@ describe('runMigrations – teilweise beschädigte Daten', () => {
     expect(read(storage, 'history')).toEqual({
       apfel: { name: 'Apfel', category: null, count: 2, lastPurchased: 5 },
     });
-    expect(read(storage, 'schemaVersion')).toBe(1);
+    expect(read(storage, 'schemaVersion')).toBe(SCHEMA_VERSION);
   });
 
   it('verwirft nur defekte Einzeleinträge einer Liste und erhält den Rest inkl. Zusatzfelder', () => {
@@ -145,7 +145,7 @@ describe('runMigrations – mehrfaches Ausführen (idempotent)', () => {
     const second = runMigrations(storage);
     const afterSecond = storage.dump();
 
-    expect(first.applied).toEqual([1]);
+    expect(first.applied).toEqual([1, 2]);
     expect(second.status).toBe('ok');
     expect(second.applied).toEqual([]); // keine erneute Migration
     expect(afterSecond).toEqual(afterFirst); // Speicher unverändert
@@ -233,6 +233,60 @@ describe('sanitizeItems', () => {
     expect(item.foo).toBe('bar');
     expect(item.checked).toBe(true);
     expect(item.category).toBeNull();
+  });
+
+  it('normalisiert quantity/unit/note und schreibt sie nur, wenn belegt (omit-empty)', () => {
+    const [item] = sanitizeItems([
+      { id: 'a', name: 'Hafermilch', quantity: '2', unit: '  l  ', note: '  ungesüßt  ' },
+    ]);
+    expect(item.quantity).toBe(2); // aus String koerziert
+    expect(item.unit).toBe('l'); // getrimmt
+    expect(item.note).toBe('ungesüßt'); // getrimmt
+  });
+
+  it('lässt Altartikel ohne die neuen Felder unverändert (keine leeren Platzhalter)', () => {
+    const [item] = sanitizeItems([{ id: 'a', name: 'Apfel', category: 'obst', checked: false }]);
+    expect(item).toEqual({ id: 'a', name: 'Apfel', category: 'obst', checked: false });
+    expect('quantity' in item).toBe(false);
+    expect('unit' in item).toBe(false);
+    expect('note' in item).toBe(false);
+  });
+
+  it('verwirft ungültige oder nicht positive Mengen still (→ kein quantity-Feld)', () => {
+    const [a] = sanitizeItems([{ id: 'a', name: 'X', quantity: 0 }]);
+    const [b] = sanitizeItems([{ id: 'b', name: 'Y', quantity: -3 }]);
+    const [c] = sanitizeItems([{ id: 'c', name: 'Z', quantity: 'abc' }]);
+    expect('quantity' in a).toBe(false);
+    expect('quantity' in b).toBe(false);
+    expect('quantity' in c).toBe(false);
+  });
+
+  it('begrenzt zu lange Einheiten und Notizen', () => {
+    const [item] = sanitizeItems([
+      { id: 'a', name: 'X', unit: 'x'.repeat(50), note: 'y'.repeat(500) },
+    ]);
+    expect(item.unit).toHaveLength(16);
+    expect(item.note).toHaveLength(200);
+  });
+});
+
+describe('runMigrations – v2 (Menge/Einheit/Notiz)', () => {
+  it('koerziert vorhandene Rohwerte beim Hochmigrieren auf v2', () => {
+    const storage = seed({
+      items: [{ id: 'a', name: 'Hafermilch', quantity: '1,5', unit: ' l ', note: ' bio ' }],
+    });
+
+    const result = runMigrations(storage);
+
+    expect(result.applied).toEqual([1, 2]);
+    expect(read(storage, 'items')[0]).toMatchObject({
+      id: 'a',
+      name: 'Hafermilch',
+      quantity: 1.5, // „1,5" → 1.5
+      unit: 'l',
+      note: 'bio',
+    });
+    expect(read(storage, 'schemaVersion')).toBe(SCHEMA_VERSION);
   });
 });
 

@@ -402,3 +402,90 @@ describe('Einkauf abschließen – Dialog (local mode)', () => {
     expect(within(dialog).getByRole('button', { name: 'Einkauf abschließen' })).toHaveFocus();
   });
 });
+
+describe('Artikel bearbeiten (local mode)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', createLocalStorageMock());
+  });
+
+  async function openEdit(user, itemName) {
+    await user.click(await screen.findByRole('button', { name: `${itemName} bearbeiten` }));
+    return screen.findByRole('dialog');
+  }
+
+  it('ergänzt Menge, Einheit und Notiz und zeigt sie kompakt an', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Hafermilch');
+
+    const dialog = await openEdit(user, 'Hafermilch');
+    await user.type(within(dialog).getByLabelText('Menge'), '2');
+    await user.type(within(dialog).getByLabelText('Einheit'), 'l');
+    await user.type(within(dialog).getByLabelText('Notiz'), 'ungesüßt');
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+
+    // Kompaktdarstellung „2 l" + Notizzeile.
+    expect(await screen.findByText('2 l')).toHaveClass('list-item__qty');
+    expect(screen.getByText('ungesüßt')).toHaveClass('list-item__note');
+    // Bestätigungsmeldung.
+    expect(screen.getByRole('status')).toHaveTextContent('„Hafermilch“ aktualisiert');
+  });
+
+  it('gibt beim Schließen (Escape) den Fokus an die Bearbeiten-Schaltfläche zurück', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Hafermilch');
+
+    const trigger = await screen.findByRole('button', { name: 'Hafermilch bearbeiten' });
+    await user.click(trigger);
+    await screen.findByRole('dialog');
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('führt beim Umbenennen auf einen vorhandenen Artikel bewusst zusammen (keine Dublette)', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Apfel');
+    await addItem(user, 'Birne');
+
+    const dialog = await openEdit(user, 'Apfel');
+    const nameInput = within(dialog).getByLabelText('Name');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Birne');
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+
+    // Zusammenführungs-Abfrage statt stiller Dublette.
+    await user.click(await screen.findByRole('button', { name: 'Zusammenführen' }));
+
+    // Genau ein Artikel „Birne", kein „Apfel" mehr.
+    expect(screen.getByText('1 offen')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Birne als erledigt markieren' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Apfel als erledigt markieren' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('lässt den Favoriten einer Umbenennung folgen', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Apfel');
+
+    // Apfel favorisieren.
+    await user.click(screen.getByRole('button', { name: 'Apfel zu Favoriten hinzufügen' }));
+
+    const dialog = await openEdit(user, 'Apfel');
+    const nameInput = within(dialog).getByLabelText('Name');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Boskop');
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+
+    // Der Favoritenstatus ist mitgewandert: „Boskop" ist favorisiert, „Apfel" existiert nicht mehr.
+    expect(
+      await screen.findByRole('button', { name: 'Boskop aus Favoriten entfernen' }),
+    ).toBeInTheDocument();
+  });
+});

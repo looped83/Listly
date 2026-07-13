@@ -485,12 +485,34 @@ input {
   line-height: 1;
 }
 
-.list-item__name {
+/* Textblock: Name (mit optionalem Mengen-Präfix) + optionale Notiz darunter. */
+.list-item__text {
+  display: flex;
+  flex-direction: column;
   flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.list-item__name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.list-item__qty {
+  margin-right: 0.35em;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.list-item__note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .list-item[data-checked='true'] .list-item__name {
@@ -498,7 +520,11 @@ input {
   color: var(--text-muted);
 }
 
-/* Favorit + Löschen: eigene Trefferflächen, mittig neben dem Hauptbereich. */
+.list-item[data-checked='true'] .list-item__qty {
+  color: var(--text-muted);
+}
+
+/* Favorit + Bearbeiten + Löschen: eigene Trefferflächen neben dem Hauptbereich. */
 .list-item__actions {
   display: flex;
   align-items: center;
@@ -1271,4 +1297,63 @@ input {
     border-bottom: 1px solid var(--border);
     margin: 0 var(--space-4);
   }
+}
+
+/* ---------- Formularfelder (Bearbeiten-Dialog) ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.field__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.field__input {
+  width: 100%;
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+  min-height: 44px;
+}
+
+.field__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.field__input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.field__textarea {
+  resize: vertical;
+  min-height: 3rem;
+  line-height: 1.4;
+}
+
+.field__error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+/* Menge + Einheit nebeneinander: Menge schmaler, Einheit füllt den Rest. */
+.field-row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.field--qty {
+  flex: 0 0 40%;
+}
+
+.field--unit {
+  flex: 1 1 auto;
+  min-width: 0;
 }

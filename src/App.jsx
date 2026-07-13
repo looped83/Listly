@@ -11,6 +11,7 @@ import AddItemForm from './components/AddItemForm';
 import FrequentChips from './components/FrequentChips';
 import ShoppingList from './components/ShoppingList';
 import CheckoutDialog from './components/CheckoutDialog';
+import ItemEditDialog from './components/ItemEditDialog';
 import SyncStatus from './components/SyncStatus';
 import { ShoppingBasket, Wallet } from 'lucide-react';
 
@@ -31,11 +32,13 @@ function AppContent() {
   const [history, setHistory] = useLocalStorage(STORAGE_KEYS.history, {});
   const [cardsOpen, setCardsOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const { notify } = useToast();
   useSystemTheme();
 
   const closeCards = useCallback(() => setCardsOpen(false), []);
   const closeCheckout = useCallback(() => setCheckoutOpen(false), []);
+  const closeEdit = useCallback(() => setEditingId(null), []);
 
   // Erledigte Artikel im (lokalen) Kaufverlauf verbuchen. Reiner State-Update:
   // recordPurchase ist immutabel, daher unter StrictMode kein Doppelverbuchen.
@@ -46,11 +49,69 @@ function AppContent() {
     [setHistory],
   );
 
-  const { items, status, addItem, toggleItem, removeItem, restoreItems, completeCheckout } =
-    useShoppingItems({ onPurchase: handlePurchase });
+  const {
+    items,
+    status,
+    addItem,
+    toggleItem,
+    updateItem,
+    removeItem,
+    restoreItems,
+    completeCheckout,
+  } = useShoppingItems({ onPurchase: handlePurchase });
 
   // Abgeleitete Kennzahlen für den Abschluss-Dialog – reine Berechnung.
   const checkoutSummary = useMemo(() => summarizeCheckout(items), [items]);
+
+  const editingItem = useMemo(
+    () => items.find((it) => it.id === editingId) ?? null,
+    [items, editingId],
+  );
+
+  // Konflikt beim Umbenennen: ein ANDERER Artikel mit demselben (normalisierten)
+  // Namen. Wird vom Edit-Dialog zur Zusammenführungs-Abfrage genutzt.
+  const findEditConflict = useCallback(
+    (name) => {
+      const key = normalizeName(name);
+      return items.find((it) => it.id !== editingId && normalizeName(it.name) === key) ?? null;
+    },
+    [items, editingId],
+  );
+
+  // Favorit einer Umbenennung folgen lassen (konsistenter Favoritenbezug).
+  const renameFavorite = useCallback(
+    (oldName, newName) => {
+      const oldKey = normalizeName(oldName);
+      const newKey = normalizeName(newName);
+      if (oldKey === newKey) return;
+      setFavorites((prev) => {
+        if (!prev.some((fav) => normalizeName(fav) === oldKey)) return prev; // war kein Favorit
+        const withoutOld = prev.filter((fav) => normalizeName(fav) !== oldKey);
+        return withoutOld.some((fav) => normalizeName(fav) === newKey)
+          ? withoutOld
+          : [...withoutOld, newName];
+      });
+    },
+    [setFavorites],
+  );
+
+  // Artikel-Bearbeitung speichern. Bei mergeTargetId werden zwei gleichnamige
+  // Artikel zusammengeführt: der bearbeitete Artikel gewinnt (behält id/Position),
+  // der andere wird entfernt. Favoriten folgen der Umbenennung.
+  const handleSaveEdit = useCallback(
+    (patch, mergeTargetId) => {
+      if (!editingItem) return;
+      const oldName = editingItem.name;
+
+      updateItem(editingItem.id, patch);
+      if (mergeTargetId) removeItem(mergeTargetId);
+      renameFavorite(oldName, patch.name);
+
+      setEditingId(null);
+      notify(`„${patch.name}“ aktualisiert`);
+    },
+    [editingItem, updateItem, removeItem, renameFavorite, notify],
+  );
 
   // Ref auf das Eingabefeld (Dock): erlaubt es jeder Hinzufügen-Quelle (Tippen,
   // Autovervollständigung, Chips), den Fokus nach dem Hinzufügen sinnvoll dorthin
@@ -188,6 +249,7 @@ function AppContent() {
           onToggle={toggleItem}
           onToggleFavorite={toggleFavorite}
           onRemove={handleRemoveItem}
+          onEdit={setEditingId}
           onCheckout={() => setCheckoutOpen(true)}
         />
       </main>
@@ -215,6 +277,15 @@ function AppContent() {
           openCount={checkoutSummary.openCount}
           onConfirm={handleConfirmCheckout}
           onClose={closeCheckout}
+        />
+      )}
+
+      {editingItem && (
+        <ItemEditDialog
+          item={editingItem}
+          findConflict={findEditConflict}
+          onSave={handleSaveEdit}
+          onClose={closeEdit}
         />
       )}
     </div>
