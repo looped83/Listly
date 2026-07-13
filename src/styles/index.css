@@ -954,6 +954,14 @@ input {
   font-size: 0.95rem;
 }
 
+.list-group__count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
 /* ---------- Toasts / Snackbars ---------- */
 /*
  * Zentrale Feedback-Schicht: schwebt über der Eingabeleiste (Dock), in beiden

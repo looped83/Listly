@@ -2,20 +2,7 @@ import { memo, useMemo } from 'react';
 import { ClipboardList, ShoppingBag } from 'lucide-react';
 import ListItem from './ListItem';
 import { normalizeName } from '../lib/history';
-import { categoryInfo } from '../lib/icons';
-
-/** Artikel nach Kategorie gruppieren (in Kategorie-Reihenfolge). */
-function groupByCategory(list) {
-  const byCategory = new Map();
-  for (const item of list) {
-    const key = item.category || '__other';
-    if (!byCategory.has(key)) byCategory.set(key, []);
-    byCategory.get(key).push(item);
-  }
-  return [...byCategory.entries()]
-    .map(([key, items]) => ({ info: categoryInfo(key === '__other' ? null : key), items }))
-    .sort((a, b) => a.info.order - b.info.order);
-}
+import { groupByCategory } from '../lib/groupItems';
 
 /** Rendert die aktuelle Liste: offene und erledigte Artikel je nach Kategorie gruppiert. */
 function ShoppingList({
@@ -59,12 +46,28 @@ function ShoppingList({
       />
     ));
 
-  const renderGroup = (group) => (
-    <div className="list-group" key={group.info.id}>
-      <h3 className="list-group__header">{group.info.name}</h3>
-      <ul className="list">{renderItems(group.items)}</ul>
-    </div>
-  );
+  const renderGroup = (group) => {
+    const count = group.items.length;
+    return (
+      <div className="list-group" key={group.category.id}>
+        {/*
+          aria-label ersetzt den vorgelesenen Namen der Überschrift durch einen
+          vollständigen Satz („Obst & Gemüse, 3 Artikel“) – die sichtbaren
+          Kind-Elemente (Name + Zähler-Badge) bleiben dabei rein visuell.
+        */}
+        <h3
+          className="list-group__header"
+          aria-label={`${group.category.name}, ${count} Artikel`}
+        >
+          <span aria-hidden="true">{group.category.name}</span>
+          <span className="list-group__count" aria-hidden="true">
+            {count}
+          </span>
+        </h3>
+        <ul className="list">{renderItems(group.items)}</ul>
+      </div>
+    );
+  };
 
   return (
     <>
