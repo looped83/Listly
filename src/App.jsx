@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useSystemTheme } from './hooks/useTheme';
 import { useShoppingItems } from './hooks/useShoppingItems';
@@ -44,6 +44,34 @@ function AppContent() {
 
   const { items, status, addItem, toggleItem, removeItem, restoreItems, clearChecked } =
     useShoppingItems({ onPurchase: handlePurchase });
+
+  // Ref auf das Eingabefeld (Dock): erlaubt es jeder Hinzufügen-Quelle (Tippen,
+  // Autovervollständigung, Chips), den Fokus nach dem Hinzufügen sinnvoll dorthin
+  // zurückzulegen – auch wenn das angeklickte Element (z. B. ein Chip) danach aus
+  // dem DOM verschwindet und sonst der Fokus verloren ginge.
+  const addFormRef = useRef(null);
+
+  // Zentrale Hinzufügen-Logik für ALLE Eingabequellen (manuelle Eingabe,
+  // Autovervollständigung, Häufig-gekauft-Chips): addItem liefert synchron ein
+  // eindeutiges Ergebnis statt still zu bleiben, sodass Dubletten (offen oder
+  // erledigt) einheitlich und über die Toast-/aria-live-Infrastruktur gemeldet
+  // werden.
+  const handleAddItem = useCallback(
+    (rawName, category) => {
+      const result = addItem(rawName, category);
+
+      if (result.status === 'added') {
+        notify(`„${result.item.name}“ hinzugefügt`, { tone: 'success' });
+      } else if (result.status === 'alreadyOpen') {
+        notify(`„${result.item.name}“ steht bereits auf der Liste`);
+      } else if (result.status === 'reactivated') {
+        notify(`„${result.item.name}“ wurde wieder aktiviert`);
+      }
+
+      addFormRef.current?.focus();
+    },
+    [addItem, notify],
+  );
 
   // Einzelnen Artikel löschen – mit Undo (Artikel unverändert wiederherstellen).
   const handleRemoveItem = useCallback(
@@ -140,7 +168,7 @@ function AppContent() {
       </header>
 
       <main className="content">
-        <FrequentChips items={frequentItems} onAdd={addItem} onRemove={removeFromHistory} />
+        <FrequentChips items={frequentItems} onAdd={handleAddItem} onRemove={removeFromHistory} />
         <ShoppingList
           items={items}
           favoriteSet={favoriteSet}
@@ -154,7 +182,8 @@ function AppContent() {
       {/* Untere Eingabeleiste – positionsstabil, in Daumen-Reichweite. */}
       <div className="dock">
         <AddItemForm
-          onAdd={addItem}
+          ref={addFormRef}
+          onAdd={handleAddItem}
           history={history}
           favorites={favorites}
           existingNames={existingNames}

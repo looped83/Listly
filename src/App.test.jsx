@@ -140,3 +140,118 @@ describe('Feedback & Undo (local mode)', () => {
     expect(screen.queryByText('×2')).not.toBeInTheDocument();
   });
 });
+
+describe('Dubletten-Feedback beim Hinzufügen (local mode)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', createLocalStorageMock());
+  });
+
+  it('bestätigt einen neuen Artikel mit Erfolgsmeldung', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await addItem(user, 'Testartikel');
+
+    expect(await screen.findByRole('status')).toHaveTextContent('„Testartikel“ hinzugefügt');
+    expect(screen.getByText('1 offen')).toBeInTheDocument();
+  });
+
+  it('verhindert eine Dublette bei manueller Eingabe eines bereits offenen Artikels', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Testartikel');
+
+    // Groß-/Kleinschreibung und zusätzliche Leerzeichen dürfen die Erkennung
+    // nicht umgehen.
+    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    await user.type(input, '  TESTARTIKEL  ');
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      '„Testartikel“ steht bereits auf der Liste',
+    );
+    // Keine Dublette: weiterhin nur ein offener Artikel.
+    expect(screen.getByText('1 offen')).toBeInTheDocument();
+    expect(screen.getAllByText('Testartikel')).toHaveLength(1);
+  });
+
+  it('reaktiviert einen erledigten Artikel bei manueller Eingabe statt ihn zu duplizieren', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Testartikel');
+    await user.click(screen.getByRole('button', { name: 'Testartikel als erledigt markieren' }));
+
+    // Anderer Groß-/Kleinschreibungs-Fall als beim Original – muss trotzdem
+    // als derselbe Artikel erkannt werden.
+    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    await user.type(input, 'testartikel');
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      '„Testartikel“ wurde wieder aktiviert',
+    );
+    // Wieder offen: der Umschalt-Button zeigt wieder das Label für "erledigt
+    // markieren" (nicht mehr "als offen markieren").
+    expect(
+      await screen.findByRole('button', { name: 'Testartikel als erledigt markieren' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Testartikel als offen markieren' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('1 offen')).toBeInTheDocument();
+    expect(screen.getAllByText('Testartikel')).toHaveLength(1);
+  });
+
+  it('meldet Dubletten über die polite-Region, nicht als Fehler', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Testartikel');
+
+    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    await user.type(input, 'Testartikel');
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('steht bereits auf der Liste');
+    expect(screen.getByRole('alert')).toHaveTextContent('');
+  });
+
+  it('behält den Fokus im Eingabefeld nach einer abgelehnten Dublette', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Testartikel');
+
+    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    await user.type(input, 'Testartikel');
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+
+    await screen.findByRole('status');
+    expect(input).toHaveFocus();
+  });
+
+  it('zeigt für Autovervollständigung und Chips dieselben Statusmeldungen wie manuelle Eingabe', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    // Artikel erledigen und archivieren, damit er im Verlauf (und als
+    // Häufig-gekauft-Chip) auftaucht.
+    await addItem(user, 'Kichererbsen');
+    await user.click(screen.getByRole('button', { name: 'Kichererbsen als erledigt markieren' }));
+    await user.click(await screen.findByRole('button', { name: /Erledigte entfernen/ }));
+    await screen.findByText('×1');
+
+    // Über den Häufig-gekauft-Chip erneut hinzufügen: derselbe Code-Pfad wie
+    // manuelle Eingabe, daher dieselbe Erfolgsmeldung. (Der Chip hat eine
+    // eigene "Entfernen"-Schaltfläche, daher exakter Name statt Teilstring.)
+    const chipAdd = screen.getByRole('button', { name: 'Kichererbsen×1' });
+    await user.click(chipAdd);
+
+    expect(await screen.findByRole('status')).toHaveTextContent('„Kichererbsen“ hinzugefügt');
+    expect(screen.getByText('1 offen')).toBeInTheDocument();
+
+    // Erneuter Klick auf denselben Chip ist nicht mehr möglich (Artikel steht
+    // jetzt auf der Liste und wird aus den Vorschlägen ausgeblendet) – das
+    // Eingabefeld bleibt aber sinnvoll fokussiert für die nächste Eingabe.
+    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    expect(input).toHaveFocus();
+  });
+});

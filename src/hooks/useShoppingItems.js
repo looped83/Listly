@@ -103,47 +103,6 @@ export function useShoppingItems({ onPurchase } = {}) {
   }, [refetch]);
 
   // ── Operationen ─────────────────────────────────────────────────────────────
-  const addItem = useCallback(
-    async (rawName, category) => {
-      const name = cleanName(rawName);
-      const key = normalizeName(name);
-      if (!key) return;
-
-      const existing = itemsRef.current.find((it) => normalizeName(it.name) === key);
-      if (existing) {
-        // Bereits vorhanden: nur reaktivieren, keine Dublette.
-        if (existing.checked) await toggleItem(existing.id, false);
-        return;
-      }
-
-      const resolvedCategory = category ?? getKnownCategory(name);
-      const item = {
-        id: createId(),
-        name,
-        category: resolvedCategory,
-        checked: false,
-        createdAt: new Date().toISOString(),
-      };
-
-      applyItems((prev) => [...prev, item]); // optimistisch
-
-      if (isCloudEnabled) {
-        const supabase = await getSupabase();
-        const { error } = await supabase.from(TABLE).insert({
-          id: item.id,
-          list_id: LIST_ID,
-          name: item.name,
-          category: item.category,
-          checked: false,
-        });
-        if (error) refetch();
-      }
-    },
-    // toggleItem ist stabil (siehe unten); Auslassen vermeidet Zirkularität.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [applyItems, refetch],
-  );
-
   const toggleItem = useCallback(
     async (id, forcedValue) => {
       const current = itemsRef.current.find((it) => it.id === id);
@@ -159,6 +118,67 @@ export function useShoppingItems({ onPurchase } = {}) {
       }
     },
     [applyItems, refetch],
+  );
+
+  /**
+   * Fügt einen Artikel hinzu – oder erkennt eine Dublette (nach Name,
+   * groß-/kleinschreibungs- und leerzeicheninsensitiv) und reagiert eindeutig
+   * darauf. Liefert ein Ergebnisobjekt statt still zu bleiben, damit jede
+   * Eingabequelle (manuelle Eingabe, Autovervollständigung, Chips) identisches
+   * Feedback anzeigen kann:
+   *   - { status: 'added', item }        – neu angelegt
+   *   - { status: 'alreadyOpen', item }  – steht bereits offen auf der Liste
+   *   - { status: 'reactivated', item }  – war erledigt, wieder auf offen gesetzt
+   *   - { status: 'invalid' }            – leerer/blanker Name
+   *
+   * Bewusst synchron (keine Cloud-Roundtrip-Wartezeit): Dubletten-Prüfung und
+   * optimistisches Update laufen komplett vor jedem `await`, daher liest jeder
+   * Aufruf stets den aktuellen `itemsRef`-Stand – keine stale Closures, keine
+   * Race Conditions durch parallele Aufrufe aus verschiedenen Quellen.
+   */
+  const addItem = useCallback(
+    (rawName, category) => {
+      const name = cleanName(rawName);
+      const key = normalizeName(name);
+      if (!key) return { status: 'invalid' };
+
+      const existing = itemsRef.current.find((it) => normalizeName(it.name) === key);
+      if (existing) {
+        if (existing.checked) {
+          toggleItem(existing.id, false); // optimistisch synchron; Cloud-Sync im Hintergrund
+          return { status: 'reactivated', item: { ...existing, checked: false } };
+        }
+        return { status: 'alreadyOpen', item: existing };
+      }
+
+      const resolvedCategory = category ?? getKnownCategory(name);
+      const item = {
+        id: createId(),
+        name,
+        category: resolvedCategory,
+        checked: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      applyItems((prev) => [...prev, item]); // optimistisch
+
+      if (isCloudEnabled) {
+        (async () => {
+          const supabase = await getSupabase();
+          const { error } = await supabase.from(TABLE).insert({
+            id: item.id,
+            list_id: LIST_ID,
+            name: item.name,
+            category: item.category,
+            checked: false,
+          });
+          if (error) refetch();
+        })();
+      }
+
+      return { status: 'added', item };
+    },
+    [applyItems, refetch, toggleItem],
   );
 
   // Entfernt einen Artikel und liefert die entfernte Kopie zurück – so kann der
