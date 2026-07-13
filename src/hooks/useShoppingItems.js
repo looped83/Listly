@@ -31,14 +31,15 @@ export function useShoppingItems({ onPurchase } = {}) {
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
-  // Setzt Items und persistiert sie im lokalen Modus.
-  const applyItems = useCallback((updater) => {
-    setItems((prev) => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      if (!isCloudEnabled) writeStorage(STORAGE_KEYS.items, next);
-      return next;
-    });
-  }, []);
+  // Setzt Items. Reiner State-Update ohne Seiteneffekt – so bleibt der Updater
+  // unter React StrictMode gefahrlos doppelt aufrufbar.
+  const applyItems = useCallback((updater) => setItems(updater), []);
+
+  // Persistenz als Effekt (nicht im Updater): läuft nach dem Commit und ist
+  // idempotent, StrictMode-Doppelläufe schaden daher nicht.
+  useEffect(() => {
+    if (!isCloudEnabled) writeStorage(STORAGE_KEYS.items, items);
+  }, [items]);
 
   // ── Cloud: Initialladen + Realtime-Abo ──────────────────────────────────────
   const refetch = useCallback(async () => {
@@ -160,36 +161,82 @@ export function useShoppingItems({ onPurchase } = {}) {
     [applyItems, refetch],
   );
 
+  // Entfernt einen Artikel und liefert die entfernte Kopie zurück – so kann der
+  // Aufrufer eine Undo-Aktion anbieten. Die Cloud-Löschung läuft im Hintergrund.
   const removeItem = useCallback(
-    async (id) => {
+    (id) => {
+      const removed = itemsRef.current.find((it) => it.id === id);
+      if (!removed) return null;
+
       applyItems((prev) => prev.filter((it) => it.id !== id));
+
       if (isCloudEnabled) {
-        const supabase = await getSupabase();
-        const { error } = await supabase.from(TABLE).delete().eq('id', id);
-        if (error) refetch();
+        (async () => {
+          const supabase = await getSupabase();
+          const { error } = await supabase.from(TABLE).delete().eq('id', id);
+          if (error) refetch();
+        })();
+      }
+      return removed;
+    },
+    [applyItems, refetch],
+  );
+
+  // Stellt zuvor entfernte/archivierte Artikel vollständig wieder her (inkl.
+  // checked-Status). Die ursprüngliche Reihenfolge ergibt sich aus createdAt.
+  const restoreItems = useCallback(
+    (restored) => {
+      if (!restored || restored.length === 0) return;
+
+      applyItems((prev) => {
+        const known = new Set(prev.map((it) => it.id));
+        const merged = [...prev, ...restored.filter((it) => !known.has(it.id))];
+        return merged.sort(byCreatedAt);
+      });
+
+      if (isCloudEnabled) {
+        (async () => {
+          const supabase = await getSupabase();
+          const rows = restored.map((it) => ({
+            id: it.id,
+            list_id: LIST_ID,
+            name: it.name,
+            category: it.category,
+            checked: it.checked,
+            created_at: it.createdAt,
+          }));
+          const { error } = await supabase.from(TABLE).insert(rows);
+          if (error) refetch();
+        })();
       }
     },
     [applyItems, refetch],
   );
 
-  const clearChecked = useCallback(async () => {
+  // Verbucht erledigte Artikel im Kaufverlauf und entfernt sie aus der Liste.
+  // Gibt die archivierten Artikel zurück, damit der Aufruf Undo anbieten kann.
+  const clearChecked = useCallback(() => {
     const checked = itemsRef.current.filter((it) => it.checked);
-    if (checked.length === 0) return;
+    if (checked.length === 0) return [];
 
-    onPurchase?.(checked); // Kaufverlauf (lokal) aktualisieren
+    onPurchase?.(checked); // Kaufverlauf (lokal) aktualisieren – im Event-Handler,
+    //                         nicht im State-Updater, daher unter StrictMode einmalig.
 
     applyItems((prev) => prev.filter((it) => !it.checked));
 
     if (isCloudEnabled) {
-      const supabase = await getSupabase();
-      const { error } = await supabase
-        .from(TABLE)
-        .delete()
-        .eq('list_id', LIST_ID)
-        .eq('checked', true);
-      if (error) refetch();
+      (async () => {
+        const supabase = await getSupabase();
+        const { error } = await supabase
+          .from(TABLE)
+          .delete()
+          .eq('list_id', LIST_ID)
+          .eq('checked', true);
+        if (error) refetch();
+      })();
     }
+    return checked;
   }, [applyItems, onPurchase, refetch]);
 
-  return { items, status, addItem, toggleItem, removeItem, clearChecked };
+  return { items, status, addItem, toggleItem, removeItem, restoreItems, clearChecked };
 }

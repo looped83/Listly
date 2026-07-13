@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useSystemTheme } from './hooks/useTheme';
 import { useShoppingItems } from './hooks/useShoppingItems';
+import { ToastProvider, useToast } from './hooks/useToast';
 import { STORAGE_KEYS } from './lib/storage';
 import { cleanName, normalizeName, recordPurchase } from './lib/history';
 import { frequentSuggestions } from './lib/suggestions';
@@ -16,14 +17,24 @@ import { ShoppingBasket, Wallet } from 'lucide-react';
 const CardsSheet = lazy(() => import('./components/CardsSheet'));
 
 export default function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
+  );
+}
+
+function AppContent() {
   const [favorites, setFavorites] = useLocalStorage(STORAGE_KEYS.favorites, []);
   const [history, setHistory] = useLocalStorage(STORAGE_KEYS.history, {});
   const [cardsOpen, setCardsOpen] = useState(false);
+  const { notify } = useToast();
   useSystemTheme();
 
   const closeCards = useCallback(() => setCardsOpen(false), []);
 
-  // Erledigte Artikel im (lokalen) Kaufverlauf verbuchen.
+  // Erledigte Artikel im (lokalen) Kaufverlauf verbuchen. Reiner State-Update:
+  // recordPurchase ist immutabel, daher unter StrictMode kein Doppelverbuchen.
   const handlePurchase = useCallback(
     (purchased) => {
       setHistory((prev) => purchased.reduce((acc, item) => recordPurchase(acc, item), prev));
@@ -31,9 +42,38 @@ export default function App() {
     [setHistory],
   );
 
-  const { items, status, addItem, toggleItem, removeItem, clearChecked } = useShoppingItems({
-    onPurchase: handlePurchase,
-  });
+  const { items, status, addItem, toggleItem, removeItem, restoreItems, clearChecked } =
+    useShoppingItems({ onPurchase: handlePurchase });
+
+  // Einzelnen Artikel löschen – mit Undo (Artikel unverändert wiederherstellen).
+  const handleRemoveItem = useCallback(
+    (id) => {
+      const removed = removeItem(id);
+      if (!removed) return;
+      notify(`„${removed.name}“ gelöscht`, {
+        action: { label: 'Rückgängig', onAction: () => restoreItems([removed]) },
+      });
+    },
+    [removeItem, restoreItems, notify],
+  );
+
+  // Erledigte archivieren (verbuchen + entfernen) – mit Undo. Der Undo stellt den
+  // vollständigen Vorzustand her: die Artikel UND den vorherigen Kaufverlauf.
+  const handleClearChecked = useCallback(() => {
+    const historyBefore = history;
+    const archived = clearChecked();
+    if (archived.length === 0) return;
+    const label = archived.length === 1 ? '1 Artikel archiviert' : `${archived.length} Artikel archiviert`;
+    notify(label, {
+      action: {
+        label: 'Rückgängig',
+        onAction: () => {
+          setHistory(historyBefore);
+          restoreItems(archived);
+        },
+      },
+    });
+  }, [clearChecked, history, setHistory, restoreItems, notify]);
 
   // Abgeleitete Nachschlage-Sets – memoisiert gegen unnötige Neuberechnungen.
   const existingNames = useMemo(
@@ -106,8 +146,8 @@ export default function App() {
           favoriteSet={favoriteSet}
           onToggle={toggleItem}
           onToggleFavorite={toggleFavorite}
-          onRemove={removeItem}
-          onClearChecked={clearChecked}
+          onRemove={handleRemoveItem}
+          onClearChecked={handleClearChecked}
         />
       </main>
 

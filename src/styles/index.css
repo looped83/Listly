@@ -883,3 +883,155 @@ input {
 .list-group__emoji {
   font-size: 0.95rem;
 }
+
+/* ---------- Toasts / Snackbars ---------- */
+/*
+ * Zentrale Feedback-Schicht: schwebt über der Eingabeleiste (Dock), in beiden
+ * Themes über Design-Tokens gefärbt. Auf kleinen Displays volle Breite,
+ * darüber auf Inhaltsbreite zentriert. Animationen respektieren
+ * prefers-reduced-motion.
+ */
+.toasts {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom) + 84px);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 0 var(--space-4);
+  /* Container fängt keine Klicks ab – nur die Toasts selbst. */
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  width: 100%;
+  max-width: var(--content-width);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+  animation: toast-in 0.22s ease;
+}
+
+.toast__icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.toast__message {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+
+.toast__action {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.toast__action:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.toast__dismiss {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  color: var(--text-subtle);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.toast__dismiss:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.toast[data-tone='success'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.toast[data-tone='success'] .toast__icon {
+  color: var(--accent-text);
+}
+
+.toast[data-tone='error'] {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.toast[data-tone='error'] .toast__icon {
+  color: var(--danger);
+}
+
+.toast[data-tone='error'] .toast__action {
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid var(--danger);
+}
+
+.toast[data-tone='error'] .toast__action:hover {
+  background: var(--danger);
+  color: var(--on-accent);
+}
+
+/* Sichtbarer Hinweis, dass der Timer bei Hover/Fokus pausiert (dezent). */
+.toast[data-paused='true'] {
+  border-color: var(--accent);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+/* Sehr schmale Displays: etwas kompakter, näher am Rand. */
+@media (max-width: 380px) {
+  .toasts {
+    padding: 0 var(--space-3);
+  }
+
+  .toast {
+    padding: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .toast__message {
+    font-size: 0.88rem;
+  }
+}
