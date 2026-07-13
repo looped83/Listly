@@ -1,8 +1,8 @@
 # Listly – Handover
 
-Stand: Juli 2026 (aktueller Branch-Tip). Diese Datei fasst Architektur, Betrieb
-und Besonderheiten zusammen, damit jemand die Weiter­ent­wicklung ohne Vorwissen
-übernehmen kann.
+Stand: Juli 2026 (aktueller Branch-Tip, `claude/feedback-undo-infrastructure-3aebrv`).
+Diese Datei fasst Architektur, Betrieb und Besonderheiten zusammen, damit jemand
+die Weiter­ent­wicklung ohne Vorwissen übernehmen kann.
 
 > 🔒 **Datenschutz:** Persönliche Kundenkarten-Nummern gehören **nicht** in
 > dieses (öffentliche) Repo. Versehentlich committete Nummern wurden entfernt und
@@ -19,9 +19,13 @@ gemeinsam in Echtzeit genutzt.
 
 - **Live-URL:** https://looped83.github.io/Listly/ (GitHub Pages)
 - **Repo:** `looped83/Listly` (öffentlich)
-- **Default-Branch:** `main` · **Arbeitsbranch:** `claude/listly-vite-pwa-app-kiqlr6`
+- **Default-Branch:** `main` (Deploy-Quelle) · **Arbeitsbranch:**
+  `claude/feedback-undo-infrastructure-3aebrv`
 - **Geteilte Liste:** in Echtzeit über Supabase synchronisiert
 - **Kundenkarten:** Lidl/Payback/dm/REWE mit QR/Barcode, rein lokal gespeichert
+- **Feedback:** zentrale Toast-/aria-live-Infrastruktur mit Undo für Löschen/
+  Abschließen; ein Bottom-Sheet-Dialog für den Einkaufsabschluss und einer für
+  die Artikel-Bearbeitung (Menge/Einheit/Notiz/Kategorie)
 
 ---
 
@@ -59,20 +63,25 @@ npm run preview    # gebautes Bundle lokal servieren
 
 ```
 src/
-├── App.jsx                 # Orchestrierung: State, Header, Liste, Dock, Karten-Overlay
+├── App.jsx                 # Orchestrierung: State, Header, Liste, Dock, Overlays/Dialoge
 ├── main.jsx                # Einstieg, ErrorBoundary, Zoom-Sperre (Gesten)
 ├── components/
 │   ├── AddItemForm.jsx     #   Suchfeld + Autovervollständigung (öffnet nach oben)
 │   ├── FrequentChips.jsx   #   „Häufig gekauft“-Chips (oben angeheftet, scrollbar)
 │   ├── ShoppingList.jsx    #   Liste, nach Kategorie gruppiert (offen + erledigt)
-│   ├── ListItem.jsx        #   Einzelzeile inkl. Swipe-to-delete
+│   ├── ListItem.jsx        #   Einzelzeile: Umschalt-Button, Favorit/Bearbeiten/Löschen, Swipe
 │   ├── ProductIcon.jsx     #   rendert das Emoji eines Artikels
 │   ├── SyncStatus.jsx      #   Live/Verbinde/Offline-Anzeige (oben rechts)
+│   ├── Toast.jsx           #   Snackbar-Anzeige + aria-live-Regionen (polite/assertive)
+│   ├── CheckoutDialog.jsx  #   „Einkauf abschließen“-Bottom-Sheet
+│   ├── ItemEditDialog.jsx  #   Artikel bearbeiten (Name/Menge/Einheit/Kategorie/Notiz)
 │   ├── CardsSheet.jsx      #   Kundenkarten-Overlay (Akkordeon) – via React.lazy geladen
 │   └── CodeImage.jsx       #   <QRCode> und <Barcode> (qrcode / jsbarcode)
 ├── hooks/
-│   ├── useLocalStorage.js  #   State ↔ localStorage (synchrones Schreiben)
-│   ├── useShoppingItems.js #   Liste: Supabase (Echtzeit) ODER lokal, inkl. Ops
+│   ├── useLocalStorage.js  #   State ↔ localStorage (Persistenz als Effekt, StrictMode-sicher)
+│   ├── useShoppingItems.js #   Liste: Supabase (Echtzeit) ODER lokal, inkl. aller Operationen
+│   ├── useToast.jsx        #   ToastProvider/useToast – zentrale Statusmeldungen + Undo
+│   ├── useDialogFocus.js   #   Fokusfalle/Escape/initialer Fokus/Fokusrückgabe für Dialoge
 │   └── useTheme.js         #   automatischer Dark Mode (prefers-color-scheme)
 ├── lib/
 │   ├── storage.js          #   localStorage-Keys + read/write
@@ -80,16 +89,19 @@ src/
 │   ├── supabaseConfig.js   #   ← URL, anon-Key, LIST_ID
 │   ├── history.js          #   Kaufverlauf (Häufigkeit verbuchen)
 │   ├── suggestions.js      #   Autocomplete- & Chip-Logik
-│   ├── icons.js            #   Emoji-Auflösung + Kategorie-Infos
-│   └── cards.js            #   Händler-Metadaten, Barcode-Format, Code-Inhalt
+│   ├── icons.js            #   Emoji-Auflösung + Kategorie-Infos/-Optionen
+│   ├── cards.js            #   Händler-Metadaten, Barcode-Format, Code-Inhalt
+│   ├── checkout.js         #   reine Helfer: Zusammenfassung/Auswahl beim Einkaufsabschluss
+│   ├── itemFields.js       #   reine Helfer: Menge/Einheit/Notiz (Coerce/Parse/Format)
+│   └── schema.js           #   localStorage-Migrationen + Sanitizer (siehe §12)
 ├── data/products.json      # 356 Produkte / 16 Kategorien (Emoji je Produkt)
 ├── styles/
 │   ├── tokens.css          #   Design-Tokens Light + Dark (true black)
 │   └── index.css           #   Base + alle Komponenten-Styles
 └── assets/fonts/           # lokal gehostete woff2 + fonts.css (OFL)
 
-.github/workflows/deploy.yml # Build + Push nach gh-pages
-supabase/schema.sql          # Tabelle + RLS + Realtime für die geteilte Liste
+.github/workflows/deploy.yml # Test + Build + offizielle GitHub-Pages-Actions-Pipeline
+supabase/schema.sql          # Tabelle + Spalten + RLS + Realtime für die geteilte Liste
 ```
 
 ---
@@ -100,7 +112,7 @@ Alle Keys in `src/lib/storage.js` (`STORAGE_KEYS`).
 
 | Ort            | Key/Tabelle        | Inhalt                                                              |
 | -------------- | ------------------ | ------------------------------------------------------------------- |
-| **Supabase**   | Tabelle `list_items` | Geteilte Liste: `{ id, list_id, name, category, checked, created_at }` |
+| **Supabase**   | Tabelle `list_items` | Geteilte Liste: `{ id, list_id, name, category, checked, created_at, quantity?, unit?, note? }` |
 | localStorage   | `listly.items`     | Liste **nur im lokalen Modus** (wenn Supabase nicht konfiguriert)   |
 | localStorage   | `listly.favorites` | Favoriten `["Hafermilch", …]` (pro Gerät)                           |
 | localStorage   | `listly.history`   | Kaufverlauf `{ [name]: { name, category, count, lastPurchased } }`   |
@@ -115,8 +127,12 @@ und Kundenkarten sind bewusst lokal pro Gerät** – sie werden nicht geteilt.
 Der lokale Speicher ist **versioniert** – beim App-Start läuft eine idempotente
 Migrations-/Validierungspipeline (siehe **§12**), bevor Daten gelesen werden.
 
-Artikel-Objekt (in App/State): `{ id, name, category, checked, createdAt }`.
+Artikel-Objekt (in App/State):
+`{ id, name, category, checked, createdAt, quantity?, unit?, note? }`.
 `category` ist eine Kategorie-`id` aus `products.json` (oder `null` → „Sonstiges“).
+`quantity` (positive Zahl), `unit` und `note` (kurze Zeichenketten) sind
+**optional** – fehlen sie, wird nichts angezeigt (kein leerer Platzhalter).
+Normalisierung/Begrenzung: `lib/itemFields.js` (siehe §8, §12).
 
 ---
 
@@ -131,11 +147,18 @@ Artikel-Objekt (in App/State): `{ id, name, category, checked, createdAt }`.
   kleiner Initial-Bundle. Alle DB-Zugriffe in `useShoppingItems` sind daher `async`.
 - **`useShoppingItems.js`** kapselt beides: Initialladen (`select`), Realtime-Abo
   (`postgres_changes` gefiltert auf `list_id`), optimistische Updates, sowie
-  add/toggle/remove/clearChecked. Bei Fehlern wird neu geladen (`refetch`).
-- **Schema:** `supabase/schema.sql` (idempotent). Legt Tabelle an, aktiviert
+  `addItem`, `toggleItem`, `updateItem`, `removeItem`, `restoreItems` (Undo) und
+  `completeCheckout` (Einkaufsabschluss, s. §8). Bei Fehlern wird neu geladen
+  (`refetch`).
+- **Schema:** `supabase/schema.sql` (idempotent). Legt Tabelle + die optionalen
+  Spalten `quantity`/`unit`/`note` an (`add column if not exists`), aktiviert
   `REPLICA IDENTITY FULL` (nötig, damit Realtime-DELETE mit `list_id`-Filter
   funktioniert), RLS mit einer permissiven anon-Policy und die Realtime-
-  Publikation. Bei einem neuen Supabase-Projekt einmal im SQL-Editor ausführen.
+  Publikation. Bei einem neuen Supabase-Projekt (oder nach einem Spalten-Update
+  wie den neuen Feldern) einmal im SQL-Editor ausführen – idempotent, also auch
+  auf einer bestehenden Tabelle gefahrlos erneut ausführbar. `rowToItem` liest
+  die neuen Spalten defensiv (funktioniert auch, falls das Skript noch nicht
+  erneut gelaufen ist – dann bleiben die Felder nur ungesetzt).
 - **Zugriffsmodell „offener geteilter Link“:** kein Login. URL, anon-Key und
   `LIST_ID` stecken im ausgelieferten Bundle (und im öffentlichen Repo). Wer sie
   kennt, kann die Liste lesen/ändern – für eine Einkaufsliste bewusst akzeptiert.
@@ -149,23 +172,47 @@ Status-Anzeige oben rechts (`SyncStatus.jsx`): `live` (verbunden), `connecting`,
 
 ## 6. Deployment (GitHub Pages)
 
-Automatisch via **`.github/workflows/deploy.yml`** bei Push auf `main` oder den
-Arbeitsbranch:
+> ⚠️ **Wichtigste Regel:** Es wird **ausschließlich bei Push auf `main`**
+> deployt. Ein Push auf einen Feature-/Arbeitsbranch (auch mit gemergtem PR
+> darauf) löst **kein** Deployment aus und ändert die Live-Seite **nicht**.
+> Damit Änderungen sichtbar werden, muss der PR nach `main` **gemergt**
+> werden – der Merge-Commit auf `main` startet die Pipeline automatisch.
 
-1. Build (`npm ci && npm run build`).
-2. `touch dist/.nojekyll`.
-3. Force-Push des `dist/`-Inhalts in den Branch **`gh-pages`** (mit `GITHUB_TOKEN`).
+Automatisch via **`.github/workflows/deploy.yml`**, offizielle
+GitHub-Pages-Actions-Pipeline (kein `gh-pages`-Branch mehr, kein committetes
+Build-Artefakt):
 
-**Einmalige Repo-Einstellung:** Settings → Pages → Source = **„Deploy from a
-branch“** → Branch **`gh-pages`** / `/ (root)`.
+```yaml
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+```
 
-Warum dieser Weg statt der offiziellen Pages-Action: Die `github-pages`-Umgebung
-erlaubt Actions-Deploys standardmäßig nur vom Default-Branch; der gh-pages-Push
-funktioniert aus jedem Branch und ohne Zusatz-Einstellungen. Wenn künftig nur
-noch von `main` deployt wird, kann der Branch-Trigger im Workflow entfernt werden.
+1. `npm ci`
+2. **`npm test`** – schlägt ein Test fehl, bricht der Workflow ab und es wird
+   **nicht** deployt.
+3. `npm run build` → `dist/`
+4. `dist/` als Pages-Artefakt hochladen (`upload-pages-artifact`) und über
+   `deploy-pages` veröffentlichen.
 
-Nach jedem Deploy auf dem Gerät einmal hart neu laden (Service Worker: der
-Workbox-Cache wird via `cleanupOutdatedCaches/skipWaiting/clientsClaim` erneuert).
+**Einmalige Repo-Einstellung:** Settings → Pages → Build and deployment →
+Source = **„GitHub Actions“**.
+
+**Manuell anstoßen:** Actions-Tab → „Deploy to GitHub Pages“ →
+„Run workflow“ (`workflow_dispatch`), z. B. um ohne neuen Commit erneut zu
+deployen.
+
+**Troubleshooting „ich sehe meine Änderung nicht“:**
+1. Prüfen, ob der Commit tatsächlich auf `origin/main` liegt
+   (`git log --oneline -1 origin/main`), nicht nur auf einem Feature-Branch.
+2. Im Actions-Tab prüfen, ob der zugehörige „Deploy to GitHub Pages“-Lauf
+   grün ist (ein roter Testfehler verhindert das Deployment stillschweigend
+   für den Browser-Nutzer – im Actions-Log aber sichtbar).
+3. Nach erfolgreichem Deploy auf dem Gerät einmal **hart neu laden** (Service
+   Worker: der Workbox-Cache wird via
+   `cleanupOutdatedCaches/skipWaiting/clientsClaim` erneuert, das kann eine
+   sichtbare Verzögerung von einem Reload verursachen).
 
 ---
 
@@ -215,10 +262,46 @@ Workbox-Cache wird via `cleanupOutdatedCaches/skipWaiting/clientsClaim` erneuert
   fix. **Zoom deaktiviert** (Viewport `user-scalable=no` + Abfangen von
   Pinch-Gesten/Doppeltipp in `main.jsx`).
 - **Liste:** offene und erledigte Artikel **nach Kategorie gruppiert**
-  (Überschriften ohne Emoji, in Kategorie-Reihenfolge). Erledigte per
-  „Erledigte entfernen & verbuchen“ in den Kaufverlauf überführen.
-- **Artikel entfernen:** ×-Button **oder Swipe nach links** (`ListItem.jsx`,
-  Schwelle ~80 px; vertikales Scrollen bleibt möglich).
+  (Überschriften ohne Emoji, in Kategorie-Reihenfolge). Kompakte Anzeige inkl.
+  optionaler Menge/Einheit („2 × Hafermilch“, „500 g Mehl“) und Notizzeile
+  darunter – beide nur, wenn tatsächlich gesetzt (kein leerer Platzhalter).
+- **Zeile (`ListItem.jsx`):** Icon + Name bilden **einen** tastaturbedienbaren
+  Umschalt-Button (`aria-pressed`), kein verschachteltes `<button>`. Favorit,
+  Bearbeiten (Stift) und Löschen sind eigene Buttons mit ≥ 44×44 px
+  Trefferfläche. Zusätzlich **Swipe nach links** zum Löschen (Schwelle ~80 px;
+  vertikales Scrollen bleibt möglich).
+- **Artikel hinzufügen:** `addItem` liefert ein eindeutiges Ergebnis
+  (`added` / `alreadyOpen` / `reactivated` / `invalid`) statt still zu bleiben –
+  identisch für Tippen, Autovervollständigung und Häufig-gekauft-Chips. Bei
+  einer Dublette (Name case-/whitespace-insensitiv gleich) wird **nicht**
+  dupliziert: ein bereits offener Artikel bleibt unverändert, ein bereits
+  erledigter wird reaktiviert (wieder offen). Feedback über die Toast-
+  Infrastruktur, Fokus bleibt im Eingabefeld.
+- **Artikel bearbeiten:** Stift-Button öffnet `ItemEditDialog.jsx` (Name,
+  Menge, Einheit, Kategorie, Notiz). Validierung: Name darf nicht leer sein,
+  Menge muss eine positive Zahl sein (Komma **und** Punkt als
+  Dezimaltrennzeichen werden akzeptiert), Einheit/Notiz werden getrimmt und
+  begrenzt (`MAX_UNIT_LENGTH`/`MAX_NOTE_LENGTH` in `lib/itemFields.js`). Führt
+  das Umbenennen zu einem Namenskonflikt mit einem anderen Artikel, fragt der
+  Dialog eine **bewusste Zusammenführung** ab (kein stilles Duplikat): der
+  bearbeitete Artikel gewinnt (behält `id`/Position/`checked`), der andere
+  wird entfernt; ein vorhandener Favorit folgt der Umbenennung.
+- **Einkauf abschließen:** `CheckoutDialog.jsx` (Bottom-Sheet) ersetzt die
+  frühere „Erledigte entfernen & verbuchen“-Aktion. Zeigt Anzahl
+  abgehakter/offener Artikel und die Konsequenz; Standard verbucht nur
+  Abgehaktes in den Kaufverlauf und entfernt es (offene Artikel bleiben
+  stehen), optional bewusst „Alle als gekauft abschließen“. Erscheint nur,
+  wenn mindestens ein Artikel abgehakt ist. Nach dem Abschluss bietet ein
+  Toast **Undo** (stellt Liste **und** Kaufverlauf vollständig wieder her).
+- **Feedback & Undo (`useToast.jsx`, `Toast.jsx`):** zentrale Snackbar-
+  Infrastruktur, ohne UI-Bibliothek. Normale Meldungen sind `aria-live="polite"`,
+  echte Fehler `aria-live="assertive"`. Auto-Dismiss pausiert bei Hover/Fokus;
+  Undo-Aktionen sind per Tastatur erreichbar. Aktuell genutzt für: Artikel
+  löschen, Einkauf abschließen, Artikel bearbeiten/Dublette/Reaktivierung.
+- **Dialoge (`useDialogFocus.js`):** gemeinsame Zugänglichkeits-Logik für
+  `CheckoutDialog` und `ItemEditDialog` – Fokusfalle (Tab/Shift+Tab zirkulieren
+  im Panel), Escape schließt, initialer Fokus beim Öffnen, Fokusrückgabe an das
+  auslösende Element beim Schließen.
 - **Suche/Autocomplete:** Vorschläge erscheinen **schon beim Fokus** (leere
   Eingabe) – angeführt von den **häufigsten** Artikeln aus dem Verlauf, dann
   Favoriten, dann Basisliste; beim Tippen Teilstring-Filter. Dropdown öffnet nach
@@ -249,15 +332,21 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 
 ## 10. Bekannte Einschränkungen & Ideen
 
-- **Suche = Teilstring**, nicht fehlertolerant („schamp“ findet „Champignons“
-  nicht). Fuzzy-Suche wäre eine mögliche Erweiterung.
+- **Suche:** exakte Teilstring-Treffer stehen oben; reichen sie nicht bis zum
+  Limit, füllen tippfehler-tolerante Fuzzy-Treffer auf (Editierdistanz, ab 3
+  Zeichen Eingabelänge – siehe `lib/suggestions.js`). Keine vollständige
+  natürlichsprachliche Eingabe (z. B. „2 Äpfel und Milch“ in einem Feld).
+- **Keine Mengen-Zusammenrechnung:** eine Zusammenführung beim Umbenennen
+  (siehe §8) summiert Mengen bewusst **nicht** (Einheiten könnten
+  unterschiedlich/inkompatibel sein) – der bearbeitete Artikel gewinnt.
 - **dm-Kartentoken** ist evtl. dynamisch (siehe §7).
 - **Kundenkarten sind gerätelokal** – kein Sync (bewusst, Datenschutz). Sync
   wäre nur mit echtem Login sinnvoll.
 - **`npm audit`** meldet eine Dev-Server-Warnung (esbuild, transitiv über Vite 5).
   Betrifft nur den lokalen Dev-Server, nicht das ausgelieferte Bundle.
-- **Kein automatisiertes Test-Setup** im Repo. Verifikation erfolgte manuell
-  (Build + Browser). Bei Ausbau: Vitest/Playwright ergänzen.
+- **Tests:** Vitest + React Testing Library, `npm test` (133 Tests, 10 Dateien).
+  Läuft auch als Teil der Deploy-Pipeline (§6) – ein Testfehler verhindert das
+  Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
 
 ---
@@ -269,8 +358,14 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **Frische, leere geteilte Liste:** `LIST_ID` in `supabaseConfig.js` ändern.
 - **Anderes Supabase-Projekt:** neues Projekt anlegen, `schema.sql` ausführen,
   URL + anon-Key in `supabaseConfig.js` eintragen.
-- **Deploy anstoßen:** einfach pushen (Workflow läuft automatisch).
+- **Deploy anstoßen:** PR nach **`main`** mergen (nur das löst das Deployment
+  aus, siehe §6 – Push auf einen Feature-Branch allein reicht nicht).
 - **Neue localStorage-Migration:** siehe §12.
+- **Neues Artikelfeld (wie Menge/Einheit/Notiz):** Sanitizer in `schema.js`
+  erweitern + `SCHEMA_VERSION` hochzählen (§12), Coerce-Helfer in
+  `lib/itemFields.js` ergänzen, `ItemEditDialog.jsx` um das Feld erweitern,
+  Supabase-Spalte in `schema.sql` (`add column if not exists`) + `rowToItem`
+  in `lib/supabase.js` ergänzen.
 
 ---
 
