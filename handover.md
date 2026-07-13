@@ -88,6 +88,7 @@ src/
 │   ├── useShoppingItems.js #   Liste: Supabase (Echtzeit) ODER lokal, inkl. aller Operationen
 │   ├── useToast.jsx        #   ToastProvider/useToast – zentrale Statusmeldungen + Undo
 │   ├── useDialogFocus.js   #   Fokusfalle/Escape/initialer Fokus/Fokusrückgabe für Dialoge/Sheets
+│   ├── useSwipeReveal.js   #   Wisch-Geste „aufdecken“ (Zeilen-Aktionen): Gesten-State + Prop-Bündel
 │   └── useTheme.js         #   automatischer Dark Mode (prefers-color-scheme)
 ├── lib/
 │   ├── storage.js          #   localStorage-Keys + read/write
@@ -303,7 +304,9 @@ deployen.
   – die drei Aktions-Buttons bleiben aber fokussierbar (kein `aria-hidden`),
   sodass sie **ohne Geste per Tastatur/Screenreader** erreichbar sind: erhält
   einer den Fokus, klappt die Leiste automatisch auf; verlässt der Fokus sie,
-  schließt sie wieder.
+  schließt sie wieder. Die komplette Gesten-/Aufdeck-Logik steckt im Hook
+  `useSwipeReveal` – die Zeile selbst bleibt rein präsentational und spreadet nur
+  die gelieferten Prop-Bündel (`rowProps`/`actionsProps`).
 - **Artikel hinzufügen (`AddItemSheet.jsx`, geöffnet über den FAB):** ein
   **oben angedocktes** Sheet (`.dialog--top`, damit es auf Mobilgeräten nicht von
   der Tastatur verdeckt wird) mit **Produktsuche** (Autovervollständigung), den

@@ -1,7 +1,8 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo } from 'react';
 import { Check, Pencil, Star, X } from 'lucide-react';
 import ProductIcon from './ProductIcon';
 import ItemEditInline from './ItemEditInline';
+import { useSwipeReveal } from '../hooks/useSwipeReveal';
 import { formatQuantity, itemLabel, readItemExtras } from '../lib/itemFields';
 
 const REVEAL_WIDTH = 156; // px, Breite der aufgedeckten Aktionsleiste (3 Buttons)
@@ -30,102 +31,16 @@ function ListItem({
   onCancelEdit,
   findConflict,
 }) {
-  const start = useRef({ x: 0, y: 0 });
-  const dragging = useRef(false);
-  const horizontal = useRef(false);
-  const dxRef = useRef(0); // aktueller Ausschlag – unabhängig vom Render-Timing
-  const [dx, setDx] = useState(0);
-  const [animating, setAnimating] = useState(false);
-  const [revealed, setRevealed] = useState(false); // Aktionsleiste aufgedeckt
-  const rowRef = useRef(null);
-  const actionsRef = useRef(null);
-
-  const closeReveal = useCallback(() => {
-    setRevealed(false);
-    dxRef.current = 0;
-    setDx(0);
-  }, []);
-
-  const openReveal = useCallback(() => {
-    setRevealed(true);
-    dxRef.current = -REVEAL_WIDTH;
-    setDx(-REVEAL_WIDTH);
-  }, []);
-
-  // Klick außerhalb schließt die aufgedeckte Aktionsleiste wieder.
-  useEffect(() => {
-    if (!revealed) return undefined;
-    const onPointerDown = (e) => {
-      if (!rowRef.current?.contains(e.target) && !actionsRef.current?.contains(e.target)) {
-        setAnimating(true);
-        closeReveal();
-      }
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [revealed, closeReveal]);
-
-  const applyDx = useCallback((value) => {
-    dxRef.current = value;
-    setDx(value);
-  }, []);
-
-  const onTouchStart = useCallback(
-    (e) => {
-      const t = e.touches[0];
-      start.current = { x: t.clientX, y: t.clientY };
-      dragging.current = true;
-      horizontal.current = false;
-      setAnimating(false);
-      // Beim erneuten Anfassen vom aktuellen (ggf. aufgedeckten) Offset ausgehen.
-      dxRef.current = revealed ? -REVEAL_WIDTH : 0;
-    },
-    [revealed],
-  );
-
-  const onTouchMove = useCallback(
-    (e) => {
-      if (!dragging.current) return;
-      const t = e.touches[0];
-      const dX = t.clientX - start.current.x;
-      const dY = t.clientY - start.current.y;
-      // Richtung einmal festlegen: vertikal → Scrollen zulassen, nicht wischen.
-      if (!horizontal.current && Math.abs(dX) < Math.abs(dY)) {
-        dragging.current = false;
-        return;
-      }
-      horizontal.current = true;
-      const base = revealed ? -REVEAL_WIDTH : 0;
-      const next = Math.min(0, Math.max(base + dX, -REVEAL_WIDTH));
-      applyDx(next);
-    },
-    [applyDx, revealed],
-  );
-
-  const onTouchEnd = useCallback(() => {
-    if (!dragging.current && !horizontal.current) return;
-    dragging.current = false;
-    horizontal.current = false;
-    setAnimating(true);
-    // Weit genug aufgedeckt → einrasten, sonst zurückgleiten.
-    if (dxRef.current <= -OPEN_THRESHOLD) {
-      openReveal();
-    } else {
-      closeReveal();
-    }
-  }, [openReveal, closeReveal]);
+  const { rowProps, actionsProps, closeAfterAction } = useSwipeReveal({
+    revealWidth: REVEAL_WIDTH,
+    openThreshold: OPEN_THRESHOLD,
+  });
 
   const { quantity, unit, note } = readItemExtras(item);
   const qtyLabel = formatQuantity(quantity, unit);
   // Sprechende Bezeichnung inkl. Menge (+ Notiz) für die Aktions-Labels.
   const descriptor = itemLabel(item);
   const noteSuffix = note ? `, Notiz: ${note}` : '';
-
-  // Nach einer Aktion (per Geste ausgelöst) die Leiste wieder einklappen.
-  const afterGesture = useCallback(() => {
-    setAnimating(true);
-    closeReveal();
-  }, [closeReveal]);
 
   // Aufgeklappte Kachel: Bearbeitungsfelder inline statt Overlay.
   if (isEditing) {
@@ -151,20 +66,7 @@ function ListItem({
         Wisch-Geste per Tastatur erreichbar sind – erhält ein Button den Fokus,
         klappt die Leiste automatisch auf; verlässt der Fokus sie, schließt sie.
       */}
-      <div
-        className="swipe__actions"
-        ref={actionsRef}
-        onFocus={() => {
-          setAnimating(true);
-          openReveal();
-        }}
-        onBlur={(e) => {
-          if (!actionsRef.current?.contains(e.relatedTarget)) {
-            setAnimating(true);
-            closeReveal();
-          }
-        }}
-      >
+      <div className="swipe__actions" {...actionsProps}>
         <button
           type="button"
           className="icon-button icon-button--fav"
@@ -182,7 +84,7 @@ function ListItem({
           type="button"
           className="icon-button"
           onClick={() => {
-            afterGesture();
+            closeAfterAction();
             onEdit(item.id);
           }}
           aria-label={`${descriptor} bearbeiten`}
@@ -194,7 +96,7 @@ function ListItem({
           type="button"
           className="icon-button icon-button--danger"
           onClick={() => {
-            afterGesture();
+            closeAfterAction();
             onRemove(item.id);
           }}
           aria-label={`${descriptor} entfernen`}
@@ -203,17 +105,7 @@ function ListItem({
         </button>
       </div>
 
-      <div
-        className="list-item"
-        ref={rowRef}
-        data-checked={item.checked}
-        data-animating={animating}
-        data-revealed={revealed}
-        style={{ transform: `translateX(${dx}px)` }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      >
+      <div className="list-item" data-checked={item.checked} {...rowProps}>
         {/*
           Hauptbereich (Kreis + Icon + Name) als EIN Button: die gesamte Fläche
           schaltet den Erledigt-Status um, nicht nur der kleine Kreis.
