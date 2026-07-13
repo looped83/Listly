@@ -71,42 +71,51 @@ function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove }) {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
+        {/*
+          Hauptbereich (Kreis + Icon + Name) als EIN Button: die gesamte Fläche
+          schaltet den Erledigt-Status um, nicht nur der kleine Kreis. Favorit
+          und Löschen sind eigene, gleichrangige Geschwister-Buttons – kein
+          verschachteltes <button> in <button>.
+        */}
         <button
           type="button"
-          className="list-item__check"
-          data-checked={item.checked}
+          className="list-item__toggle"
           onClick={() => onToggle(item.id)}
           aria-pressed={item.checked}
           aria-label={
             item.checked ? `${item.name} als offen markieren` : `${item.name} als erledigt markieren`
           }
         >
-          <Check size={16} strokeWidth={3} aria-hidden="true" />
+          <span className="list-item__check" data-checked={item.checked} aria-hidden="true">
+            <Check size={16} strokeWidth={3} aria-hidden="true" />
+          </span>
+          <ProductIcon name={item.name} category={item.category} className="list-item__icon" />
+          <span className="list-item__name">{item.name}</span>
         </button>
 
-        <ProductIcon name={item.name} category={item.category} className="list-item__icon" />
+        <div className="list-item__actions">
+          <button
+            type="button"
+            className="icon-button icon-button--fav"
+            data-active={isFavorite}
+            onClick={() => onToggleFavorite(item.name)}
+            aria-pressed={isFavorite}
+            aria-label={
+              isFavorite ? `${item.name} aus Favoriten entfernen` : `${item.name} zu Favoriten hinzufügen`
+            }
+          >
+            <Star size={18} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
+          </button>
 
-        <span className="list-item__name">{item.name}</span>
-
-        <button
-          type="button"
-          className="icon-button icon-button--fav"
-          data-active={isFavorite}
-          onClick={() => onToggleFavorite(item.name)}
-          aria-pressed={isFavorite}
-          aria-label={isFavorite ? `${item.name} aus Favoriten entfernen` : `${item.name} zu Favoriten`}
-        >
-          <Star size={18} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          className="icon-button icon-button--danger"
-          onClick={() => onRemove(item.id)}
-          aria-label={`${item.name} entfernen`}
-        >
-          <X size={18} aria-hidden="true" />
-        </button>
+          <button
+            type="button"
+            className="icon-button icon-button--danger"
+            onClick={() => onRemove(item.id)}
+            aria-label={`${item.name} entfernen`}
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </li>
   );

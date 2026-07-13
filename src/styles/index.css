@@ -414,14 +414,14 @@ input {
 .list-item {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
+  align-items: stretch;
+  gap: var(--space-1);
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
   touch-action: pan-y;
+  overflow: hidden; /* rundet Hover-/Fokus-Flächen der inneren Buttons mit ab */
   transition: background 0.2s ease, opacity 0.2s ease;
 }
 
@@ -435,6 +435,28 @@ input {
 
 .list-item[data-checked='true'] .list-item__icon {
   opacity: 0.5;
+}
+
+/*
+ * Hauptbereich (Kreis + Icon + Name): EIN Button, der den Erledigt-Status
+ * umschaltet – die Trefferfläche deckt die gesamte Zeile ab (min. 44px hoch),
+ * nicht nur den kleinen Kreis. Größe/Layout der Kinder bleiben zwischen
+ * erledigt/offen identisch, damit das Umschalten keinen Layoutsprung auslöst.
+ */
+.list-item__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-3);
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.list-item__toggle:hover {
+  background: var(--surface-hover);
 }
 
 .list-item__check {
@@ -476,6 +498,15 @@ input {
   color: var(--text-muted);
 }
 
+/* Favorit + Löschen: eigene Trefferflächen, mittig neben dem Hauptbereich. */
+.list-item__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  padding-right: var(--space-2);
+}
+
 .icon-button {
   display: grid;
   place-items: center;
@@ -485,6 +516,13 @@ input {
   color: var(--text-subtle);
   flex-shrink: 0;
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* In den Listenzeilen mindestens 44×44px Trefferfläche – die Icons selbst
+   bleiben unverändert 18px groß, nur die klickbare Fläche wächst. */
+.list-item__actions .icon-button {
+  width: 44px;
+  height: 44px;
 }
 
 .icon-button:hover {
@@ -499,6 +537,12 @@ input {
 .icon-button--danger:hover {
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+/* Fokusringe innerhalb der (abgerundeten, überlaufversteckten) Zeile nach
+   innen zeichnen, damit sie nicht von .swipe/.list-item abgeschnitten werden. */
+.swipe :focus-visible {
+  outline-offset: -2px;
 }
 
 /* ---------- Purge / clear controls ---------- */
