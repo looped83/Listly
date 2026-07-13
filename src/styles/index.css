@@ -962,6 +962,171 @@ input {
   color: var(--text-muted);
 }
 
+/* ---------- Modus-Umschalter (Header) ---------- */
+.button-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.button-mode:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.button-mode--exit {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.button-mode--exit:hover {
+  background: var(--accent-hover);
+}
+
+/* ---------- Einkaufsmodus: Fortschritt „x von y erledigt“ ---------- */
+.shop-progress {
+  margin: var(--space-2) 0 var(--space-4);
+}
+
+.shop-progress__label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.shop-progress__track {
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.shop-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+/* ---------- Einkaufsmodus: größere, leichter treffbare Zeilen ---------- */
+.app[data-mode='shop'] .list-item__toggle {
+  min-height: 64px;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  font-size: 1.05rem;
+}
+
+.app[data-mode='shop'] .list-item__check {
+  width: 30px;
+  height: 30px;
+}
+
+.app[data-mode='shop'] .list-item__icon {
+  width: 2rem;
+  font-size: 1.5rem;
+}
+
+/* ---------- Einkaufsmodus: zurückgenommenes „Mehr“-Menü pro Zeile ---------- */
+.list-item__actions {
+  position: relative;
+}
+
+.list-item__more {
+  color: var(--text-subtle);
+}
+
+/* Popover mit Favorit/Bearbeiten/Löschen; öffnet nach links über die Zeile. */
+.list-item__menu {
+  position: absolute;
+  top: 50%;
+  right: calc(100% - 4px);
+  transform: translateY(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px;
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+/* ---------- Disclosure: erledigte Artikel einklappen (Einkaufsmodus) ---------- */
+.disclosure {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) 0;
+  margin-bottom: var(--space-2);
+  color: var(--text);
+  text-align: left;
+}
+
+.disclosure__chevron {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+.disclosure__chevron[data-open='true'] {
+  transform: rotate(180deg);
+}
+
+/* ---------- Dock: optional einklappen (Einkaufsmodus) ---------- */
+.dock__handle {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-1);
+}
+
+.dock__collapse {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  color: var(--text-subtle);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.dock__collapse:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.dock__expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 48px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  font-weight: 600;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.dock__expand:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
 /* ---------- Toasts / Snackbars ---------- */
 /*
  * Zentrale Feedback-Schicht: schwebt über der Eingabeleiste (Dock), in beiden
