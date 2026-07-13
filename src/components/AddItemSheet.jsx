@@ -140,7 +140,7 @@ function AddItemSheet({
   );
 
   return (
-    <div className="dialog" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="dialog dialog--top" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <form
         className="dialog__panel add-sheet"
         role="dialog"
@@ -192,8 +192,14 @@ function AddItemSheet({
                     data-active={i === activeIndex}
                     role="option"
                     aria-selected={i === activeIndex}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => pickSuggestion(s)}
+                    // Auswahl auf pointerdown: Auf Touch feuert das SOFORT beim
+                    // ersten Antippen – vor Fokuswechsel und Tastatur-Layoutsprung.
+                    // preventDefault hält den Fokus im Suchfeld (Tastatur bleibt
+                    // offen), sodass auch der erste Vorschlag zuverlässig greift.
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      pickSuggestion(s);
+                    }}
                     onMouseEnter={() => setActiveIndex(i)}
                   >
                     <ProductIcon name={s.name} category={s.category} className="suggestion__icon" />
@@ -268,17 +274,18 @@ function AddItemSheet({
             </select>
           </div>
 
+          {/* Notiz kompakt als einzeiliges Feld – keine seitenweite Textfläche. */}
           <div className="field">
             <label className="field__label" htmlFor={`${titleId}-note`}>
               Notiz
             </label>
-            <textarea
+            <input
               id={`${titleId}-note`}
-              className="field__input field__textarea"
+              className="field__input"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               maxLength={MAX_NOTE_LENGTH}
-              rows={2}
+              autoComplete="off"
               placeholder="z. B. ungesüßt"
             />
           </div>

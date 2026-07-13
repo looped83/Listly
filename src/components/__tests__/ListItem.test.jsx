@@ -10,6 +10,9 @@ function renderItem(overrides = {}) {
   const onToggleFavorite = vi.fn();
   const onRemove = vi.fn();
   const onEdit = vi.fn();
+  const onSave = vi.fn();
+  const onCancelEdit = vi.fn();
+  const findConflict = vi.fn(() => null);
   const props = {
     item,
     isFavorite: false,
@@ -17,6 +20,9 @@ function renderItem(overrides = {}) {
     onToggleFavorite,
     onRemove,
     onEdit,
+    onSave,
+    onCancelEdit,
+    findConflict,
     ...overrides,
   };
   render(
@@ -24,7 +30,7 @@ function renderItem(overrides = {}) {
       <ListItem {...props} />
     </ul>,
   );
-  return { onToggle, onToggleFavorite, onRemove, onEdit };
+  return { onToggle, onToggleFavorite, onRemove, onEdit, onSave, onCancelEdit, findConflict };
 }
 
 /** Öffnet das „Mehr“-Menü der Zeile (Favorit/Bearbeiten/Löschen). */
@@ -164,5 +170,40 @@ describe('ListItem – Menge, Einheit und Notiz', () => {
 
     expect(onEdit).toHaveBeenCalledWith('item-1');
     expect(onToggle).not.toHaveBeenCalled();
+  });
+});
+
+describe('ListItem – Inline-Bearbeitung (aufgeklappte Kachel)', () => {
+  it('zeigt bei isEditing das Bearbeiten-Formular statt der Zeile – ohne Overlay', () => {
+    renderItem({ isEditing: true });
+
+    // Kein Dialog/Overlay: das Formular ist inline Teil der Kachel.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('form', { name: /bearbeiten/ })).toBeInTheDocument();
+    // Der Umschalt-Button der Zeile ist während der Bearbeitung nicht sichtbar.
+    expect(
+      screen.queryByRole('button', { name: /als erledigt markieren/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('speichert Änderungen inline über onSave', async () => {
+    const user = userEvent.setup();
+    const { onSave } = renderItem({ isEditing: true });
+
+    await user.type(screen.getByLabelText('Menge'), '2');
+    await user.type(screen.getByLabelText('Einheit'), 'l');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][0]).toMatchObject({ name: 'Hafermilch', quantity: 2, unit: 'l' });
+  });
+
+  it('bricht die Inline-Bearbeitung über onCancel ab', async () => {
+    const user = userEvent.setup();
+    const { onCancelEdit } = renderItem({ isEditing: true });
+
+    await user.click(screen.getByRole('button', { name: 'Abbrechen' }));
+
+    expect(onCancelEdit).toHaveBeenCalledTimes(1);
   });
 });

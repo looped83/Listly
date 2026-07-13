@@ -24,10 +24,13 @@ gemeinsam in Echtzeit genutzt.
 - **Geteilte Liste:** in Echtzeit über Supabase synchronisiert
 - **Kundenkarten:** Lidl/Payback/dm/REWE mit QR/Barcode, rein lokal gespeichert
 - **Bedienung:** einheitlicher, einkaufsorientierter Look; Hinzufügen über einen
-  schwebenden Plus-Button, der ein Bottom-Sheet mit Suche + Detailfeldern öffnet.
+  schwebenden Plus-Button, der ein **oben angedocktes** Sheet mit Suche +
+  Detailfeldern öffnet (bleibt über der eingeblendeten Tastatur sichtbar).
+  Zeilen-Aktionen (Favorit/Bearbeiten/Löschen) per Swipe nach links oder ⋯-Menü;
+  Bearbeiten klappt die Kachel **inline** auf (kein Overlay).
 - **Feedback:** zentrale Toast-/aria-live-Infrastruktur mit Undo für Löschen/
-  Abschließen; Bottom-Sheets für Einkaufsabschluss und Artikel-Bearbeitung
-  (Menge/Einheit/Notiz/Kategorie)
+  Abschließen; Bottom-Sheet für den Einkaufsabschluss, Inline-Editor für die
+  Artikel-Bearbeitung (Menge/Einheit/Notiz/Kategorie)
 
 ---
 
@@ -71,12 +74,12 @@ src/
 │   ├── AddItemSheet.jsx    #   Hinzufügen-Bottom-Sheet: Suche + Chips + Detailfelder (über FAB)
 │   ├── FrequentChips.jsx   #   „Häufig gekauft“-Chips (im Hinzufügen-Sheet)
 │   ├── ShoppingList.jsx    #   Liste, nach Kategorie gruppiert (offen + erledigt), Fortschritt
-│   ├── ListItem.jsx        #   Einzelzeile: großer Umschalt-Button + ⋯-Menü, Swipe
+│   ├── ListItem.jsx        #   Einzelzeile: großer Umschalt-Button + ⋯-Menü, Swipe-Aktionen, Inline-Bearbeitung
+│   ├── ItemEditInline.jsx  #   Artikel INLINE in der aufgeklappten Kachel bearbeiten (kein Overlay)
 │   ├── ProductIcon.jsx     #   rendert das Emoji eines Artikels
 │   ├── SyncStatus.jsx      #   Live/Verbinde/Offline-Anzeige (oben rechts)
 │   ├── Toast.jsx           #   Snackbar-Anzeige + aria-live-Regionen (polite/assertive)
 │   ├── CheckoutDialog.jsx  #   „Einkauf abschließen“-Bottom-Sheet
-│   ├── ItemEditDialog.jsx  #   Artikel bearbeiten (Name/Menge/Einheit/Kategorie/Notiz)
 │   ├── CardsSheet.jsx      #   Kundenkarten-Overlay (Akkordeon) – via React.lazy geladen
 │   └── CodeImage.jsx       #   <QRCode> und <Barcode> (qrcode / jsbarcode)
 ├── hooks/
@@ -289,17 +292,24 @@ deployen.
   erreichbar.
 - **Zeile (`ListItem.jsx`):** Icon + Name bilden **einen** großen,
   tastaturbedienbaren Umschalt-Button (`aria-pressed`), kein verschachteltes
-  `<button>`. Favorit, Bearbeiten und Löschen liegen je Zeile in einem
+  `<button>`. **Swipe nach links** (rechts→links) deckt hinter der Zeile eine
+  Aktionsleiste mit **Favorit / Bearbeiten / Löschen** auf (rastet ab ~56 px
+  ein, `REVEAL_WIDTH` 156 px; vertikales Scrollen bleibt möglich, ein Klick
+  außerhalb schließt wieder). Dieselben drei Aktionen liegen als
+  **tastatur-/screenreader-taugliche Alternative** zur Geste zusätzlich im
   zurückgenommenen **„Mehr"-Menü** (⋯): Escape schließt es und gibt den Fokus an
-  den ⋯-Button zurück, ein Klick außerhalb schließt es ebenfalls. Zusätzlich
-  **Swipe nach links** zum Löschen (Schwelle ~80 px; vertikales Scrollen bleibt
-  möglich).
+  den ⋯-Button zurück.
 - **Artikel hinzufügen (`AddItemSheet.jsx`, geöffnet über den FAB):** ein
-  Bottom-Sheet mit **Produktsuche** (Autovervollständigung), den
+  **oben angedocktes** Sheet (`.dialog--top`, damit es auf Mobilgeräten nicht von
+  der Tastatur verdeckt wird) mit **Produktsuche** (Autovervollständigung), den
   **Häufig-gekauft-Chips** und **allen Detailfeldern** (Menge, Einheit, Kategorie,
-  Notiz) in einem Schritt. Interaktion: ein **Chip** fügt sofort hinzu (Sheet
-  bleibt offen für Folge-Adds), ein **Vorschlag** übernimmt Name + Kategorie ins
-  Formular (zum Ergänzen von Details), **„Hinzufügen"** übernimmt Name + Details.
+  Notiz – Notiz kompakt einzeilig) in einem Schritt. Interaktion: ein **Chip**
+  fügt sofort hinzu (Sheet bleibt offen für Folge-Adds), ein **Vorschlag**
+  übernimmt Name + Kategorie ins Formular (zum Ergänzen von Details),
+  **„Hinzufügen"** übernimmt Name + Details. Die Vorschlagsauswahl greift auf
+  **`pointerdown`** (nicht `click`) mit `preventDefault`: so wird schon der
+  **erste** Antippen zuverlässig übernommen, bevor Fokuswechsel/Tastatur einen
+  Layoutsprung auslösen (behebt „erstes Produkt lässt sich nicht auswählen").
   Nach dem Hinzufügen bleibt das Sheet offen (Felder geleert, Suche fokussiert);
   Schließen über X/Abbrechen/Escape/Backdrop. Barrierefreiheit über
   `useDialogFocus` (Fokusfalle, Escape, initialer Fokus auf der Suche,
@@ -310,16 +320,21 @@ deployen.
   whitespace-insensitiv gleich) wird **nicht** dupliziert: ein bereits offener
   Artikel bleibt unverändert, ein bereits erledigter wird reaktiviert (wieder
   offen). Feedback über die Toast-Infrastruktur.
-- **Artikel bearbeiten:** über das ⋯-Menü öffnet der Stift-Eintrag
-  `ItemEditDialog.jsx` (Name,
-  Menge, Einheit, Kategorie, Notiz). Validierung: Name darf nicht leer sein,
-  Menge muss eine positive Zahl sein (Komma **und** Punkt als
+- **Artikel bearbeiten (inline, kein Overlay):** der Stift-Eintrag (Wisch-
+  Leiste oder ⋯-Menü) klappt die Kachel **direkt an Ort und Stelle** auf und
+  zeigt `ItemEditInline.jsx` (Name, Menge, Einheit, Kategorie, Notiz) inline –
+  gesteuert über `editingId` in `App.jsx`, das an `ShoppingList` → `ListItem`
+  durchgereicht wird (`isEditing`). Die **Notiz** ist ein kompaktes einzeiliges
+  Feld (keine seitenweite Textfläche mehr). Validierung: Name darf nicht leer
+  sein, Menge muss eine positive Zahl sein (Komma **und** Punkt als
   Dezimaltrennzeichen werden akzeptiert), Einheit/Notiz werden getrimmt und
   begrenzt (`MAX_UNIT_LENGTH`/`MAX_NOTE_LENGTH` in `lib/itemFields.js`). Führt
   das Umbenennen zu einem Namenskonflikt mit einem anderen Artikel, fragt der
-  Dialog eine **bewusste Zusammenführung** ab (kein stilles Duplikat): der
+  Editor eine **bewusste Zusammenführung** ab (kein stilles Duplikat): der
   bearbeitete Artikel gewinnt (behält `id`/Position/`checked`), der andere
-  wird entfernt; ein vorhandener Favorit folgt der Umbenennung.
+  wird entfernt; ein vorhandener Favorit folgt der Umbenennung. Der Editor ist
+  nicht modal (Teil der Seite), fokussiert beim Aufklappen das Namensfeld und
+  bricht per Escape ab.
 - **Einkauf abschließen:** `CheckoutDialog.jsx` (Bottom-Sheet) ersetzt die
   frühere „Erledigte entfernen & verbuchen“-Aktion. Zeigt Anzahl
   abgehakter/offener Artikel und die Konsequenz; Standard verbucht nur
@@ -333,9 +348,10 @@ deployen.
   Undo-Aktionen sind per Tastatur erreichbar. Aktuell genutzt für: Artikel
   löschen, Einkauf abschließen, Artikel bearbeiten/Dublette/Reaktivierung.
 - **Dialoge (`useDialogFocus.js`):** gemeinsame Zugänglichkeits-Logik für
-  `CheckoutDialog` und `ItemEditDialog` – Fokusfalle (Tab/Shift+Tab zirkulieren
+  `CheckoutDialog` und `AddItemSheet` – Fokusfalle (Tab/Shift+Tab zirkulieren
   im Panel), Escape schließt, initialer Fokus beim Öffnen, Fokusrückgabe an das
-  auslösende Element beim Schließen.
+  auslösende Element beim Schließen. Der Inline-Editor (`ItemEditInline`) ist
+  **nicht modal** und nutzt daher keine Fokusfalle – nur initialen Fokus + Escape.
 - **Suche/Autocomplete (`lib/suggestions.js` + `lib/textMatch.js`):** Kandidaten
   stammen – dedupliziert – aus Kaufverlauf (nach Häufigkeit), Favoriten und
   Basisliste; diese Reihenfolge ist die Herkunftspriorität. Die Bewertung ist
@@ -396,7 +412,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
   wäre nur mit echtem Login sinnvoll.
 - **`npm audit`** meldet eine Dev-Server-Warnung (esbuild, transitiv über Vite 5).
   Betrifft nur den lokalen Dev-Server, nicht das ausgelieferte Bundle.
-- **Tests:** Vitest + React Testing Library, `npm test` (256 Tests, 15 Dateien).
+- **Tests:** Vitest + React Testing Library, `npm test` (253 Tests, 15 Dateien).
   Läuft auch als Teil der Deploy-Pipeline (§6) – ein Testfehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
@@ -421,7 +437,8 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
   `useShoppingItems.addItem`; App-Verdrahtung (Toast, Sheet öffnen) in `App.jsx`.
 - **Neues Artikelfeld (wie Menge/Einheit/Notiz):** Sanitizer in `schema.js`
   erweitern + `SCHEMA_VERSION` hochzählen (§12), Coerce-Helfer in
-  `lib/itemFields.js` ergänzen, `ItemEditDialog.jsx` um das Feld erweitern,
+  `lib/itemFields.js` ergänzen, `ItemEditInline.jsx` (und ggf. `AddItemSheet.jsx`)
+  um das Feld erweitern,
   Supabase-Spalte in `schema.sql` (`add column if not exists`) + `rowToItem`
   in `lib/supabase.js` ergänzen.
 

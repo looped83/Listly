@@ -1,52 +1,86 @@
 import { memo, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Check, MoreHorizontal, Pencil, Star, Trash2, X } from 'lucide-react';
 import ProductIcon from './ProductIcon';
+import ItemEditInline from './ItemEditInline';
 import { formatQuantity, itemLabel, readItemExtras } from '../lib/itemFields';
 
-const SWIPE_THRESHOLD = 80; // px, ab hier wird beim Loslassen gelöscht
-const MAX_SWIPE = 120; // px, maximaler Ausschlag
+const REVEAL_WIDTH = 156; // px, Breite der aufgedeckten Aktionsleiste (3 Buttons)
+const OPEN_THRESHOLD = 56; // px, ab hier rastet die Aktionsleiste beim Loslassen ein
 
-/** Eine Zeile der Einkaufsliste. Per Swipe nach links löschbar. */
-function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove, onEdit }) {
+/**
+ * Eine Zeile der Einkaufsliste.
+ *
+ * Wischen von rechts nach links deckt drei Aktionen auf: Favorit, Bearbeiten,
+ * Löschen. Dieselben Aktionen sind – als tastatur-/screenreader-taugliche
+ * Alternative zur Geste – auch über das „Mehr“-Menü erreichbar.
+ *
+ * „Bearbeiten“ klappt die Kachel direkt auf (kein Overlay) und zeigt die
+ * Bearbeitungsfelder inline.
+ */
+function ListItem({
+  item,
+  isFavorite,
+  isEditing,
+  onToggle,
+  onToggleFavorite,
+  onRemove,
+  onEdit,
+  onSave,
+  onCancelEdit,
+  findConflict,
+}) {
   const start = useRef({ x: 0, y: 0 });
   const dragging = useRef(false);
   const horizontal = useRef(false);
   const dxRef = useRef(0); // aktueller Ausschlag – unabhängig vom Render-Timing
   const [dx, setDx] = useState(0);
   const [animating, setAnimating] = useState(false);
-  const [removing, setRemoving] = useState(false);
+  const [revealed, setRevealed] = useState(false); // Aktionsleiste per Swipe aufgedeckt
 
-  // „Mehr"-Menü (nur Einkaufsmodus): fasst Favorit/Bearbeiten/Löschen zusammen,
-  // damit der große Umschalt-Button die dominante Trefferfläche bleibt.
+  // „Mehr“-Menü: zugängliche Alternative zur Wisch-Geste (Favorit/Bearbeiten/Löschen).
   const [menuOpen, setMenuOpen] = useState(false);
   const menuId = useId();
   const moreRef = useRef(null);
   const actionsRef = useRef(null);
+  const rowRef = useRef(null);
 
-  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const closeReveal = useCallback(() => {
+    setRevealed(false);
+    dxRef.current = 0;
+    setDx(0);
+  }, []);
 
-  // Klick außerhalb schließt das Menü (nur wenn offen).
+  // Klick außerhalb schließt Menü bzw. aufgedeckte Aktionsleiste.
   useEffect(() => {
-    if (!menuOpen) return undefined;
+    if (!menuOpen && !revealed) return undefined;
     const onPointerDown = (e) => {
-      if (!actionsRef.current?.contains(e.target)) setMenuOpen(false);
+      if (menuOpen && !actionsRef.current?.contains(e.target)) setMenuOpen(false);
+      if (revealed && !rowRef.current?.contains(e.target)) {
+        setAnimating(true);
+        closeReveal();
+      }
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [menuOpen]);
+  }, [menuOpen, revealed, closeReveal]);
 
   const applyDx = useCallback((value) => {
     dxRef.current = value;
     setDx(value);
   }, []);
 
-  const onTouchStart = useCallback((e) => {
-    const t = e.touches[0];
-    start.current = { x: t.clientX, y: t.clientY };
-    dragging.current = true;
-    horizontal.current = false;
-    setAnimating(false);
-  }, []);
+  const onTouchStart = useCallback(
+    (e) => {
+      const t = e.touches[0];
+      start.current = { x: t.clientX, y: t.clientY };
+      dragging.current = true;
+      horizontal.current = false;
+      setAnimating(false);
+      // Beim erneuten Anfassen vom aktuellen (ggf. aufgedeckten) Offset ausgehen.
+      dxRef.current = revealed ? -REVEAL_WIDTH : 0;
+    },
+    [revealed],
+  );
 
   const onTouchMove = useCallback(
     (e) => {
@@ -60,22 +94,26 @@ function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove, onEd
         return;
       }
       horizontal.current = true;
-      applyDx(dX < 0 ? Math.max(dX, -MAX_SWIPE) : 0);
+      const base = revealed ? -REVEAL_WIDTH : 0;
+      const next = Math.min(0, Math.max(base + dX, -REVEAL_WIDTH));
+      applyDx(next);
     },
-    [applyDx],
+    [applyDx, revealed],
   );
 
   const onTouchEnd = useCallback(() => {
     if (!dragging.current && !horizontal.current) return;
     dragging.current = false;
+    horizontal.current = false;
     setAnimating(true);
-    if (dxRef.current <= -SWIPE_THRESHOLD) {
-      setRemoving(true);
-      setTimeout(() => onRemove(item.id), 200);
+    // Weit genug aufgedeckt → einrasten, sonst zurückgleiten.
+    if (dxRef.current <= -OPEN_THRESHOLD) {
+      setRevealed(true);
+      applyDx(-REVEAL_WIDTH);
     } else {
-      applyDx(0);
+      closeReveal();
     }
-  }, [applyDx, item.id, onRemove]);
+  }, [applyDx, closeReveal]);
 
   const { quantity, unit, note } = readItemExtras(item);
   const qtyLabel = formatQuantity(quantity, unit);
@@ -83,8 +121,20 @@ function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove, onEd
   const descriptor = itemLabel(item);
   const noteSuffix = note ? `, Notiz: ${note}` : '';
 
-  // Die drei Sekundäraktionen – identisch in Plan-Leiste und Shop-Menü. Im Menü
-  // schließt jede Aktion es zusätzlich (afterAction).
+  const handleFavorite = useCallback(() => {
+    onToggleFavorite(item.name);
+  }, [onToggleFavorite, item.name]);
+
+  const handleEdit = useCallback(() => {
+    onEdit(item.id);
+  }, [onEdit, item.id]);
+
+  const handleRemove = useCallback(() => {
+    onRemove(item.id);
+  }, [onRemove, item.id]);
+
+  // Die drei Sekundäraktionen – identisch in der aufgedeckten Wisch-Leiste und
+  // im „Mehr“-Menü. `afterAction` schließt das Menü bzw. die Leiste anschließend.
   const renderActions = (afterAction) => (
     <>
       <button
@@ -92,7 +142,7 @@ function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove, onEd
         className="icon-button icon-button--fav"
         data-active={isFavorite}
         onClick={() => {
-          onToggleFavorite(item.name);
+          handleFavorite();
           afterAction?.();
         }}
         aria-pressed={isFavorite}
@@ -107,8 +157,8 @@ function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove, onEd
         type="button"
         className="icon-button"
         onClick={() => {
-          onEdit(item.id);
           afterAction?.();
+          handleEdit();
         }}
         aria-label={`${descriptor} bearbeiten`}
       >
@@ -119,8 +169,8 @@ function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove, onEd
         type="button"
         className="icon-button icon-button--danger"
         onClick={() => {
-          onRemove(item.id);
           afterAction?.();
+          handleRemove();
         }}
         aria-label={`${descriptor} entfernen`}
       >
@@ -129,16 +179,38 @@ function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove, onEd
     </>
   );
 
+  // Aufgeklappte Kachel: Bearbeitungsfelder inline statt Overlay.
+  if (isEditing) {
+    return (
+      <li className="swipe swipe--editing">
+        <div className="list-item list-item--editing">
+          <ItemEditInline
+            item={item}
+            findConflict={findConflict}
+            onSave={onSave}
+            onCancel={onCancelEdit}
+          />
+        </div>
+      </li>
+    );
+  }
+
   return (
-    <li className="swipe" data-removing={removing}>
-      <span className="swipe__hint" aria-hidden="true">
-        <Trash2 size={18} />
-      </span>
+    <li className="swipe">
+      {/* Aufgedeckte Aktionsleiste hinter der Kachel (Wisch-Geste). */}
+      <div className="swipe__actions" aria-hidden={!revealed}>
+        {renderActions(() => {
+          setAnimating(true);
+          closeReveal();
+        })}
+      </div>
       <div
         className="list-item"
+        ref={rowRef}
         data-checked={item.checked}
-        data-animating={animating || removing}
-        style={{ transform: removing ? undefined : `translateX(${dx}px)` }}
+        data-animating={animating}
+        data-revealed={revealed}
+        style={{ transform: `translateX(${dx}px)` }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -177,8 +249,8 @@ function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove, onEd
           </span>
         </button>
 
-        {/* Sekundäraktionen (Favorit/Bearbeiten/Löschen) in ein zurückgenommenes
-            „Mehr"-Menü, damit der große Umschalt-Button die dominante Fläche bleibt. */}
+        {/* Sekundäraktionen zusätzlich im zurückgenommenen „Mehr“-Menü, damit sie
+            auch ohne Wisch-Geste (Tastatur/Screenreader) erreichbar bleiben. */}
         <div
           className="list-item__actions"
           ref={actionsRef}

@@ -11,7 +11,6 @@ import { summarizeCheckout } from './lib/checkout';
 import ShoppingList from './components/ShoppingList';
 import AddItemSheet from './components/AddItemSheet';
 import CheckoutDialog from './components/CheckoutDialog';
-import ItemEditDialog from './components/ItemEditDialog';
 import SyncStatus from './components/SyncStatus';
 import { Plus, ShoppingBasket, Wallet } from 'lucide-react';
 
@@ -239,10 +238,14 @@ function AppContent() {
         <ShoppingList
           items={items}
           favoriteSet={favoriteSet}
+          editingId={editingId}
           onToggle={toggleItem}
           onToggleFavorite={toggleFavorite}
           onRemove={handleRemoveItem}
           onEdit={setEditingId}
+          onSaveEdit={handleSaveEdit}
+          onCancelEdit={closeEdit}
+          findEditConflict={findEditConflict}
           onCheckout={() => setCheckoutOpen(true)}
         />
       </main>
@@ -282,15 +285,6 @@ function AppContent() {
           openCount={checkoutSummary.openCount}
           onConfirm={handleConfirmCheckout}
           onClose={closeCheckout}
-        />
-      )}
-
-      {editingItem && (
-        <ItemEditDialog
-          item={editingItem}
-          findConflict={findEditConflict}
-          onSave={handleSaveEdit}
-          onClose={closeEdit}
         />
       )}
     </div>
