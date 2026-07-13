@@ -26,7 +26,8 @@ gemeinsam in Echtzeit genutzt.
 - **Bedienung:** einheitlicher, einkaufsorientierter Look; Hinzufügen über einen
   schwebenden Plus-Button, der ein **oben angedocktes** Sheet mit Suche +
   Detailfeldern öffnet (bleibt über der eingeblendeten Tastatur sichtbar).
-  Zeilen-Aktionen (Favorit/Bearbeiten/Löschen) per Swipe nach links oder ⋯-Menü;
+  Zeilen-Aktionen (Favorit/Bearbeiten/Löschen) per Swipe nach links (per Tastatur
+  fokussierbar);
   Bearbeiten klappt die Kachel **inline** auf (kein Overlay).
 - **Feedback:** zentrale Toast-/aria-live-Infrastruktur mit Undo für Löschen/
   Abschließen; Bottom-Sheet für den Einkaufsabschluss, Inline-Editor für die
@@ -74,7 +75,7 @@ src/
 │   ├── AddItemSheet.jsx    #   Hinzufügen-Bottom-Sheet: Suche + Chips + Detailfelder (über FAB)
 │   ├── FrequentChips.jsx   #   „Häufig gekauft“-Chips (im Hinzufügen-Sheet)
 │   ├── ShoppingList.jsx    #   Liste, nach Kategorie gruppiert (offen + erledigt), Fortschritt
-│   ├── ListItem.jsx        #   Einzelzeile: großer Umschalt-Button + ⋯-Menü, Swipe-Aktionen, Inline-Bearbeitung
+│   ├── ListItem.jsx        #   Einzelzeile: großer Umschalt-Button, Swipe-Aktionen (fokussierbar), Inline-Bearbeitung
 │   ├── ItemEditInline.jsx  #   Artikel INLINE in der aufgeklappten Kachel bearbeiten (kein Overlay)
 │   ├── ProductIcon.jsx     #   rendert das Emoji eines Artikels
 │   ├── SyncStatus.jsx      #   Live/Verbinde/Offline-Anzeige (oben rechts)
@@ -251,7 +252,10 @@ deployen.
   - **REWE** (QR): strukturierter Loyalty-Payload mit der Treue-Nummer.
 - **UI:** Akkordeon – nur eine Karte offen (erste per Default), Klick klappt um.
   Löschen sitzt in der farbigen Titelleiste. QR/Barcode werden auf **weißem**
-  Grund gerendert (unabhängig vom Dark Mode scannbar).
+  Grund gerendert (unabhängig vom Dark Mode scannbar). Barcodes (z. B. Payback)
+  werden bewusst **groß** dargestellt (`CodeImage.jsx`: `height` 110, `width` 3;
+  CSS `.code__barcode` mit `height: auto`, `max-width: 440px`), damit der
+  Kassen-Scanner sie zuverlässig vom Display liest.
 - **Schließen des Overlays:** X-Button, Swipe nach unten im oberen Bereich (greift
   ab Leiste oder wenn der Inhalt ganz oben steht, Schwelle ~90 px), oder Klick auf
   die leere Fläche.
@@ -295,10 +299,11 @@ deployen.
   `<button>`. **Swipe nach links** (rechts→links) deckt hinter der Zeile eine
   Aktionsleiste mit **Favorit / Bearbeiten / Löschen** auf (rastet ab ~56 px
   ein, `REVEAL_WIDTH` 156 px; vertikales Scrollen bleibt möglich, ein Klick
-  außerhalb schließt wieder). Dieselben drei Aktionen liegen als
-  **tastatur-/screenreader-taugliche Alternative** zur Geste zusätzlich im
-  zurückgenommenen **„Mehr"-Menü** (⋯): Escape schließt es und gibt den Fokus an
-  den ⋯-Button zurück.
+  außerhalb schließt wieder). Ein separates „Mehr"-Menü (⋯) gibt es **nicht mehr**
+  – die drei Aktions-Buttons bleiben aber fokussierbar (kein `aria-hidden`),
+  sodass sie **ohne Geste per Tastatur/Screenreader** erreichbar sind: erhält
+  einer den Fokus, klappt die Leiste automatisch auf; verlässt der Fokus sie,
+  schließt sie wieder.
 - **Artikel hinzufügen (`AddItemSheet.jsx`, geöffnet über den FAB):** ein
   **oben angedocktes** Sheet (`.dialog--top`, damit es auf Mobilgeräten nicht von
   der Tastatur verdeckt wird) mit **Produktsuche** (Autovervollständigung), den
@@ -320,8 +325,8 @@ deployen.
   whitespace-insensitiv gleich) wird **nicht** dupliziert: ein bereits offener
   Artikel bleibt unverändert, ein bereits erledigter wird reaktiviert (wieder
   offen). Feedback über die Toast-Infrastruktur.
-- **Artikel bearbeiten (inline, kein Overlay):** der Stift-Eintrag (Wisch-
-  Leiste oder ⋯-Menü) klappt die Kachel **direkt an Ort und Stelle** auf und
+- **Artikel bearbeiten (inline, kein Overlay):** der Stift-Eintrag der Wisch-
+  Leiste klappt die Kachel **direkt an Ort und Stelle** auf und
   zeigt `ItemEditInline.jsx` (Name, Menge, Einheit, Kategorie, Notiz) inline –
   gesteuert über `editingId` in `App.jsx`, das an `ShoppingList` → `ListItem`
   durchgereicht wird (`isEditing`). Die **Notiz** ist ein kompaktes einzeiliges
@@ -412,7 +417,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
   wäre nur mit echtem Login sinnvoll.
 - **`npm audit`** meldet eine Dev-Server-Warnung (esbuild, transitiv über Vite 5).
   Betrifft nur den lokalen Dev-Server, nicht das ausgelieferte Bundle.
-- **Tests:** Vitest + React Testing Library, `npm test` (253 Tests, 15 Dateien).
+- **Tests:** Vitest + React Testing Library, `npm test` (254 Tests, 15 Dateien).
   Läuft auch als Teil der Deploy-Pipeline (§6) – ein Testfehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).

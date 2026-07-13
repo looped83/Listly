@@ -112,18 +112,15 @@ describe('ShoppingList – Fortschritt & Erledigt (Standard)', () => {
     expect(screen.getByRole('button', { name: 'Einkauf abschließen' })).toBeInTheDocument();
   });
 
-  it('verschiebt die Sekundäraktionen in ein Mehr-Menü', async () => {
-    const user = userEvent.setup();
+  it('bietet Favorit/Bearbeiten/Löschen je Zeile ohne „Mehr“-Menü an', () => {
     renderList([item('Apfel', 'obst-gemuese', false)]);
 
-    // Bearbeiten/Löschen sind zunächst nicht direkt sichtbar.
-    expect(screen.queryByRole('button', { name: /bearbeiten/ })).not.toBeInTheDocument();
-
-    const more = screen.getByRole('button', { name: 'Weitere Aktionen für Apfel' });
-    expect(more).toHaveAttribute('aria-expanded', 'false');
-    await user.click(more);
-
-    expect(more).toHaveAttribute('aria-expanded', 'true');
+    // Kein „Mehr“-Menü mehr – die Aktionen warten hinter dem Swipe, bleiben aber
+    // (fokussierbar) erreichbar.
+    expect(screen.queryByRole('button', { name: /Weitere Aktionen/ })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Apfel zu Favoriten hinzufügen' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Apfel bearbeiten' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Apfel entfernen' })).toBeInTheDocument();
   });
