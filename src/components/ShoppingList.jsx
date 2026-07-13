@@ -1,25 +1,59 @@
-import { memo, useMemo } from 'react';
-import { ClipboardList, ShoppingBag } from 'lucide-react';
+import { memo, useId, useMemo, useState } from 'react';
+import { ChevronDown, ClipboardList, ShoppingBag } from 'lucide-react';
 import ListItem from './ListItem';
 import { normalizeName } from '../lib/history';
 import { groupByCategory } from '../lib/groupItems';
+import { summarizeCheckout } from '../lib/checkout';
 
-/** Rendert die aktuelle Liste: offene und erledigte Artikel je nach Kategorie gruppiert. */
+/** Fortschrittsleiste „x von y erledigt“ – nur im Einkaufsmodus. */
+function ShopProgress({ done, total }) {
+  const label = `${done} von ${total} erledigt`;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  return (
+    <div className="shop-progress">
+      <span className="shop-progress__label">{label}</span>
+      <div
+        className="shop-progress__track"
+        role="progressbar"
+        aria-label="Einkaufsfortschritt"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={done}
+        aria-valuetext={label}
+      >
+        <div className="shop-progress__fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Rendert die aktuelle Liste: offene und erledigte Artikel je nach Kategorie
+ * gruppiert. Im Einkaufsmodus (`mode === 'shop'`) mit Fortschrittsanzeige,
+ * größeren Zeilen (per CSS) und standardmäßig eingeklappten erledigten Artikeln.
+ */
 function ShoppingList({
   items,
   favoriteSet,
+  mode = 'plan',
   onToggle,
   onToggleFavorite,
   onRemove,
   onEdit,
   onCheckout,
 }) {
+  const isShop = mode === 'shop';
+  const doneId = useId();
+  // Erledigte im Einkaufsmodus standardmäßig eingeklappt.
+  const [doneOpen, setDoneOpen] = useState(false);
+
   const { open, done } = useMemo(() => {
     const groups = { open: [], done: [] };
     for (const item of items) (item.checked ? groups.done : groups.open).push(item);
     return groups;
   }, [items]);
 
+  const summary = useMemo(() => summarizeCheckout(items), [items]);
   const openGroups = useMemo(() => groupByCategory(open), [open]);
   const doneGroups = useMemo(() => groupByCategory(done), [done]);
 
@@ -38,6 +72,7 @@ function ShoppingList({
       <ListItem
         key={item.id}
         item={item}
+        mode={mode}
         isFavorite={favoriteSet.has(normalizeName(item.name))}
         onToggle={onToggle}
         onToggleFavorite={onToggleFavorite}
@@ -74,8 +109,9 @@ function ShoppingList({
       <section aria-label="Offene Artikel">
         <div className="list-section__header">
           <h2 className="list-section__title">Einkaufsliste</h2>
-          <span className="list-section__count">{open.length} offen</span>
+          {!isShop && <span className="list-section__count">{open.length} offen</span>}
         </div>
+        {isShop && <ShopProgress done={summary.checkedCount} total={summary.total} />}
         {open.length > 0 ? (
           openGroups.map((group) => renderGroup(group))
         ) : (
@@ -87,13 +123,38 @@ function ShoppingList({
 
       {done.length > 0 && (
         <section className="section" aria-label="Erledigte Artikel">
-          <div className="list-section__header">
-            <h2 className="list-section__title">Erledigt</h2>
-            <span className="list-section__count">{done.length}</span>
-          </div>
-          {doneGroups.map((group) => renderGroup(group))}
-          {/* Primäre Aktion – nur sichtbar, wenn es abgehakte Artikel gibt, sonst
-              gäbe es nichts abzuschließen. */}
+          {isShop ? (
+            <>
+              {/* Disclosure: erledigte Artikel standardmäßig eingeklappt. */}
+              <button
+                type="button"
+                className="disclosure"
+                aria-expanded={doneOpen}
+                aria-controls={doneId}
+                onClick={() => setDoneOpen((prev) => !prev)}
+              >
+                <span className="list-section__title">Erledigt</span>
+                <span className="list-section__count">{done.length}</span>
+                <ChevronDown
+                  size={18}
+                  className="disclosure__chevron"
+                  data-open={doneOpen}
+                  aria-hidden="true"
+                />
+              </button>
+              {doneOpen && <div id={doneId}>{doneGroups.map((group) => renderGroup(group))}</div>}
+            </>
+          ) : (
+            <>
+              <div className="list-section__header">
+                <h2 className="list-section__title">Erledigt</h2>
+                <span className="list-section__count">{done.length}</span>
+              </div>
+              {doneGroups.map((group) => renderGroup(group))}
+            </>
+          )}
+          {/* Primäre Aktion – stets sichtbar, auch wenn die Liste eingeklappt ist,
+              sonst gäbe es keinen Weg, den Einkauf abzuschließen. */}
           <div className="list-actions">
             <button type="button" className="button-checkout" onClick={onCheckout}>
               <ShoppingBag size={18} aria-hidden="true" />

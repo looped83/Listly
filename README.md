@@ -11,6 +11,11 @@ installieren (offline-fähig).
 - **Schnelleingabe** – beim manuellen Hinzufügen erkennt Listly konservativ eine
   führende Menge/Einheit und eine optionale Notiz (siehe unten). Im Zweifel bleibt
   die Eingabe unverändert der Artikelname; ausgewählte Vorschläge werden nie zerlegt.
+- **Einkaufsmodus** – ein klar getrennter Modus fürs Einkaufen im Laden: große,
+  leicht treffbare Zeilen, Fortschritt „x von y erledigt“, standardmäßig
+  eingeklappte erledigte Artikel, zurückgenommene Sekundäraktionen (Mehr-Menü),
+  optional einklappbares Eingabedock und – wo unterstützt – ein wachbleibender
+  Bildschirm (Screen Wake Lock). Umschaltbar über den Kopf­leisten-Button.
 - **Kaufverlauf** – abgehakte und „verbuchte“ Artikel merken sich ihre
   Kaufhäufigkeit. Häufig gekaufte Artikel erscheinen als horizontal scrollbare
   Schnellauswahl-Chips (einzeln über ihr ×-Symbol aus den Vorschlägen entfernbar).
@@ -65,6 +70,29 @@ aus, wird er unverändert übernommen.
 Die Logik steckt als reine Funktion in
 [`src/lib/quickInput.js`](src/lib/quickInput.js) (`parseQuickInput`); die
 Einheiten-Liste (`QUICK_UNIT_ALIASES`) ist dort leicht erweiterbar.
+
+## Einkaufsmodus
+
+Über den Button **„Einkaufen"** in der Kopfzeile wechselt Listly vom
+**Planungsmodus** (hinzufügen/bearbeiten/favorisieren/löschen wie gewohnt) in
+einen fokussierten **Einkaufsmodus**:
+
+- **Große Zeilen** – die gesamte Zeile schaltet „erledigt" um (leicht treffbar).
+- **Fortschritt** – „x von y erledigt" als Balken (`role="progressbar"`).
+- **Erledigte eingeklappt** – standardmäßig zusammengeklappt, per Klick ausklappbar.
+- **Zurückgenommene Aktionen** – Favorisieren/Bearbeiten/Löschen liegen in einem
+  per-Zeile **„Mehr"-Menü** (⋯), damit die Hauptaktion dominiert.
+- **Einklappbares Dock** – die Eingabe lässt sich einklappen (mehr Platz), bleibt
+  aber über „Artikel hinzufügen" jederzeit erreichbar.
+- **Bildschirm wach halten** – wo unterstützt, wird per **Screen Wake Lock API**
+  (progressive Enhancement) verhindert, dass sich der Bildschirm beim Einkaufen
+  abschaltet. Der Lock wird erst beim bewussten Wechsel in den Einkaufsmodus
+  angefordert und beim Verlassen/Verbergen der Seite wieder freigegeben; fehlt die
+  API (z. B. ältere Geräte), passiert lautlos nichts.
+
+Der Modus wird **nur sitzungsbezogen** gespeichert (überlebt einen Reload im
+selben Tab, aber nicht dauerhaft). Alles bleibt per Tastatur und Screenreader
+bedienbar. Es gibt **keinen** automatischen Moduswechsel.
 
 ## Datenmodell (localStorage)
 

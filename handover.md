@@ -79,6 +79,8 @@ src/
 │   └── CodeImage.jsx       #   <QRCode> und <Barcode> (qrcode / jsbarcode)
 ├── hooks/
 │   ├── useLocalStorage.js  #   State ↔ localStorage (Persistenz als Effekt, StrictMode-sicher)
+│   ├── useSessionStorage.js#   State ↔ sessionStorage (sitzungsbezogen, z. B. der Modus)
+│   ├── useWakeLock.js      #   Screen Wake Lock (progressive Enhancement, nie werfend)
 │   ├── useShoppingItems.js #   Liste: Supabase (Echtzeit) ODER lokal, inkl. aller Operationen
 │   ├── useToast.jsx        #   ToastProvider/useToast – zentrale Statusmeldungen + Undo
 │   ├── useDialogFocus.js   #   Fokusfalle/Escape/initialer Fokus/Fokusrückgabe für Dialoge
@@ -297,6 +299,24 @@ deployen.
   Metadaten. Die Dubletten-Erkennung läuft unverändert über den reinen Namen; ein
   neuer Toast zeigt die interpretierte Menge kompakt (`itemLabel`). Nur bei einem
   **neu** angelegten Artikel werden die Felder gesetzt (omit-empty).
+- **Einkaufsmodus (`App.jsx`, `mode` in `useSessionStorage`):** klar getrennter
+  Modus neben dem Planungsmodus, umgeschaltet über einen Kopfleisten-Button (kein
+  automatischer Wechsel). Nur **sitzungsbezogen** gespeichert (`listly.mode`,
+  sessionStorage – überlebt Reload, nicht dauerhaft). Der `.app`-Root trägt
+  `data-mode`; CSS-Varianten liefern u. a. **größere, leicht treffbare Zeilen**.
+  Im Shop-Modus zeigt `ShoppingList` einen **Fortschritt** „x von y erledigt"
+  (`role="progressbar"`, aus `summarizeCheckout`), klappt **erledigte Artikel**
+  standardmäßig ein (Disclosure, `aria-expanded`), und `ListItem` verschiebt
+  Favorit/Bearbeiten/Löschen in ein per-Zeile **„Mehr"-Menü** (⋯, Escape schließt +
+  Fokusrückgabe, Klick außerhalb schließt). Das **Eingabedock** ist einklappbar,
+  bleibt aber über „Artikel hinzufügen" erreichbar (klappt auf und fokussiert das
+  Feld). Der Planungsmodus bleibt unverändert (Default `'plan'`).
+- **Bildschirm wach halten (`useWakeLock.js`):** progressive Enhancement über die
+  Screen Wake Lock API, gekoppelt an den Einkaufsmodus (also an die bewusste
+  Nutzeraktion). Feature-Detection – fehlt die API, passiert lautlos nichts. Der
+  Lock wird bei Sichtbarkeit angefordert, beim Verlassen/Unmount/Seitenwechsel
+  freigegeben und bei Rückkehr (`visibilitychange`) kontrolliert neu angefordert;
+  alle Aufrufe sind in try/catch gekapselt (nie werfend).
 - **Artikel bearbeiten:** Stift-Button öffnet `ItemEditDialog.jsx` (Name,
   Menge, Einheit, Kategorie, Notiz). Validierung: Name darf nicht leer sein,
   Menge muss eine positive Zahl sein (Komma **und** Punkt als
@@ -364,7 +384,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
   wäre nur mit echtem Login sinnvoll.
 - **`npm audit`** meldet eine Dev-Server-Warnung (esbuild, transitiv über Vite 5).
   Betrifft nur den lokalen Dev-Server, nicht das ausgelieferte Bundle.
-- **Tests:** Vitest + React Testing Library, `npm test` (186 Tests, 13 Dateien).
+- **Tests:** Vitest + React Testing Library, `npm test` (201 Tests, 14 Dateien).
   Läuft auch als Teil der Deploy-Pipeline (§6) – ein Testfehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).

@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 // App synct standardmäßig über Supabase (siehe supabaseConfig.js). Für den
@@ -486,6 +486,87 @@ describe('Artikel bearbeiten (local mode)', () => {
     // Der Favoritenstatus ist mitgewandert: „Boskop" ist favorisiert, „Apfel" existiert nicht mehr.
     expect(
       await screen.findByRole('button', { name: 'Boskop aus Favoriten entfernen' }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('Einkaufsmodus (local mode)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', createLocalStorageMock());
+    // Modus ist sitzungsbezogen – zwischen den Tests isolieren.
+    sessionStorage.clear();
+  });
+
+  const enterShop = (user) =>
+    user.click(screen.getByRole('button', { name: 'Einkaufsmodus starten' }));
+
+  it('startet den Einkaufsmodus und wechselt Titel + Aktion', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await enterShop(user);
+
+    expect(screen.getByRole('heading', { name: 'Einkaufen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Einkaufsmodus verlassen' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Einkaufsmodus starten' })).not.toBeInTheDocument();
+  });
+
+  it('kehrt über den Verlassen-Button in den Planungsmodus zurück', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await enterShop(user);
+
+    await user.click(screen.getByRole('button', { name: 'Einkaufsmodus verlassen' }));
+
+    expect(screen.getByRole('heading', { name: 'Listly' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Artikel hinzufügen' })).toBeInTheDocument();
+  });
+
+  it('klappt das Eingabedock ein, hält es aber erreichbar und fokussiert es beim Ausklappen', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await enterShop(user);
+
+    // Eingefeld eingeklappt, aber „Artikel hinzufügen" bleibt jederzeit erreichbar.
+    expect(screen.queryByRole('combobox', { name: 'Artikel hinzufügen' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Artikel hinzufügen' }));
+
+    const input = await screen.findByRole('combobox', { name: 'Artikel hinzufügen' });
+    await waitFor(() => expect(input).toHaveFocus());
+  });
+
+  it('zeigt den Einkaufsfortschritt „x von y erledigt"', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Apfel');
+    await addItem(user, 'Banane');
+    await user.click(screen.getByRole('button', { name: 'Apfel als erledigt markieren' }));
+
+    await enterShop(user);
+
+    expect(screen.getByRole('progressbar', { name: 'Einkaufsfortschritt' })).toHaveAttribute(
+      'aria-valuetext',
+      '1 von 2 erledigt',
+    );
+  });
+
+  it('klappt erledigte Artikel im Einkaufsmodus standardmäßig ein', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Apfel');
+    await user.click(screen.getByRole('button', { name: 'Apfel als erledigt markieren' }));
+
+    await enterShop(user);
+
+    // Eingeklappt: der erledigte Artikel ist nicht sichtbar, bis aufgeklappt wird.
+    expect(
+      screen.queryByRole('button', { name: 'Apfel als offen markieren' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Erledigt/ }));
+
+    expect(
+      screen.getByRole('button', { name: 'Apfel als offen markieren' }),
     ).toBeInTheDocument();
   });
 });
