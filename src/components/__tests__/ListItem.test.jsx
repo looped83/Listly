@@ -27,13 +27,24 @@ function renderItem(overrides = {}) {
   return { onToggle, onToggleFavorite, onRemove, onEdit };
 }
 
+/** Öffnet das „Mehr“-Menü der Zeile (Favorit/Bearbeiten/Löschen). */
+async function openMenu(user, name = 'Hafermilch') {
+  await user.click(screen.getByRole('button', { name: `Weitere Aktionen für ${name}` }));
+}
+
 describe('ListItem – Semantik & Trefferflächen', () => {
-  it('rendert genau vier sibling-Buttons ohne verschachtelte Buttons', () => {
+  it('zeigt nur Umschalten + „Mehr“; Sekundäraktionen im Menü, ohne verschachtelte Buttons', async () => {
+    const user = userEvent.setup();
     renderItem();
 
-    // Umschalten, Favorit, Bearbeiten, Löschen.
+    // Direkt sichtbar: Umschalt-Button und „Mehr“.
+    expect(screen.getAllByRole('button')).toHaveLength(2);
+
+    await openMenu(user);
+
+    // Menü offen: Umschalten, Mehr, Favorit, Bearbeiten, Löschen.
     const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(4);
+    expect(buttons).toHaveLength(5);
     // Kein <button> enthält ein weiteres <button> als Nachfahre (ungültiges HTML).
     for (const button of buttons) {
       expect(button.querySelector('button')).toBeNull();
@@ -70,10 +81,11 @@ describe('ListItem – Semantik & Trefferflächen', () => {
     expect(toggle).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('Favorit-Klick löst NICHT den Erledigt-Status oder Löschen aus', async () => {
+  it('Favorit-Klick (im Menü) löst NICHT den Erledigt-Status oder Löschen aus', async () => {
     const user = userEvent.setup();
     const { onToggle, onToggleFavorite, onRemove } = renderItem();
 
+    await openMenu(user);
     await user.click(screen.getByRole('button', { name: 'Hafermilch zu Favoriten hinzufügen' }));
 
     expect(onToggleFavorite).toHaveBeenCalledTimes(1);
@@ -82,10 +94,11 @@ describe('ListItem – Semantik & Trefferflächen', () => {
     expect(onRemove).not.toHaveBeenCalled();
   });
 
-  it('Löschen-Klick löst NICHT den Erledigt-Status oder Favorisieren aus', async () => {
+  it('Löschen-Klick (im Menü) löst NICHT den Erledigt-Status oder Favorisieren aus', async () => {
     const user = userEvent.setup();
     const { onToggle, onToggleFavorite, onRemove } = renderItem();
 
+    await openMenu(user);
     await user.click(screen.getByRole('button', { name: 'Hafermilch entfernen' }));
 
     expect(onRemove).toHaveBeenCalledTimes(1);
@@ -94,9 +107,11 @@ describe('ListItem – Semantik & Trefferflächen', () => {
     expect(onToggleFavorite).not.toHaveBeenCalled();
   });
 
-  it('zeigt den Favoriten-Status über aria-pressed und ein präzises Label', () => {
+  it('zeigt den Favoriten-Status über aria-pressed und ein präzises Label', async () => {
+    const user = userEvent.setup();
     renderItem({ isFavorite: true });
 
+    await openMenu(user);
     const fav = screen.getByRole('button', { name: 'Hafermilch aus Favoriten entfernen' });
     expect(fav).toHaveAttribute('aria-pressed', 'true');
   });
@@ -140,10 +155,11 @@ describe('ListItem – Menge, Einheit und Notiz', () => {
     expect(document.querySelector('.list-item__note')).toBeNull();
   });
 
-  it('ruft onEdit mit der Artikel-id auf', async () => {
+  it('ruft onEdit (im Menü) mit der Artikel-id auf', async () => {
     const user = userEvent.setup();
     const { onEdit, onToggle } = renderItem();
 
+    await user.click(screen.getByRole('button', { name: 'Weitere Aktionen für Hafermilch' }));
     await user.click(screen.getByRole('button', { name: 'Hafermilch bearbeiten' }));
 
     expect(onEdit).toHaveBeenCalledWith('item-1');

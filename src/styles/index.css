@@ -63,12 +63,13 @@ input {
   overflow: hidden;
 }
 
-/* Einziger scrollbarer Bereich (zwischen Header und fixer Eingabeleiste). */
+/* Einziger scrollbarer Bereich. Unten genug Platz, damit der schwebende
+   Hinzufügen-Button (FAB) den letzten Eintrag nicht verdeckt. */
 .content {
   flex: 1 1 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--space-2) var(--space-4) var(--space-4);
+  padding: var(--space-2) var(--space-4) calc(var(--space-6) + 64px + env(safe-area-inset-bottom));
   -webkit-overflow-scrolling: touch;
 }
 
@@ -82,14 +83,6 @@ input {
   padding: max(env(safe-area-inset-top), var(--space-4)) var(--space-4) var(--space-4);
 }
 
-/* ---------- Untere Eingabeleiste (Dock) ---------- */
-.dock {
-  flex: 0 0 auto;
-  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
-  background: var(--bg-elevated);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
-}
 
 .header__brand {
   display: flex;
@@ -443,15 +436,17 @@ input {
  * nicht nur den kleinen Kreis. Größe/Layout der Kinder bleiben zwischen
  * erledigt/offen identisch, damit das Umschalten keinen Layoutsprung auslöst.
  */
+/* Große, leicht treffbare Zeilen als Standard (einkaufsorientierter Look). */
 .list-item__toggle {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
   flex: 1;
   min-width: 0;
-  min-height: 44px;
-  padding: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-4);
   text-align: left;
+  font-size: 1.05rem;
   transition: background 0.15s ease;
 }
 
@@ -462,8 +457,8 @@ input {
 .list-item__check {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
   border-radius: 50%;
   border: 2px solid var(--border-strong);
@@ -479,9 +474,9 @@ input {
 
 .list-item__icon {
   flex-shrink: 0;
-  width: 1.6rem;
+  width: 2rem;
   text-align: center;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   line-height: 1;
 }
 
@@ -940,7 +935,7 @@ input {
 
 .list-group__header {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-2);
   margin: 0 0 var(--space-2);
   font-size: 0.74rem;
@@ -954,45 +949,21 @@ input {
   font-size: 0.95rem;
 }
 
+/* Anzahl direkt hinter dem Kategorienamen (mit dezentem Mittelpunkt-Trenner). */
 .list-group__count {
-  margin-left: auto;
   font-family: var(--font-mono);
   font-size: 0.7rem;
   font-weight: 500;
   color: var(--text-muted);
 }
 
-/* ---------- Modus-Umschalter (Header) ---------- */
-.button-mode {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 8px 14px;
-  border-radius: var(--radius-pill);
-  font-size: 0.82rem;
-  font-weight: 600;
-  white-space: nowrap;
-  border: 1px solid var(--accent);
-  color: var(--accent-text);
-  background: var(--accent-soft);
-  transition: background 0.2s ease, color 0.2s ease;
+.list-group__count::before {
+  content: '·';
+  margin-right: var(--space-1);
+  color: var(--text-subtle);
 }
 
-.button-mode:hover {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
-.button-mode--exit {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
-.button-mode--exit:hover {
-  background: var(--accent-hover);
-}
-
-/* ---------- Einkaufsmodus: Fortschritt „x von y erledigt“ ---------- */
+/* ---------- Fortschritt „x von y erledigt“ ---------- */
 .shop-progress {
   margin: var(--space-2) 0 var(--space-4);
 }
@@ -1021,25 +992,7 @@ input {
   transition: width 0.3s ease;
 }
 
-/* ---------- Einkaufsmodus: größere, leichter treffbare Zeilen ---------- */
-.app[data-mode='shop'] .list-item__toggle {
-  min-height: 64px;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  font-size: 1.05rem;
-}
-
-.app[data-mode='shop'] .list-item__check {
-  width: 30px;
-  height: 30px;
-}
-
-.app[data-mode='shop'] .list-item__icon {
-  width: 2rem;
-  font-size: 1.5rem;
-}
-
-/* ---------- Einkaufsmodus: zurückgenommenes „Mehr“-Menü pro Zeile ---------- */
+/* ---------- Zurückgenommenes „Mehr“-Menü pro Zeile ---------- */
 .list-item__actions {
   position: relative;
 }
@@ -1087,52 +1040,98 @@ input {
 }
 
 /* ---------- Dock: optional einklappen (Einkaufsmodus) ---------- */
-.dock__handle {
-  display: flex;
-  justify-content: center;
-  margin-bottom: var(--space-1);
-}
-
-.dock__collapse {
+/* ---------- Schwebender Hinzufügen-Button (FAB) ---------- */
+.fab {
+  position: fixed;
+  right: max(env(safe-area-inset-right), var(--space-4));
+  bottom: max(env(safe-area-inset-bottom), var(--space-4));
+  z-index: 40;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 28px;
+  width: 60px;
+  height: 60px;
   border-radius: var(--radius-pill);
-  color: var(--text-subtle);
-  transition: background 0.2s ease, color 0.2s ease;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-md);
+  transition: background 0.2s ease, transform 0.06s ease;
 }
 
-.dock__collapse:hover {
-  background: var(--surface-hover);
-  color: var(--text);
+.fab:hover {
+  background: var(--accent-hover);
 }
 
-.dock__expand {
+.fab:active {
+  transform: scale(0.95);
+}
+
+/* ---------- Hinzufügen-Sheet ---------- */
+.add-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+}
+
+.add-sheet .dialog__body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Suchfeld mit vorangestelltem Lupe-Icon. */
+.add-sheet__search {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: var(--space-2);
-  width: 100%;
-  min-height: 48px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius);
-  border: 1px dashed var(--border-strong);
-  color: var(--text-muted);
-  font-weight: 600;
-  transition: background 0.2s ease, color 0.2s ease;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text-subtle);
 }
 
-.dock__expand:hover {
-  background: var(--surface-hover);
+.add-sheet__search:focus-within {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.add-sheet__search input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-3) 0;
+  border: none;
+  background: transparent;
   color: var(--text);
+}
+
+.add-sheet__search input:focus {
+  outline: none;
+}
+
+.add-sheet__search input::placeholder {
+  color: var(--text-subtle);
+}
+
+/* Vorschlagsliste im Sheet: statisch (nicht schwebend), scrollbar. */
+.suggestions--sheet {
+  position: static;
+  max-height: 30vh;
+  overflow-y: auto;
+  box-shadow: none;
+}
+
+/* Häufig-gekauft-Chips im Sheet: ohne Sticky/Negativ-Ränder der Hauptansicht. */
+.add-sheet .chips {
+  position: static;
+  margin: 0;
+  padding: 0;
+  background: transparent;
 }
 
 /* ---------- Toasts / Snackbars ---------- */
 /*
- * Zentrale Feedback-Schicht: schwebt über der Eingabeleiste (Dock), in beiden
- * Themes über Design-Tokens gefärbt. Auf kleinen Displays volle Breite,
- * darüber auf Inhaltsbreite zentriert. Animationen respektieren
- * prefers-reduced-motion.
+ * Zentrale Feedback-Schicht: schwebt über dem Inhalt, in beiden Themes über
+ * Design-Tokens gefärbt. Auf kleinen Displays volle Breite, darüber auf
+ * Inhaltsbreite zentriert. Animationen respektieren prefers-reduced-motion.
  */
 .toasts {
   position: fixed;

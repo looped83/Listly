@@ -1,8 +1,6 @@
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { useSessionStorage } from './hooks/useSessionStorage';
 import { useSystemTheme } from './hooks/useTheme';
-import { useWakeLock } from './hooks/useWakeLock';
 import { useShoppingItems } from './hooks/useShoppingItems';
 import { ToastProvider, useToast } from './hooks/useToast';
 import { STORAGE_KEYS } from './lib/storage';
@@ -10,17 +8,12 @@ import { cleanName, normalizeName, recordPurchase } from './lib/history';
 import { itemLabel } from './lib/itemFields';
 import { frequentSuggestions } from './lib/suggestions';
 import { summarizeCheckout } from './lib/checkout';
-import AddItemForm from './components/AddItemForm';
-import FrequentChips from './components/FrequentChips';
 import ShoppingList from './components/ShoppingList';
+import AddItemSheet from './components/AddItemSheet';
 import CheckoutDialog from './components/CheckoutDialog';
 import ItemEditDialog from './components/ItemEditDialog';
 import SyncStatus from './components/SyncStatus';
-import { Check, ChevronDown, Plus, ShoppingBasket, ShoppingCart, Wallet } from 'lucide-react';
-
-// Sitzungsbezogener Schlüssel für den aktiven Modus (sessionStorage, nicht
-// dauerhaft – überlebt einen Reload im selben Tab, aber nicht die Sitzung).
-const MODE_SESSION_KEY = 'listly.mode';
+import { Plus, ShoppingBasket, Wallet } from 'lucide-react';
 
 // Kundenkarten-Overlay lazy laden: es zieht qrcode + jsbarcode nach, die erst
 // beim Öffnen der Karten gebraucht werden. So bleiben sie aus dem Initial-Bundle.
@@ -40,19 +33,14 @@ function AppContent() {
   const [cardsOpen, setCardsOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  // Modus: 'plan' (planen) oder 'shop' (einkaufen). Sitzungsbezogen gespeichert.
-  const [mode, setMode] = useSessionStorage(MODE_SESSION_KEY, 'plan');
-  const [dockCollapsed, setDockCollapsed] = useState(false);
-  const isShop = mode === 'shop';
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
   const { notify } = useToast();
   useSystemTheme();
-  // Bildschirm im Einkaufsmodus wach halten (progressive Enhancement). Die
-  // Aktivierung ist an die bewusste Nutzeraktion „Einkaufsmodus starten“ gekoppelt.
-  useWakeLock(isShop);
 
   const closeCards = useCallback(() => setCardsOpen(false), []);
   const closeCheckout = useCallback(() => setCheckoutOpen(false), []);
   const closeEdit = useCallback(() => setEditingId(null), []);
+  const closeAddSheet = useCallback(() => setAddSheetOpen(false), []);
 
   // Erledigte Artikel im (lokalen) Kaufverlauf verbuchen. Reiner State-Update:
   // recordPurchase ist immutabel, daher unter StrictMode kein Doppelverbuchen.
@@ -127,36 +115,10 @@ function AppContent() {
     [editingItem, updateItem, removeItem, renameFavorite, notify],
   );
 
-  // Ref auf das Eingabefeld (Dock): erlaubt es jeder Hinzufügen-Quelle (Tippen,
-  // Autovervollständigung, Chips), den Fokus nach dem Hinzufügen sinnvoll dorthin
-  // zurückzulegen – auch wenn das angeklickte Element (z. B. ein Chip) danach aus
-  // dem DOM verschwindet und sonst der Fokus verloren ginge.
-  const addFormRef = useRef(null);
-
-  // Moduswechsel: Beim Einkaufen startet das Dock eingeklappt (mehr Platz für die
-  // Liste), beim Planen ausgeklappt. Innerhalb des Modus bleibt es umschaltbar.
-  const enterShopMode = useCallback(() => {
-    setMode('shop');
-    setDockCollapsed(true);
-  }, [setMode]);
-
-  const exitShopMode = useCallback(() => {
-    setMode('plan');
-    setDockCollapsed(false);
-  }, [setMode]);
-
-  // Dock ausklappen und den Fokus direkt ins Eingabefeld legen (nach dem Commit,
-  // wenn das Feld tatsächlich im DOM ist).
-  const expandDock = useCallback(() => {
-    setDockCollapsed(false);
-    requestAnimationFrame(() => addFormRef.current?.focus());
-  }, []);
-
-  // Zentrale Hinzufügen-Logik für ALLE Eingabequellen (manuelle Eingabe,
-  // Autovervollständigung, Häufig-gekauft-Chips): addItem liefert synchron ein
-  // eindeutiges Ergebnis statt still zu bleiben, sodass Dubletten (offen oder
-  // erledigt) einheitlich und über die Toast-/aria-live-Infrastruktur gemeldet
-  // werden.
+  // Zentrale Hinzufügen-Logik für ALLE Eingabequellen (Suche im Hinzufügen-Sheet,
+  // Vorschläge, Häufig-gekauft-Chips): addItem liefert synchron ein eindeutiges
+  // Ergebnis statt still zu bleiben, sodass Dubletten (offen oder erledigt)
+  // einheitlich und über die Toast-/aria-live-Infrastruktur gemeldet werden.
   const handleAddItem = useCallback(
     (rawName, category, extras) => {
       const result = addItem(rawName, category, extras);
@@ -169,8 +131,6 @@ function AppContent() {
       } else if (result.status === 'reactivated') {
         notify(`„${result.item.name}“ wurde wieder aktiviert`);
       }
-
-      addFormRef.current?.focus();
     },
     [addItem, notify],
   );
@@ -253,37 +213,15 @@ function AppContent() {
   );
 
   return (
-    <div className="app" data-mode={mode}>
+    <div className="app">
       <header className="header">
         <div className="header__brand">
           <span className="header__logo">
             <ShoppingBasket size={24} aria-hidden="true" />
           </span>
-          <h1 className="header__title">{isShop ? 'Einkaufen' : 'Listly'}</h1>
+          <h1 className="header__title">Listly</h1>
         </div>
         <div className="header__actions">
-          {isShop ? (
-            // Klarer, beschrifteter Button zum Verlassen des Einkaufsmodus.
-            <button
-              type="button"
-              className="button-mode button-mode--exit"
-              onClick={exitShopMode}
-              aria-label="Einkaufsmodus verlassen"
-            >
-              <Check size={18} aria-hidden="true" />
-              Fertig
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="button-mode"
-              onClick={enterShopMode}
-              aria-label="Einkaufsmodus starten"
-            >
-              <ShoppingCart size={18} aria-hidden="true" />
-              Einkaufen
-            </button>
-          )}
           <button
             type="button"
             className="icon-button icon-button--header"
@@ -298,11 +236,9 @@ function AppContent() {
       </header>
 
       <main className="content">
-        <FrequentChips items={frequentItems} onAdd={handleAddItem} onRemove={removeFromHistory} />
         <ShoppingList
           items={items}
           favoriteSet={favoriteSet}
-          mode={mode}
           onToggle={toggleItem}
           onToggleFavorite={toggleFavorite}
           onRemove={handleRemoveItem}
@@ -311,38 +247,28 @@ function AppContent() {
         />
       </main>
 
-      {/* Untere Eingabeleiste – positionsstabil, in Daumen-Reichweite. Im
-          Einkaufsmodus optional einklappbar, aber jederzeit wieder erreichbar. */}
-      <div className="dock" data-collapsed={isShop && dockCollapsed}>
-        {isShop && dockCollapsed ? (
-          <button type="button" className="dock__expand" onClick={expandDock}>
-            <Plus size={18} aria-hidden="true" />
-            Artikel hinzufügen
-          </button>
-        ) : (
-          <>
-            {isShop && (
-              <div className="dock__handle">
-                <button
-                  type="button"
-                  className="dock__collapse"
-                  onClick={() => setDockCollapsed(true)}
-                  aria-label="Eingabe einklappen"
-                >
-                  <ChevronDown size={18} aria-hidden="true" />
-                </button>
-              </div>
-            )}
-            <AddItemForm
-              ref={addFormRef}
-              onAdd={handleAddItem}
-              history={history}
-              favorites={favorites}
-              existingNames={existingNames}
-            />
-          </>
-        )}
-      </div>
+      {/* Zentrale Hinzufügen-Interaktion: schwebender Plus-Button, öffnet das
+          Hinzufügen-Sheet mit Suche und allen Detailfeldern. */}
+      <button
+        type="button"
+        className="fab"
+        onClick={() => setAddSheetOpen(true)}
+        aria-label="Artikel hinzufügen"
+      >
+        <Plus size={26} aria-hidden="true" />
+      </button>
+
+      {addSheetOpen && (
+        <AddItemSheet
+          history={history}
+          favorites={favorites}
+          existingNames={existingNames}
+          frequentItems={frequentItems}
+          onAdd={handleAddItem}
+          onRemoveFromHistory={removeFromHistory}
+          onClose={closeAddSheet}
+        />
+      )}
 
       {cardsOpen && (
         <Suspense fallback={null}>

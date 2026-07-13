@@ -11,12 +11,11 @@ const item = (name, category, checked = false) => ({
   createdAt: '',
 });
 
-function renderList(items, mode = 'plan') {
+function renderList(items) {
   return render(
     <ShoppingList
       items={items}
       favoriteSet={new Set()}
-      mode={mode}
       onToggle={vi.fn()}
       onToggleFavorite={vi.fn()}
       onRemove={vi.fn()}
@@ -50,7 +49,8 @@ describe('ShoppingList – Kategorie-Gruppierung', () => {
     ).toBeInTheDocument();
   });
 
-  it('hält offene und erledigte Artikel in getrennten Abschnitten, je eigenständig gruppiert', () => {
+  it('hält offene und erledigte Artikel in getrennten Abschnitten, je eigenständig gruppiert', async () => {
+    const user = userEvent.setup();
     renderList([
       item('Apfel', 'obst-gemuese', false),
       item('Banane', 'obst-gemuese', true),
@@ -58,7 +58,11 @@ describe('ShoppingList – Kategorie-Gruppierung', () => {
 
     expect(screen.getByRole('region', { name: 'Offene Artikel' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Erledigte Artikel' })).toBeInTheDocument();
-    // Je Abschnitt eine eigene „Obst & Gemüse"-Überschrift mit Anzahl 1.
+    // Offen: eine sichtbare Überschrift; die Erledigt-Gruppe ist eingeklappt.
+    expect(screen.getAllByRole('heading', { name: 'Obst & Gemüse, 1 Artikel' })).toHaveLength(1);
+
+    // Nach dem Aufklappen erscheint die zweite (erledigte) Gruppe.
+    await user.click(screen.getByRole('button', { name: /Erledigt/ }));
     expect(screen.getAllByRole('heading', { name: 'Obst & Gemüse, 1 Artikel' })).toHaveLength(2);
   });
 
@@ -68,12 +72,9 @@ describe('ShoppingList – Kategorie-Gruppierung', () => {
   });
 });
 
-describe('ShoppingList – Einkaufsmodus', () => {
-  it('zeigt den Fortschritt „x von y erledigt" als progressbar', () => {
-    renderList(
-      [item('Apfel', 'obst-gemuese', true), item('Banane', 'obst-gemuese', false)],
-      'shop',
-    );
+describe('ShoppingList – Fortschritt & Erledigt (Standard)', () => {
+  it('zeigt den Fortschritt „x von y erledigt" als progressbar (ab dem ersten Abhaken)', () => {
+    renderList([item('Apfel', 'obst-gemuese', true), item('Banane', 'obst-gemuese', false)]);
 
     const bar = screen.getByRole('progressbar', { name: 'Einkaufsfortschritt' });
     expect(bar).toHaveAttribute('aria-valuenow', '1');
@@ -82,17 +83,14 @@ describe('ShoppingList – Einkaufsmodus', () => {
     expect(screen.getByText('1 von 2 erledigt')).toBeInTheDocument();
   });
 
-  it('zeigt keine progressbar im Planungsmodus', () => {
-    renderList([item('Apfel', 'obst-gemuese', false)], 'plan');
+  it('zeigt keine progressbar, solange nichts abgehakt ist', () => {
+    renderList([item('Apfel', 'obst-gemuese', false)]);
     expect(screen.queryByRole('progressbar')).toBeNull();
   });
 
   it('klappt erledigte Artikel standardmäßig ein und per Button wieder aus', async () => {
     const user = userEvent.setup();
-    renderList(
-      [item('Apfel', 'obst-gemuese', false), item('Banane', 'obst-gemuese', true)],
-      'shop',
-    );
+    renderList([item('Apfel', 'obst-gemuese', false), item('Banane', 'obst-gemuese', true)]);
 
     // Disclosure ist eingeklappt; der erledigte Artikel ist nicht sichtbar.
     const disclosure = screen.getByRole('button', { name: /Erledigt/ });
@@ -110,13 +108,13 @@ describe('ShoppingList – Einkaufsmodus', () => {
   });
 
   it('hält den Abschluss-Button auch bei eingeklappten Erledigten erreichbar', () => {
-    renderList([item('Banane', 'obst-gemuese', true)], 'shop');
+    renderList([item('Banane', 'obst-gemuese', true)]);
     expect(screen.getByRole('button', { name: 'Einkauf abschließen' })).toBeInTheDocument();
   });
 
   it('verschiebt die Sekundäraktionen in ein Mehr-Menü', async () => {
     const user = userEvent.setup();
-    renderList([item('Apfel', 'obst-gemuese', false)], 'shop');
+    renderList([item('Apfel', 'obst-gemuese', false)]);
 
     // Bearbeiten/Löschen sind zunächst nicht direkt sichtbar.
     expect(screen.queryByRole('button', { name: /bearbeiten/ })).not.toBeInTheDocument();

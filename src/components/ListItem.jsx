@@ -7,7 +7,7 @@ const SWIPE_THRESHOLD = 80; // px, ab hier wird beim Loslassen gelöscht
 const MAX_SWIPE = 120; // px, maximaler Ausschlag
 
 /** Eine Zeile der Einkaufsliste. Per Swipe nach links löschbar. */
-function ListItem({ item, isFavorite, mode = 'plan', onToggle, onToggleFavorite, onRemove, onEdit }) {
+function ListItem({ item, isFavorite, onToggle, onToggleFavorite, onRemove, onEdit }) {
   const start = useRef({ x: 0, y: 0 });
   const dragging = useRef(false);
   const horizontal = useRef(false);
@@ -177,40 +177,36 @@ function ListItem({ item, isFavorite, mode = 'plan', onToggle, onToggleFavorite,
           </span>
         </button>
 
-        {mode === 'shop' ? (
-          // Einkaufsmodus: Sekundäraktionen in ein zurückgenommenes „Mehr"-Menü.
-          <div
-            className="list-item__actions"
-            ref={actionsRef}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape' && menuOpen) {
-                e.stopPropagation();
-                setMenuOpen(false);
-                moreRef.current?.focus();
-              }
-            }}
+        {/* Sekundäraktionen (Favorit/Bearbeiten/Löschen) in ein zurückgenommenes
+            „Mehr"-Menü, damit der große Umschalt-Button die dominante Fläche bleibt. */}
+        <div
+          className="list-item__actions"
+          ref={actionsRef}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && menuOpen) {
+              e.stopPropagation();
+              setMenuOpen(false);
+              moreRef.current?.focus();
+            }
+          }}
+        >
+          <button
+            type="button"
+            ref={moreRef}
+            className="icon-button list-item__more"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-controls={menuId}
+            aria-label={`Weitere Aktionen für ${item.name}`}
           >
-            <button
-              type="button"
-              ref={moreRef}
-              className="icon-button list-item__more"
-              onClick={() => setMenuOpen((open) => !open)}
-              aria-expanded={menuOpen}
-              aria-controls={menuId}
-              aria-label={`Weitere Aktionen für ${item.name}`}
-            >
-              <MoreHorizontal size={20} aria-hidden="true" />
-            </button>
-            {menuOpen && (
-              <div className="list-item__menu" id={menuId} role="group" aria-label={`Aktionen für ${item.name}`}>
-                {renderActions(() => setMenuOpen(false))}
-              </div>
-            )}
-          </div>
-        ) : (
-          // Planungsmodus: Favorit + Bearbeiten + Löschen direkt als Trefferflächen.
-          <div className="list-item__actions">{renderActions()}</div>
-        )}
+            <MoreHorizontal size={20} aria-hidden="true" />
+          </button>
+          {menuOpen && (
+            <div className="list-item__menu" id={menuId} role="group" aria-label={`Aktionen für ${item.name}`}>
+              {renderActions(() => setMenuOpen(false))}
+            </div>
+          )}
+        </div>
       </div>
     </li>
   );

@@ -43,17 +43,16 @@ describe('App (smoke test, local mode)', () => {
     expect(screen.getByText('Deine Liste ist leer')).toBeInTheDocument();
   });
 
-  it('adds a typed item to the open list', async () => {
+  it('adds a typed item to the open list via the add sheet', async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    const input = await openAddSheet(user);
     await user.type(input, 'Testartikel');
     await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
 
     expect(await screen.findByText('Testartikel')).toBeInTheDocument();
-    expect(screen.getByText('1 offen')).toBeInTheDocument();
-    // Eingabefeld wird nach dem Hinzufügen geleert.
+    // Suchfeld wird nach dem Hinzufügen geleert (Sheet bleibt für Folge-Adds offen).
     expect(input).toHaveValue('');
   });
 
@@ -61,7 +60,7 @@ describe('App (smoke test, local mode)', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    const input = await openAddSheet(user);
     await user.type(input, 'Hafermilch');
     await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
 
@@ -73,12 +72,29 @@ describe('App (smoke test, local mode)', () => {
   });
 });
 
+/** Öffnet das Hinzufügen-Sheet über den FAB und liefert das Suchfeld zurück. */
+async function openAddSheet(user) {
+  await user.click(screen.getByRole('button', { name: 'Artikel hinzufügen' }));
+  return screen.findByRole('combobox', { name: 'Produkt suchen oder hinzufügen' });
+}
+
+/** Fügt einen Artikel über das Sheet hinzu und schließt es wieder. */
 async function addItem(user, name) {
-  const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+  const input = await openAddSheet(user);
+  await user.clear(input);
   await user.type(input, name);
   await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
   await screen.findByText(name);
+  await user.keyboard('{Escape}'); // Sheet schließen für saubere Folgeinteraktionen
 }
+
+/** Öffnet das „Mehr“-Menü einer Zeile (Favorit/Bearbeiten/Löschen). */
+async function openItemMenu(user, name) {
+  await user.click(screen.getByRole('button', { name: `Weitere Aktionen für ${name}` }));
+}
+
+const readItems = () => JSON.parse(localStorage.getItem('listly.items') || '[]');
+const readHistory = () => JSON.parse(localStorage.getItem('listly.history') || '{}');
 
 /** Öffnet den Abschluss-Dialog über die primäre Aktion in der Erledigt-Sektion. */
 async function openCheckout(user) {
@@ -102,16 +118,21 @@ describe('Feedback & Undo (local mode)', () => {
     render(<App />);
     await addItem(user, 'Testartikel');
 
+    await openItemMenu(user, 'Testartikel');
     await user.click(screen.getByRole('button', { name: 'Testartikel entfernen' }));
 
     // Artikel ist aus der Liste verschwunden, ein Undo-Toast erscheint.
-    expect(screen.queryByRole('button', { name: 'Testartikel entfernen' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Testartikel als erledigt markieren' }),
+    ).not.toBeInTheDocument();
     const undo = await screen.findByRole('button', { name: /Rückgängig/ });
 
     await user.click(undo);
 
-    // Undo stellt den Artikel unverändert wieder her.
-    expect(await screen.findByRole('button', { name: 'Testartikel entfernen' })).toBeInTheDocument();
+    // Undo stellt den (offenen) Artikel wieder her.
+    expect(
+      await screen.findByRole('button', { name: 'Testartikel als erledigt markieren' }),
+    ).toBeInTheDocument();
   });
 
   it('completes the purchase (default) and restores list plus history via undo', async () => {
@@ -122,17 +143,17 @@ describe('Feedback & Undo (local mode)', () => {
     await user.click(screen.getByRole('button', { name: 'Testartikel als erledigt markieren' }));
     await checkoutDefault(user);
 
-    // Verbucht: Artikel verlässt die Liste, taucht als Verlaufs-Chip (×1) auf.
+    // Verbucht: Artikel verlässt die Liste und landet im Kaufverlauf.
     expect(screen.queryByText('Erledigt')).not.toBeInTheDocument();
-    expect(screen.getByText('×1')).toBeInTheDocument();
+    expect(readItems()).toHaveLength(0);
+    expect(readHistory()).toHaveProperty('testartikel');
 
     await user.click(await screen.findByRole('button', { name: /Rückgängig/ }));
 
-    // Voller Vorzustand: Artikel wieder erledigt in der Liste, Verlauf zurückgesetzt.
-    expect(
-      await screen.findByRole('button', { name: 'Testartikel als offen markieren' }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText('×1')).not.toBeInTheDocument();
+    // Voller Vorzustand: Artikel (erledigt) zurück, Verlauf zurückgesetzt.
+    await waitFor(() => expect(readItems()).toHaveLength(1));
+    expect(readItems()[0]).toMatchObject({ name: 'Testartikel', checked: true });
+    expect(readHistory()).toEqual({});
   });
 
   it('books the purchase history exactly once under React StrictMode', async () => {
@@ -147,9 +168,8 @@ describe('Feedback & Undo (local mode)', () => {
     await user.click(screen.getByRole('button', { name: 'Testartikel als erledigt markieren' }));
     await checkoutDefault(user);
 
-    // Genau einmal verbucht: der Chip zeigt ×1, niemals ×2.
-    expect(await screen.findByText('×1')).toBeInTheDocument();
-    expect(screen.queryByText('×2')).not.toBeInTheDocument();
+    // Genau einmal verbucht: count === 1, niemals 2.
+    await waitFor(() => expect(readHistory().testartikel?.count).toBe(1));
   });
 });
 
@@ -165,29 +185,28 @@ describe('Dubletten-Feedback beim Hinzufügen (local mode)', () => {
     await addItem(user, 'Testartikel');
 
     expect(await screen.findByRole('status')).toHaveTextContent('„Testartikel“ hinzugefügt');
-    expect(screen.getByText('1 offen')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Testartikel als erledigt markieren' })).toBeInTheDocument();
   });
 
-  it('verhindert eine Dublette bei manueller Eingabe eines bereits offenen Artikels', async () => {
+  it('verhindert eine Dublette bei Eingabe eines bereits offenen Artikels', async () => {
     const user = userEvent.setup();
     render(<App />);
     await addItem(user, 'Testartikel');
 
     // Groß-/Kleinschreibung und zusätzliche Leerzeichen dürfen die Erkennung
     // nicht umgehen.
-    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    const input = await openAddSheet(user);
     await user.type(input, '  TESTARTIKEL  ');
     await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
 
     expect(await screen.findByRole('status')).toHaveTextContent(
       '„Testartikel“ steht bereits auf der Liste',
     );
-    // Keine Dublette: weiterhin nur ein offener Artikel.
-    expect(screen.getByText('1 offen')).toBeInTheDocument();
+    // Keine Dublette: der Artikel steht genau einmal auf der Liste.
     expect(screen.getAllByText('Testartikel')).toHaveLength(1);
   });
 
-  it('reaktiviert einen erledigten Artikel bei manueller Eingabe statt ihn zu duplizieren', async () => {
+  it('reaktiviert einen erledigten Artikel bei erneuter Eingabe statt ihn zu duplizieren', async () => {
     const user = userEvent.setup();
     render(<App />);
     await addItem(user, 'Testartikel');
@@ -195,22 +214,20 @@ describe('Dubletten-Feedback beim Hinzufügen (local mode)', () => {
 
     // Anderer Groß-/Kleinschreibungs-Fall als beim Original – muss trotzdem
     // als derselbe Artikel erkannt werden.
-    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    const input = await openAddSheet(user);
     await user.type(input, 'testartikel');
     await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
 
     expect(await screen.findByRole('status')).toHaveTextContent(
       '„Testartikel“ wurde wieder aktiviert',
     );
-    // Wieder offen: der Umschalt-Button zeigt wieder das Label für "erledigt
-    // markieren" (nicht mehr "als offen markieren").
+    // Wieder offen: der Umschalt-Button zeigt wieder das Label für "erledigt markieren".
     expect(
       await screen.findByRole('button', { name: 'Testartikel als erledigt markieren' }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Testartikel als offen markieren' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText('1 offen')).toBeInTheDocument();
     expect(screen.getAllByText('Testartikel')).toHaveLength(1);
   });
 
@@ -219,7 +236,7 @@ describe('Dubletten-Feedback beim Hinzufügen (local mode)', () => {
     render(<App />);
     await addItem(user, 'Testartikel');
 
-    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    const input = await openAddSheet(user);
     await user.type(input, 'Testartikel');
     await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
 
@@ -227,20 +244,21 @@ describe('Dubletten-Feedback beim Hinzufügen (local mode)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('');
   });
 
-  it('behält den Fokus im Eingabefeld nach einer abgelehnten Dublette', async () => {
+  it('behält den Fokus im Suchfeld nach dem Hinzufügen (Sheet bleibt offen)', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await addItem(user, 'Testartikel');
 
-    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    const input = await openAddSheet(user);
     await user.type(input, 'Testartikel');
     await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
 
     await screen.findByRole('status');
+    // Nach dem Hinzufügen ist das Suchfeld geleert und wieder fokussiert.
+    expect(input).toHaveValue('');
     expect(input).toHaveFocus();
   });
 
-  it('zeigt für Autovervollständigung und Chips dieselben Statusmeldungen wie manuelle Eingabe', async () => {
+  it('fügt über einen Häufig-gekauft-Chip im Sheet mit derselben Meldung hinzu', async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -249,21 +267,16 @@ describe('Dubletten-Feedback beim Hinzufügen (local mode)', () => {
     await addItem(user, 'Kichererbsen');
     await user.click(screen.getByRole('button', { name: 'Kichererbsen als erledigt markieren' }));
     await checkoutDefault(user);
-    await screen.findByText('×1');
+    await waitFor(() => expect(readHistory()).toHaveProperty('kichererbsen'));
 
-    // Über den Häufig-gekauft-Chip erneut hinzufügen: derselbe Code-Pfad wie
-    // manuelle Eingabe, daher dieselbe Erfolgsmeldung. (Der Chip hat eine
-    // eigene "Entfernen"-Schaltfläche, daher exakter Name statt Teilstring.)
-    const chipAdd = screen.getByRole('button', { name: 'Kichererbsen×1' });
+    // Chip liegt jetzt im Hinzufügen-Sheet.
+    const input = await openAddSheet(user);
+    const chipAdd = await screen.findByRole('button', { name: 'Kichererbsen×1' });
     await user.click(chipAdd);
 
     expect(await screen.findByRole('status')).toHaveTextContent('„Kichererbsen“ hinzugefügt');
-    expect(screen.getByText('1 offen')).toBeInTheDocument();
-
-    // Erneuter Klick auf denselben Chip ist nicht mehr möglich (Artikel steht
-    // jetzt auf der Liste und wird aus den Vorschlägen ausgeblendet) – das
-    // Eingabefeld bleibt aber sinnvoll fokussiert für die nächste Eingabe.
-    const input = screen.getByRole('combobox', { name: 'Artikel hinzufügen' });
+    expect(screen.getByRole('button', { name: 'Kichererbsen als erledigt markieren' })).toBeInTheDocument();
+    // Sheet bleibt offen, Suchfeld fokussiert für die nächste Eingabe.
     expect(input).toHaveFocus();
   });
 });
@@ -313,8 +326,7 @@ describe('Einkauf abschließen – Dialog (local mode)', () => {
     // Abgehaktes ist weg und im Verlauf; Offenes bleibt auf der Liste.
     expect(screen.queryByRole('button', { name: 'Gekauft als offen markieren' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Offen als erledigt markieren' })).toBeInTheDocument();
-    expect(screen.getByText('1 offen')).toBeInTheDocument();
-    expect(screen.getByText('×1')).toBeInTheDocument();
+    expect(readHistory()).toHaveProperty('gekauft');
   });
 
   it('schließt mit „Alle als gekauft" auch offene Artikel ab und leert die Liste', async () => {
@@ -332,9 +344,10 @@ describe('Einkauf abschließen – Dialog (local mode)', () => {
 
     // Beide Artikel verbucht, Liste leer.
     expect(screen.getByText('Deine Liste ist leer')).toBeInTheDocument();
-    // Beide als Verlaufs-Chips (je ×1).
-    expect(screen.getByRole('button', { name: 'Gekauft×1' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Offen×1' })).toBeInTheDocument();
+    expect(readItems()).toHaveLength(0);
+    // Beide im Kaufverlauf verbucht.
+    expect(readHistory()).toHaveProperty('gekauft');
+    expect(readHistory()).toHaveProperty('offen');
   });
 
   it('macht einen „Alle abschließen"-Abschluss vollständig rückgängig', async () => {
@@ -350,12 +363,12 @@ describe('Einkauf abschließen – Dialog (local mode)', () => {
 
     await user.click(await screen.findByRole('button', { name: /Rückgängig/ }));
 
-    // Vorheriger Zustand: „Gekauft" wieder erledigt, „Offen" wieder offen, kein Verlauf.
-    expect(
-      await screen.findByRole('button', { name: 'Gekauft als offen markieren' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Offen als erledigt markieren' })).toBeInTheDocument();
-    expect(screen.queryByText('×1')).not.toBeInTheDocument();
+    // Vollständig wiederhergestellt: „Gekauft" erledigt, „Offen" offen, Verlauf leer.
+    await waitFor(() => expect(readItems()).toHaveLength(2));
+    const byName = Object.fromEntries(readItems().map((it) => [it.name, it]));
+    expect(byName.Gekauft).toMatchObject({ checked: true });
+    expect(byName.Offen).toMatchObject({ checked: false });
+    expect(readHistory()).toEqual({});
   });
 
   it('bricht ohne Wirkung ab (Abbrechen-Button)', async () => {
@@ -367,10 +380,12 @@ describe('Einkauf abschließen – Dialog (local mode)', () => {
     const dialog = await openCheckout(user);
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
 
-    // Dialog zu, nichts verbucht, Artikel bleibt erledigt auf der Liste.
+    // Dialog zu, nichts verbucht, Artikel bleibt (erledigt) auf der Liste.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Testartikel als offen markieren' })).toBeInTheDocument();
-    expect(screen.queryByText('×1')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Erledigt/ })).toBeInTheDocument();
+    expect(readItems()).toHaveLength(1);
+    expect(readItems()[0]).toMatchObject({ name: 'Testartikel', checked: true });
+    expect(readHistory()).toEqual({});
     expect(screen.queryByRole('button', { name: /Rückgängig/ })).not.toBeInTheDocument();
   });
 
@@ -409,6 +424,7 @@ describe('Artikel bearbeiten (local mode)', () => {
   });
 
   async function openEdit(user, itemName) {
+    await openItemMenu(user, itemName);
     await user.click(await screen.findByRole('button', { name: `${itemName} bearbeiten` }));
     return screen.findByRole('dialog');
   }
@@ -431,19 +447,15 @@ describe('Artikel bearbeiten (local mode)', () => {
     expect(screen.getByRole('status')).toHaveTextContent('„Hafermilch“ aktualisiert');
   });
 
-  it('gibt beim Schließen (Escape) den Fokus an die Bearbeiten-Schaltfläche zurück', async () => {
+  it('schließt den Bearbeiten-Dialog per Escape', async () => {
     const user = userEvent.setup();
     render(<App />);
     await addItem(user, 'Hafermilch');
 
-    const trigger = await screen.findByRole('button', { name: 'Hafermilch bearbeiten' });
-    await user.click(trigger);
-    await screen.findByRole('dialog');
-
+    await openEdit(user, 'Hafermilch');
     await user.keyboard('{Escape}');
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(trigger).toHaveFocus();
   });
 
   it('führt beim Umbenennen auf einen vorhandenen Artikel bewusst zusammen (keine Dublette)', async () => {
@@ -462,7 +474,6 @@ describe('Artikel bearbeiten (local mode)', () => {
     await user.click(await screen.findByRole('button', { name: 'Zusammenführen' }));
 
     // Genau ein Artikel „Birne", kein „Apfel" mehr.
-    expect(screen.getByText('1 offen')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Birne als erledigt markieren' })).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Apfel als erledigt markieren' }),
@@ -474,7 +485,8 @@ describe('Artikel bearbeiten (local mode)', () => {
     render(<App />);
     await addItem(user, 'Apfel');
 
-    // Apfel favorisieren.
+    // Apfel favorisieren (Aktion liegt im „Mehr“-Menü).
+    await openItemMenu(user, 'Apfel');
     await user.click(screen.getByRole('button', { name: 'Apfel zu Favoriten hinzufügen' }));
 
     const dialog = await openEdit(user, 'Apfel');
@@ -483,66 +495,30 @@ describe('Artikel bearbeiten (local mode)', () => {
     await user.type(nameInput, 'Boskop');
     await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
 
-    // Der Favoritenstatus ist mitgewandert: „Boskop" ist favorisiert, „Apfel" existiert nicht mehr.
+    // Der Favoritenstatus ist mitgewandert: „Boskop" ist favorisiert (Aktion im Menü).
+    await screen.findByRole('button', { name: 'Boskop als erledigt markieren' });
+    await openItemMenu(user, 'Boskop');
     expect(
-      await screen.findByRole('button', { name: 'Boskop aus Favoriten entfernen' }),
+      screen.getByRole('button', { name: 'Boskop aus Favoriten entfernen' }),
     ).toBeInTheDocument();
   });
 });
 
-describe('Einkaufsmodus (local mode)', () => {
+describe('Standardansicht: Fortschritt & Erledigt (local mode)', () => {
   beforeEach(() => {
     vi.stubGlobal('localStorage', createLocalStorageMock());
-    // Modus ist sitzungsbezogen – zwischen den Tests isolieren.
-    sessionStorage.clear();
   });
 
-  const enterShop = (user) =>
-    user.click(screen.getByRole('button', { name: 'Einkaufsmodus starten' }));
-
-  it('startet den Einkaufsmodus und wechselt Titel + Aktion', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await enterShop(user);
-
-    expect(screen.getByRole('heading', { name: 'Einkaufen' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Einkaufsmodus verlassen' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Einkaufsmodus starten' })).not.toBeInTheDocument();
-  });
-
-  it('kehrt über den Verlassen-Button in den Planungsmodus zurück', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await enterShop(user);
-
-    await user.click(screen.getByRole('button', { name: 'Einkaufsmodus verlassen' }));
-
-    expect(screen.getByRole('heading', { name: 'Listly' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Artikel hinzufügen' })).toBeInTheDocument();
-  });
-
-  it('klappt das Eingabedock ein, hält es aber erreichbar und fokussiert es beim Ausklappen', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await enterShop(user);
-
-    // Eingefeld eingeklappt, aber „Artikel hinzufügen" bleibt jederzeit erreichbar.
-    expect(screen.queryByRole('combobox', { name: 'Artikel hinzufügen' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Artikel hinzufügen' }));
-
-    const input = await screen.findByRole('combobox', { name: 'Artikel hinzufügen' });
-    await waitFor(() => expect(input).toHaveFocus());
-  });
-
-  it('zeigt den Einkaufsfortschritt „x von y erledigt"', async () => {
+  it('zeigt den Fortschrittsbalken erst nach dem ersten Abhaken', async () => {
     const user = userEvent.setup();
     render(<App />);
     await addItem(user, 'Apfel');
     await addItem(user, 'Banane');
-    await user.click(screen.getByRole('button', { name: 'Apfel als erledigt markieren' }));
 
-    await enterShop(user);
+    // Vorher (nichts abgehakt): kein Fortschrittsbalken.
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Apfel als erledigt markieren' }));
 
     expect(screen.getByRole('progressbar', { name: 'Einkaufsfortschritt' })).toHaveAttribute(
       'aria-valuetext',
@@ -550,13 +526,11 @@ describe('Einkaufsmodus (local mode)', () => {
     );
   });
 
-  it('klappt erledigte Artikel im Einkaufsmodus standardmäßig ein', async () => {
+  it('klappt erledigte Artikel standardmäßig ein', async () => {
     const user = userEvent.setup();
     render(<App />);
     await addItem(user, 'Apfel');
     await user.click(screen.getByRole('button', { name: 'Apfel als erledigt markieren' }));
-
-    await enterShop(user);
 
     // Eingeklappt: der erledigte Artikel ist nicht sichtbar, bis aufgeklappt wird.
     expect(
@@ -565,8 +539,6 @@ describe('Einkaufsmodus (local mode)', () => {
 
     await user.click(screen.getByRole('button', { name: /Erledigt/ }));
 
-    expect(
-      screen.getByRole('button', { name: 'Apfel als offen markieren' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Apfel als offen markieren' })).toBeInTheDocument();
   });
 });
