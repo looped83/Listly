@@ -1,96 +1,94 @@
 import products from '../data/products.json';
 import { getKnownCategory } from './icons';
 import { normalizeName, sortedHistory } from './history';
+import {
+  FUZZY_MIN_LENGTH,
+  MATCH,
+  describeText,
+  fuzzyThreshold,
+  matchTier,
+  normalizeText,
+  substringEditDistance,
+  synonymTargets,
+} from './textMatch';
 
+// Basisliste einmalig vorbereiten: Name + Metadaten + vorberechnete
+// Vergleichsform. Spart die (nicht ganz billige) Normalisierung von 356
+// Artikeln bei jedem Tastendruck.
 const BASE_PRODUCTS = products.products.map((p) => ({
   name: p.name,
   category: p.category,
   source: 'base',
+  key: normalizeName(p.name),
+  ...describeText(p.name),
 }));
 
-// Fuzzy-Suche wird erst ab dieser Eingabelänge zugeschaltet – bei sehr kurzen
-// Eingaben liefern schon exakte Teilstring-Treffer genug Vorschläge, und eine
-// unscharfe Suche würde dort nur Rauschen erzeugen.
-const FUZZY_MIN_LENGTH = 3;
-
 /**
- * Minimale Editierdistanz zwischen `needle` und irgendeinem Teilstring von
- * `haystack` (approximatives Substring-Matching nach Sellers). So toleriert die
- * Suche Tippfehler, ohne dass die Eingabe das ganze Wort abdecken muss:
- * „schamp“ passt z. B. mit Distanz 1 auf „champignons“.
- */
-function fuzzySubstringDistance(needle, haystack) {
-  const m = needle.length;
-  const n = haystack.length;
-  if (m === 0) return 0;
-  // Erste Zeile 0 → der Treffer darf an beliebiger Position beginnen.
-  let prev = new Array(n + 1).fill(0);
-  for (let i = 1; i <= m; i++) {
-    const cur = new Array(n + 1);
-    cur[0] = i; // needle-Zeichen streichen
-    for (let j = 1; j <= n; j++) {
-      const cost = needle[i - 1] === haystack[j - 1] ? 0 : 1;
-      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
-    }
-    prev = cur;
-  }
-  return Math.min(...prev); // bestes Ende an beliebiger Position
-}
-
-// Erlaubte Editierdistanz: grob ein Fehler je vier Zeichen, mindestens einer.
-const fuzzyThreshold = (length) => Math.max(1, Math.floor(length / 4));
-
-/**
- * Autovervollständigung: Vorschläge aus Kaufverlauf, Favoriten und veganer
- * Basisliste – priorisiert in genau dieser Reihenfolge, dedupliziert, gefiltert
- * nach der Eingabe. Artikel, die bereits auf der Liste stehen (`excludeNames`,
- * normalisiert), werden ausgeblendet.
+ * Autovervollständigung mit nachvollziehbarer, deterministischer Trefferbewertung.
  *
- * Exakte Teilstring-Treffer stehen unverändert und in Prioritätsreihenfolge
- * oben. Reichen sie nicht bis `limit`, füllen tippfehler-tolerante Fuzzy-Treffer
- * (nach Ähnlichkeit sortiert) die restlichen Plätze auf.
+ * Kandidaten stammen – dedupliziert – aus Kaufverlauf, Favoriten und veganer
+ * Basisliste, in **genau dieser** Reihenfolge zusammengestellt. Diese Reihenfolge
+ * kodiert die Herkunftspriorität (Verlauf nach Häufigkeit → Favorit → Basis) und
+ * dient als stabiler Tie-Breaker (Kandidatenindex).
  *
- * Bei leerer Eingabe (Fokus ohne Text) werden Vorschläge trotzdem gezeigt –
- * dann führen die häufigsten Artikel aus dem Kaufverlauf.
+ * Bewertung je Kandidat (höher = besser, siehe `textMatch.MATCH`):
+ *   exakt → Synonym → Präfix → Token-Präfix → Teilstring → Singular/Plural →
+ *   (nur bei ausreichend langer Eingabe, mit strenger Schwelle) Tippfehler.
+ * Sortiert wird stabil nach: Trefferstufe ↓, Fuzzy-Distanz ↑, Herkunftsindex ↑.
+ *
+ * Artikel, die bereits auf der Liste stehen (`excludeNames`, normalisiert),
+ * werden ausgeblendet. Ergebnis ist dedupliziert und auf `limit` (Standard 6)
+ * begrenzt. Bei leerer Eingabe führen die häufigsten Verlaufsartikel.
  */
 export function buildSuggestions(query, { history, favorites, excludeNames }, limit = 6) {
-  const q = normalizeName(query);
   const seen = new Set(excludeNames);
 
   // Kandidaten in Prioritätsreihenfolge (Verlauf → Favoriten → Basis), dedupliziert.
   const candidates = [];
-  const add = (name, category, source) => {
+  const add = (name, category, source, precomputed) => {
     const key = normalizeName(name);
     if (seen.has(key)) return;
     seen.add(key);
-    candidates.push({ name, category, source, key });
+    candidates.push(precomputed ?? { name, category, source, key, ...describeText(name) });
   };
   for (const entry of sortedHistory(history)) add(entry.name, entry.category, 'history');
   for (const name of favorites) add(name, getKnownCategory(name), 'favorite');
-  for (const product of BASE_PRODUCTS) add(product.name, product.category, 'base');
+  for (const product of BASE_PRODUCTS) add(product.name, product.category, 'base', product);
 
   const strip = ({ name, category, source }) => ({ name, category, source });
 
+  const qNorm = normalizeText(query);
   // Ohne Eingabe: Prioritätsreihenfolge unverändert übernehmen.
-  if (!q) return candidates.slice(0, limit).map(strip);
+  if (!qNorm) return candidates.slice(0, limit).map(strip);
 
-  // 1. Exakte Teilstring-Treffer – behalten die Prioritätsreihenfolge (wie bisher).
-  const exact = candidates.filter((c) => c.key.includes(q));
-  if (exact.length >= limit || q.length < FUZZY_MIN_LENGTH) {
-    return exact.slice(0, limit).map(strip);
-  }
+  const synonyms = synonymTargets(qNorm);
+  const allowFuzzy = qNorm.length >= FUZZY_MIN_LENGTH;
+  const threshold = fuzzyThreshold(qNorm.length);
 
-  // 2. Fuzzy-Treffer füllen die restlichen Plätze auf (nach Ähnlichkeit sortiert;
-  //    stabile Sortierung erhält bei Gleichstand die Prioritätsreihenfolge).
-  const threshold = fuzzyThreshold(q.length);
-  const fuzzy = candidates
-    .filter((c) => !c.key.includes(q))
-    .map((c) => ({ c, dist: fuzzySubstringDistance(q, c.key) }))
-    .filter((x) => x.dist <= threshold)
-    .sort((a, b) => a.dist - b.dist)
-    .map((x) => x.c);
+  const scored = [];
+  candidates.forEach((cand, index) => {
+    let tier = matchTier(qNorm, cand);
+    if (synonyms.has(cand.norm)) tier = Math.max(tier, MATCH.SYNONYM);
 
-  return [...exact, ...fuzzy].slice(0, limit).map(strip);
+    let fuzzyDistance = 0;
+    if (tier === MATCH.NONE && allowFuzzy) {
+      const dist = substringEditDistance(qNorm, cand.norm);
+      if (dist <= threshold) {
+        tier = MATCH.FUZZY;
+        fuzzyDistance = dist;
+      }
+    }
+
+    if (tier > MATCH.NONE) scored.push({ cand, tier, fuzzyDistance, index });
+  });
+
+  // Stabil & nachvollziehbar: bessere Stufe zuerst, bei Fuzzy geringere Distanz
+  // zuerst, sonst Herkunftsreihenfolge (Index).
+  scored.sort(
+    (a, b) => b.tier - a.tier || a.fuzzyDistance - b.fuzzyDistance || a.index - b.index,
+  );
+
+  return scored.slice(0, limit).map((s) => strip(s.cand));
 }
 
 /**
