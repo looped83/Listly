@@ -88,11 +88,6 @@ async function addItem(user, name) {
   await user.keyboard('{Escape}'); // Sheet schließen für saubere Folgeinteraktionen
 }
 
-/** Öffnet das „Mehr“-Menü einer Zeile (Favorit/Bearbeiten/Löschen). */
-async function openItemMenu(user, name) {
-  await user.click(screen.getByRole('button', { name: `Weitere Aktionen für ${name}` }));
-}
-
 const readItems = () => JSON.parse(localStorage.getItem('listly.items') || '[]');
 const readHistory = () => JSON.parse(localStorage.getItem('listly.history') || '{}');
 
@@ -118,7 +113,6 @@ describe('Feedback & Undo (local mode)', () => {
     render(<App />);
     await addItem(user, 'Testartikel');
 
-    await openItemMenu(user, 'Testartikel');
     await user.click(screen.getByRole('button', { name: 'Testartikel entfernen' }));
 
     // Artikel ist aus der Liste verschwunden, ein Undo-Toast erscheint.
@@ -426,7 +420,6 @@ describe('Artikel bearbeiten (local mode)', () => {
   // Öffnet die Inline-Bearbeitung (aufgeklappte Kachel, kein Overlay) und liefert
   // das Bearbeiten-Formular zurück.
   async function openEdit(user, itemName) {
-    await openItemMenu(user, itemName);
     await user.click(await screen.findByRole('button', { name: `${itemName} bearbeiten` }));
     return screen.findByRole('form', { name: /bearbeiten/ });
   }
@@ -491,8 +484,7 @@ describe('Artikel bearbeiten (local mode)', () => {
     render(<App />);
     await addItem(user, 'Apfel');
 
-    // Apfel favorisieren (Aktion liegt im „Mehr“-Menü).
-    await openItemMenu(user, 'Apfel');
+    // Apfel favorisieren (Aktion hinter dem Swipe, aber direkt erreichbar).
     await user.click(screen.getByRole('button', { name: 'Apfel zu Favoriten hinzufügen' }));
 
     const form = await openEdit(user, 'Apfel');
@@ -501,9 +493,8 @@ describe('Artikel bearbeiten (local mode)', () => {
     await user.type(nameInput, 'Boskop');
     await user.click(within(form).getByRole('button', { name: 'Speichern' }));
 
-    // Der Favoritenstatus ist mitgewandert: „Boskop" ist favorisiert (Aktion im Menü).
+    // Der Favoritenstatus ist mitgewandert: „Boskop" ist favorisiert.
     await screen.findByRole('button', { name: 'Boskop als erledigt markieren' });
-    await openItemMenu(user, 'Boskop');
     expect(
       screen.getByRole('button', { name: 'Boskop aus Favoriten entfernen' }),
     ).toBeInTheDocument();

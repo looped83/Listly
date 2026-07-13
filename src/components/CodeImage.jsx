@@ -28,11 +28,11 @@ export const Barcode = memo(function Barcode({ value, format = 'CODE128' }) {
     if (!ref.current) return;
     const opts = {
       displayValue: true,
-      fontSize: 16,
-      textMargin: 4,
+      fontSize: 20,
+      textMargin: 6,
       margin: 0,
-      height: 64,
-      width: 2,
+      height: 110,
+      width: 3,
       background: 'transparent',
     };
     try {

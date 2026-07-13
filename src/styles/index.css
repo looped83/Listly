@@ -518,15 +518,6 @@ input {
   color: var(--text-muted);
 }
 
-/* Favorit + Bearbeiten + Löschen: eigene Trefferflächen neben dem Hauptbereich. */
-.list-item__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex-shrink: 0;
-  padding-right: var(--space-2);
-}
-
 .icon-button {
   display: grid;
   place-items: center;
@@ -536,13 +527,6 @@ input {
   color: var(--text-subtle);
   flex-shrink: 0;
   transition: background 0.2s ease, color 0.2s ease;
-}
-
-/* In den Listenzeilen mindestens 44×44px Trefferfläche – die Icons selbst
-   bleiben unverändert 18px groß, nur die klickbare Fläche wächst. */
-.list-item__actions .icon-button {
-  width: 44px;
-  height: 44px;
 }
 
 .icon-button:hover {
@@ -794,10 +778,12 @@ input {
   border-radius: 8px;
 }
 
+/* Barcode (z. B. Payback) groß und mit natürlichem Seitenverhältnis darstellen –
+   je größer, desto zuverlässiger scannt der Kassen-Scanner vom Display. */
 .code__barcode {
   width: 100%;
-  max-width: 280px;
-  height: 64px;
+  max-width: 440px;
+  height: auto;
 }
 
 .card__number {
@@ -989,32 +975,6 @@ input {
   border-radius: inherit;
   background: var(--accent);
   transition: width 0.3s ease;
-}
-
-/* ---------- Zurückgenommenes „Mehr“-Menü pro Zeile ---------- */
-.list-item__actions {
-  position: relative;
-}
-
-.list-item__more {
-  color: var(--text-subtle);
-}
-
-/* Popover mit Favorit/Bearbeiten/Löschen; öffnet nach links über die Zeile. */
-.list-item__menu {
-  position: absolute;
-  top: 50%;
-  right: calc(100% - 4px);
-  transform: translateY(-50%);
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 4px;
-  border-radius: var(--radius);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
 }
 
 /* ---------- Disclosure: erledigte Artikel einklappen (Einkaufsmodus) ---------- */
