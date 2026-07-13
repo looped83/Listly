@@ -375,33 +375,32 @@ input {
   gap: var(--space-2);
 }
 
-/* Swipe-to-delete: Wrapper mit rotem „Löschen“-Hintergrund; die Zeile darüber
-   gleitet beim Wischen nach links. */
+/* Swipe-to-reveal: hinter der Zeile liegt eine Aktionsleiste (Favorit/
+   Bearbeiten/Löschen); die Zeile gleitet beim Wischen nach links und gibt sie
+   frei. */
 .swipe {
   position: relative;
   border-radius: var(--radius);
   overflow: hidden;
 }
 
-.swipe__hint {
+/* Aufgedeckte Aktionsleiste hinter der Zeile (nur per Wisch-Geste sichtbar). */
+.swipe__actions {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-right: var(--space-4);
-  background: var(--danger);
-  color: #fff;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  background: var(--surface-sunken);
 }
 
-.swipe[data-removing='true'] {
-  transition: max-height 0.2s ease, margin 0.2s ease;
-  max-height: 0;
-  margin-top: calc(-1 * var(--space-2));
-}
-
-.swipe[data-removing='true'] .list-item {
-  transform: translateX(-110%);
+.swipe__actions .icon-button {
+  width: 44px;
+  height: 44px;
 }
 
 .list-item {
@@ -1458,6 +1457,40 @@ input {
   }
 }
 
+/*
+ * Hinzufügen-Sheet oben andocken: Auf Mobilgeräten würde die eingeblendete
+ * Tastatur ein unten verankertes Sheet verdecken. Oben bleibt es vollständig
+ * sichtbar, während die Tastatur den unteren Bildschirmrand belegt.
+ */
+.dialog--top {
+  align-items: flex-start;
+}
+
+.dialog--top .dialog__panel {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  border-top: none;
+  border-bottom: 1px solid var(--border);
+  padding-top: calc(var(--space-4) + env(safe-area-inset-top));
+  animation: dialog-slide-top 0.22s ease;
+}
+
+@keyframes dialog-slide-top {
+  from {
+    transform: translateY(-16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog--top .dialog__panel {
+    animation: none;
+  }
+}
+
 /* Ab Tablet-Breite mittig statt am unteren Rand. */
 @media (min-width: 640px) {
   .dialog {
@@ -1468,6 +1501,16 @@ input {
     border-radius: var(--radius-lg);
     border-bottom: 1px solid var(--border);
     margin: 0 var(--space-4);
+  }
+
+  /* Das Hinzufügen-Sheet bleibt auch auf breiten Displays oben angedockt. */
+  .dialog--top {
+    align-items: flex-start;
+  }
+
+  .dialog--top .dialog__panel {
+    border-top: 1px solid var(--border);
+    margin-top: var(--space-4);
   }
 }
 
@@ -1503,12 +1546,6 @@ input {
   border-color: var(--danger);
 }
 
-.field__textarea {
-  resize: vertical;
-  min-height: 3rem;
-  line-height: 1.4;
-}
-
 .field__error {
   margin: 0;
   font-size: 0.8rem;
@@ -1528,4 +1565,43 @@ input {
 .field--unit {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* ---------- Inline-Bearbeitung: aufgeklappte Kachel statt Overlay ---------- */
+.swipe--editing {
+  overflow: visible;
+}
+
+.list-item--editing {
+  display: block;
+  padding: var(--space-4);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+  cursor: default;
+}
+
+.item-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.item-edit__consequence {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.item-edit__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.item-edit__actions .text-button,
+.item-edit__actions .button-primary {
+  min-height: 44px;
 }

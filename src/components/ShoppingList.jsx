@@ -36,10 +36,14 @@ function ShopProgress({ done, total }) {
 function ShoppingList({
   items,
   favoriteSet,
+  editingId,
   onToggle,
   onToggleFavorite,
   onRemove,
   onEdit,
+  onSaveEdit,
+  onCancelEdit,
+  findEditConflict,
   onCheckout,
 }) {
   const doneId = useId();
@@ -72,10 +76,14 @@ function ShoppingList({
         key={item.id}
         item={item}
         isFavorite={favoriteSet.has(normalizeName(item.name))}
+        isEditing={item.id === editingId}
         onToggle={onToggle}
         onToggleFavorite={onToggleFavorite}
         onRemove={onRemove}
         onEdit={onEdit}
+        onSave={onSaveEdit}
+        onCancelEdit={onCancelEdit}
+        findConflict={findEditConflict}
       />
     ));
 
@@ -105,9 +113,6 @@ function ShoppingList({
   return (
     <>
       <section aria-label="Offene Artikel">
-        <div className="list-section__header">
-          <h2 className="list-section__title">Einkaufsliste</h2>
-        </div>
         {/* Fortschritt erst zeigen, sobald der erste Artikel abgehakt wurde. */}
         {summary.checkedCount > 0 && (
           <ShopProgress done={summary.checkedCount} total={summary.total} />

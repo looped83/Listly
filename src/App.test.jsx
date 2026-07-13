@@ -423,10 +423,12 @@ describe('Artikel bearbeiten (local mode)', () => {
     vi.stubGlobal('localStorage', createLocalStorageMock());
   });
 
+  // Öffnet die Inline-Bearbeitung (aufgeklappte Kachel, kein Overlay) und liefert
+  // das Bearbeiten-Formular zurück.
   async function openEdit(user, itemName) {
     await openItemMenu(user, itemName);
     await user.click(await screen.findByRole('button', { name: `${itemName} bearbeiten` }));
-    return screen.findByRole('dialog');
+    return screen.findByRole('form', { name: /bearbeiten/ });
   }
 
   it('ergänzt Menge, Einheit und Notiz und zeigt sie kompakt an', async () => {
@@ -434,11 +436,11 @@ describe('Artikel bearbeiten (local mode)', () => {
     render(<App />);
     await addItem(user, 'Hafermilch');
 
-    const dialog = await openEdit(user, 'Hafermilch');
-    await user.type(within(dialog).getByLabelText('Menge'), '2');
-    await user.type(within(dialog).getByLabelText('Einheit'), 'l');
-    await user.type(within(dialog).getByLabelText('Notiz'), 'ungesüßt');
-    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    const form = await openEdit(user, 'Hafermilch');
+    await user.type(within(form).getByLabelText('Menge'), '2');
+    await user.type(within(form).getByLabelText('Einheit'), 'l');
+    await user.type(within(form).getByLabelText('Notiz'), 'ungesüßt');
+    await user.click(within(form).getByRole('button', { name: 'Speichern' }));
 
     // Kompaktdarstellung „2 l" + Notizzeile.
     expect(await screen.findByText('2 l')).toHaveClass('list-item__qty');
@@ -447,7 +449,7 @@ describe('Artikel bearbeiten (local mode)', () => {
     expect(screen.getByRole('status')).toHaveTextContent('„Hafermilch“ aktualisiert');
   });
 
-  it('schließt den Bearbeiten-Dialog per Escape', async () => {
+  it('schließt die Inline-Bearbeitung per Escape', async () => {
     const user = userEvent.setup();
     render(<App />);
     await addItem(user, 'Hafermilch');
@@ -455,7 +457,11 @@ describe('Artikel bearbeiten (local mode)', () => {
     await openEdit(user, 'Hafermilch');
     await user.keyboard('{Escape}');
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: /bearbeiten/ })).not.toBeInTheDocument();
+    // Die Zeile ist wieder in ihrem normalen Zustand.
+    expect(
+      screen.getByRole('button', { name: 'Hafermilch als erledigt markieren' }),
+    ).toBeInTheDocument();
   });
 
   it('führt beim Umbenennen auf einen vorhandenen Artikel bewusst zusammen (keine Dublette)', async () => {
@@ -464,11 +470,11 @@ describe('Artikel bearbeiten (local mode)', () => {
     await addItem(user, 'Apfel');
     await addItem(user, 'Birne');
 
-    const dialog = await openEdit(user, 'Apfel');
-    const nameInput = within(dialog).getByLabelText('Name');
+    const form = await openEdit(user, 'Apfel');
+    const nameInput = within(form).getByLabelText('Name');
     await user.clear(nameInput);
     await user.type(nameInput, 'Birne');
-    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await user.click(within(form).getByRole('button', { name: 'Speichern' }));
 
     // Zusammenführungs-Abfrage statt stiller Dublette.
     await user.click(await screen.findByRole('button', { name: 'Zusammenführen' }));
@@ -489,11 +495,11 @@ describe('Artikel bearbeiten (local mode)', () => {
     await openItemMenu(user, 'Apfel');
     await user.click(screen.getByRole('button', { name: 'Apfel zu Favoriten hinzufügen' }));
 
-    const dialog = await openEdit(user, 'Apfel');
-    const nameInput = within(dialog).getByLabelText('Name');
+    const form = await openEdit(user, 'Apfel');
+    const nameInput = within(form).getByLabelText('Name');
     await user.clear(nameInput);
     await user.type(nameInput, 'Boskop');
-    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await user.click(within(form).getByRole('button', { name: 'Speichern' }));
 
     // Der Favoritenstatus ist mitgewandert: „Boskop" ist favorisiert (Aktion im Menü).
     await screen.findByRole('button', { name: 'Boskop als erledigt markieren' });
