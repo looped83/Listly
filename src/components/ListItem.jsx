@@ -3,7 +3,7 @@ import { Check, Pencil, Star, X } from 'lucide-react';
 import ProductIcon from './ProductIcon';
 import ItemEditInline from './ItemEditInline';
 import { useSwipeReveal } from '../hooks/useSwipeReveal';
-import { formatQuantity, itemLabel, readItemExtras } from '../lib/itemFields';
+import { formatQuantityBadge, itemLabel, readItemExtras } from '../lib/itemFields';
 
 const REVEAL_WIDTH = 156; // px, Breite der aufgedeckten Aktionsleiste (3 Buttons)
 const OPEN_THRESHOLD = 56; // px, ab hier rastet die Aktionsleiste beim Loslassen ein
@@ -37,8 +37,9 @@ function ListItem({
   });
 
   const { quantity } = readItemExtras(item);
-  const qtyLabel = formatQuantity(quantity);
-  // Sprechende Bezeichnung inkl. Menge für die Aktions-Labels.
+  // Sichtbares Badge zeigt immer die Menge (Standard „1 ×“).
+  const qtyLabel = formatQuantityBadge(quantity);
+  // Sprechende Bezeichnung inkl. Menge (ab 2) für die Aktions-Labels.
   const descriptor = itemLabel(item);
 
   // Aufgeklappte Kachel: Bearbeitungsfelder inline statt Overlay.

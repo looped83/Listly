@@ -289,8 +289,9 @@ deployen.
   Kategorien entfallen, unbekannte/fehlende Kategorien landen gemeinsam zuletzt
   unter „Sonstiges“, die Reihenfolge innerhalb einer Kategorie bleibt stabil. Die
   Kategorie-Überschriften zeigen nur den **Namen** (ohne Artikel-Anzahl). Kompakte
-  Anzeige inkl. optionaler Menge („2 × Hafermilch“) – nur ab einer Menge von 2
-  (die Standardmenge 1 wird nicht angezeigt, kein leerer Platzhalter).
+  Anzeige **immer** mit Mengen-Badge – die Standardmenge als „1 ×“, größere
+  Mengen als „N ×“ (`formatQuantityBadge`). In Text-/aria-Kontexten (Aktions-
+  Labels, Toast) bleibt die Menge 1 dagegen implizit (`formatQuantity`, erst ab 2).
 - **Fortschritt & Erledigt (`ShoppingList.jsx`):** ein **Fortschrittsbalken**
   „x von y erledigt" (`role="progressbar"`, aus `summarizeCheckout`) erscheint
   **erst, sobald der erste Artikel abgehakt wurde** (`checkedCount > 0`). Die

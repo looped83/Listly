@@ -53,6 +53,25 @@ describe('AddItemSheet – Vorschlagsauswahl', () => {
 
     expect(search).toHaveFocus();
   });
+
+  it('schließt die Vorschlagsliste nach der Auswahl (öffnet beim Weitertippen erneut)', async () => {
+    const user = userEvent.setup();
+    renderSheet();
+
+    const search = screen.getByRole('combobox', { name: 'Produkt suchen oder hinzufügen' });
+    await user.type(search, 'apfel');
+    expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
+
+    await user.click(screen.getAllByRole('option')[0]);
+    // Trotz passendem Namen ist die Liste geschlossen …
+    expect(search).toHaveValue('Apfel');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(search).toHaveAttribute('aria-expanded', 'false');
+
+    // … und öffnet erst wieder, sobald der Text geändert wird.
+    await user.type(search, '{Backspace}');
+    expect(screen.queryByRole('listbox')).toBeInTheDocument();
+  });
 });
 
 describe('AddItemSheet – Hinzufügen schließt das Sheet', () => {
