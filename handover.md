@@ -319,10 +319,12 @@ deployen.
   Listenansicht, überschreibt dabei auch den „erledigt“-Sunken-Ton). Layout
   im Panel: Favorit sitzt **oben rechts** (`.tile__actions-fav`, absolut
   positioniert), Bearbeiten/Löschen liegen als eigenes Paar **unten
-  zentriert** (`.tile__actions-main`, `align-items: flex-end`) – beide ohne
-  eigenen Rahmen, dieselbe rahmenlose Icon-Optik für alle drei. Der
-  Artikelname wird im Panel bewusst **nicht** wiederholt (Farbe/Position der
-  Kachel identifizieren sie ausreichend). Der Fokus beim Öffnen landet
+  zentriert** (`.tile__actions-main`) – beide ohne eigenen Rahmen, dieselbe
+  rahmenlose Icon-Optik für alle drei. Dazwischen zeigt `.tile__actions-title`
+  **mittig** (in einem `flex: 1`-Slot, unabhängig von der Höhe der
+  Aktionsleiste – analog zum Namens-Slot der normalen Kachel) den
+  Artikelnamen – rein visuell und `aria-hidden`, da die Gruppe ihn schon über
+  `aria-label` trägt. Der Fokus beim Öffnen landet
   **nicht** auf dem Favorit-Button, sondern auf dem Panel-Container selbst
   (`tabIndex={-1}`, `outline: none`) – sonst zeigt Favorit bei einem per
   Touch/Maus ausgelösten Öffnen (v. a. auf iOS) einen unpassend wirkenden
@@ -495,7 +497,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (275 Tests,
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (276 Tests,
   21 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.

@@ -1051,18 +1051,20 @@ textarea {
  * Aktionen-Panel: ersetzt bei langem Druck (Touch), Rechtsklick (Maus) oder
  * Kontextmenü-Taste (Tastatur) den Karteninhalt – Favorit/Bearbeiten/Löschen
  * statt dauerhaft sichtbar oder hinter einer Wisch-Geste (die in einem
- * zweidimensionalen Grid nicht funktioniert). Der Artikelname tritt hier
- * zurück (Farbe/Position der Kachel identifizieren sie ausreichend). Favorit
- * sitzt oben rechts (analog zur Stern-Ecke vieler Karten-UIs) OHNE eigenen
- * Rahmen – dieselbe rahmenlose Optik gilt auch für Bearbeiten/Löschen, die
- * als eigenes Paar unten zentriert liegen. Farben/Hover wie in
- * `.swipe__actions` der Listenansicht (grüner Grund, Icons in --on-accent).
+ * zweidimensionalen Grid nicht funktioniert). Favorit sitzt oben rechts
+ * (analog zur Stern-Ecke vieler Karten-UIs) OHNE eigenen Rahmen – dieselbe
+ * rahmenlose Optik gilt auch für Bearbeiten/Löschen, die als eigenes Paar
+ * unten zentriert liegen. Dazwischen (in einem flexiblen Slot, unabhängig
+ * von der Höhe der Aktionsleiste) steht mittig der Artikelname – rein
+ * visuell, die Gruppe selbst trägt ihn schon über aria-label. Farben/Hover
+ * wie in `.swipe__actions` der Listenansicht (grüner Grund, Icons in
+ * --on-accent).
  */
 .tile__actions {
   position: relative;
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
   height: 100%;
   padding-bottom: var(--space-1);
@@ -1079,6 +1081,29 @@ textarea {
   position: absolute;
   top: 0;
   right: 0;
+}
+
+.tile__actions-title-slot {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-2);
+}
+
+.tile__actions-title {
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--on-accent);
+  text-align: center;
 }
 
 .tile__actions-main {

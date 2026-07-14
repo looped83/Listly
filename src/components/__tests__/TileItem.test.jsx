@@ -102,6 +102,16 @@ describe('TileItem – Aktionen-Panel (langer Druck / Rechtsklick / Kontextmenü
     expect(screen.getByRole('button', { name: 'Hafermilch entfernen' })).toBeInTheDocument();
   });
 
+  it('zeigt den Artikelnamen mittig im Panel (rein visuell, aria-hidden – die Gruppe trägt ihn schon über aria-label)', () => {
+    renderTile();
+
+    fireEvent.contextMenu(toggleButton());
+
+    const title = screen.getByText('Hafermilch', { selector: '.tile__actions-title' });
+    expect(title).toBeInTheDocument();
+    expect(title).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('fokussiert beim Öffnen das Panel selbst (nicht den Favorit-Button – sonst zeigt der einen unpassenden Ring bei Touch/Maus)', () => {
     renderTile();
     fireEvent.contextMenu(toggleButton());

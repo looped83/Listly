@@ -163,6 +163,14 @@ function TileItem({
             <Star size={16} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
           </button>
 
+          {/* Rein visuell (die Gruppe trägt den Namen schon über aria-label) –
+              zeigt mittig, für welchen Artikel die Aktionen gerade offen sind. */}
+          <div className="tile__actions-title-slot">
+            <p className="tile__actions-title" aria-hidden="true">
+              {item.name}
+            </p>
+          </div>
+
           <div className="tile__actions-main">
             <button
               type="button"
