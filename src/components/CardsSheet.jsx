@@ -1,6 +1,7 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useId, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import { STORAGE_KEYS } from '../lib/storage';
 import {
   RETAILERS,
@@ -66,8 +67,18 @@ function CardsSheet({ onClose }) {
   const [cards, setCards] = useLocalStorage(STORAGE_KEYS.cards, []);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [codeError, setCodeError] = useState('');
   // undefined = "Standard" (erste Karte offen); sonst explizit gewählte/keine.
   const [openId, setOpenId] = useState(undefined);
+
+  // Modaler Dialog: Fokusfalle, Escape schließt, Fokusrückgabe an den
+  // Wallet-Button beim Schließen (gleiche Infrastruktur wie die anderen Sheets).
+  const closeButtonRef = useRef(null);
+  const { panelRef, onKeyDown } = useDialogFocus({ onClose, initialFocusRef: closeButtonRef });
+  const nameFieldId = useId();
+  const codeFieldId = useId();
+  const codeErrorId = useId();
+  const codeRef = useRef(null);
 
   // Swipe-nach-unten zum Schließen: wirksam, wenn die Geste in der Leiste
   // beginnt oder der scrollbare Bereich bereits ganz oben steht.
@@ -130,7 +141,11 @@ function CardsSheet({ onClose }) {
     (e) => {
       e.preventDefault();
       const code = form.code.trim();
-      if (!code) return;
+      if (!code) {
+        setCodeError('Bitte den Code-Inhalt einfügen.');
+        codeRef.current?.focus();
+        return;
+      }
       const id = createId();
       setCards((prev) => [
         ...prev,
@@ -138,10 +153,16 @@ function CardsSheet({ onClose }) {
       ]);
       setOpenId(id); // neue Karte gleich aufgeklappt zeigen
       setForm(emptyForm);
+      setCodeError('');
       setAdding(false);
     },
     [form, setCards],
   );
+
+  const cancelAdding = useCallback(() => {
+    setCodeError('');
+    setAdding(false);
+  }, []);
 
   const remove = useCallback((id) => setCards((prev) => prev.filter((c) => c.id !== id)), [setCards]);
 
@@ -151,6 +172,8 @@ function CardsSheet({ onClose }) {
       role="dialog"
       aria-modal="true"
       aria-label="Kundenkarten"
+      ref={panelRef}
+      onKeyDown={onKeyDown}
       onClick={closeOnBackdrop}
       onTouchStart={onDragStart}
       onTouchMove={onDragMove}
@@ -160,7 +183,13 @@ function CardsSheet({ onClose }) {
       <div className="sheet__bar">
         <span className="sheet__grabber" aria-hidden="true" />
         <h2 className="sheet__title">Kundenkarten</h2>
-        <button type="button" className="icon-button" onClick={onClose} aria-label="Schließen">
+        <button
+          type="button"
+          className="icon-button"
+          ref={closeButtonRef}
+          onClick={onClose}
+          aria-label="Schließen"
+        >
           <X size={22} aria-hidden="true" />
         </button>
       </div>
@@ -187,13 +216,14 @@ function CardsSheet({ onClose }) {
 
         {adding ? (
           <form className="card-form" onSubmit={save}>
-            <div className="card-form__retailers">
+            <div className="card-form__retailers" role="group" aria-label="Händler wählen">
               {RETAILER_ORDER.map((key) => (
                 <button
                   type="button"
                   key={key}
                   className="card-form__retailer"
                   data-active={form.retailer === key}
+                  aria-pressed={form.retailer === key}
                   onClick={() => pickRetailer(key)}
                 >
                   {RETAILERS[key].label}
@@ -201,27 +231,42 @@ function CardsSheet({ onClose }) {
               ))}
             </div>
 
+            <label className="card-form__field-label" htmlFor={nameFieldId}>
+              Name der Karte
+            </label>
             <input
+              id={nameFieldId}
               className="card-form__input"
               value={form.name}
               onChange={(e) => update({ name: e.target.value })}
-              placeholder="Name der Karte"
-              aria-label="Name der Karte"
+              autoComplete="off"
             />
-            <label className="card-form__field-label" htmlFor="card-code">
+            <label className="card-form__field-label" htmlFor={codeFieldId}>
               Code-Inhalt (exakt aus der Original-App)
             </label>
             <textarea
-              id="card-code"
+              id={codeFieldId}
+              ref={codeRef}
               className="card-form__input card-form__textarea"
               value={form.code}
-              onChange={(e) => update({ code: e.target.value })}
+              onChange={(e) => {
+                update({ code: e.target.value });
+                if (codeError) setCodeError('');
+              }}
               placeholder="Code-Inhalt einfügen"
               autoComplete="off"
               rows={2}
+              aria-required="true"
+              aria-invalid={codeError ? 'true' : undefined}
+              aria-describedby={codeError ? codeErrorId : undefined}
             />
+            {codeError && (
+              <p className="field__error" id={codeErrorId}>
+                {codeError}
+              </p>
+            )}
 
-            <div className="card-form__types">
+            <div className="card-form__types" role="group" aria-label="Code-Typ wählen">
               {[
                 ['qr', 'QR-Code'],
                 ['barcode', 'Barcode'],
@@ -231,6 +276,7 @@ function CardsSheet({ onClose }) {
                   key={value}
                   className="card-form__type"
                   data-active={form.codeType === value}
+                  aria-pressed={form.codeType === value}
                   onClick={() => update({ codeType: value })}
                 >
                   {label}
@@ -239,7 +285,7 @@ function CardsSheet({ onClose }) {
             </div>
 
             <div className="card-form__actions">
-              <button type="button" className="text-button" onClick={() => setAdding(false)}>
+              <button type="button" className="text-button" onClick={cancelAdding}>
                 Abbrechen
               </button>
               <button type="submit" className="button-primary">
