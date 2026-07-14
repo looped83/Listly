@@ -102,9 +102,22 @@ describe('TileItem – Aktionen-Panel (langer Druck / Rechtsklick / Kontextmenü
     expect(screen.getByRole('button', { name: 'Hafermilch entfernen' })).toBeInTheDocument();
   });
 
-  it('fokussiert beim Öffnen die erste Aktion (wichtig bei Tastaturbedienung)', () => {
+  it('fokussiert beim Öffnen das Panel selbst (nicht den Favorit-Button – sonst zeigt der einen unpassenden Ring bei Touch/Maus)', () => {
     renderTile();
     fireEvent.contextMenu(toggleButton());
+
+    expect(screen.getByRole('group', { name: 'Aktionen für Hafermilch' })).toHaveFocus();
+    expect(
+      screen.getByRole('button', { name: 'Hafermilch zu Favoriten hinzufügen' }),
+    ).not.toHaveFocus();
+  });
+
+  it('erreicht Favorit als erste Aktion per echtem Tab-Druck (Tastaturbedienung bleibt möglich)', async () => {
+    const user = userEvent.setup();
+    renderTile();
+    fireEvent.contextMenu(toggleButton());
+
+    await user.tab();
 
     expect(screen.getByRole('button', { name: 'Hafermilch zu Favoriten hinzufügen' })).toHaveFocus();
   });

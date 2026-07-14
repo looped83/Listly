@@ -241,7 +241,9 @@ deployen.
 
 ## 7. Kundenkarten
 
-- Overlay über den **Wallet-Button** im Header (`CardsSheet.jsx`).
+- Overlay über den **Wallet-Button** im Header (`CardsSheet.jsx`). Der Button
+  (`.icon-button--header`) ist in Akzentgrün gehalten (wie Logo/FAB), statt
+  im neutralen Pill-Look der übrigen Header-Buttons.
 - **Rein lokal** gespeichert (`listly.cards`) – aus Datenschutzgründen bewusst
   **nicht** im Repo/Supabase (öffentliches Repo!). Jedes Gerät pflegt seine
   eigenen Karten.
@@ -316,11 +318,18 @@ deployen.
   (`.tile[data-revealed='true']`, Akzentfarbe wie `.swipe__actions` der
   Listenansicht, überschreibt dabei auch den „erledigt“-Sunken-Ton). Layout
   im Panel: Favorit sitzt **oben rechts** (`.tile__actions-fav`, absolut
-  positioniert), Bearbeiten/Löschen liegen **zentriert nebeneinander**
-  (`.tile__actions-main`) in der Mitte. Der Artikelname wird im Panel bewusst
-  **nicht** wiederholt (Farbe/Position der Kachel identifizieren sie
-  ausreichend). Zwei Auslöser ergänzen sich: eine selbst erfasste
-  Pointer-Haltedauer
+  positioniert), Bearbeiten/Löschen liegen als eigenes Paar **unten
+  zentriert** (`.tile__actions-main`, `align-items: flex-end`) – beide ohne
+  eigenen Rahmen, dieselbe rahmenlose Icon-Optik für alle drei. Der
+  Artikelname wird im Panel bewusst **nicht** wiederholt (Farbe/Position der
+  Kachel identifizieren sie ausreichend). Der Fokus beim Öffnen landet
+  **nicht** auf dem Favorit-Button, sondern auf dem Panel-Container selbst
+  (`tabIndex={-1}`, `outline: none`) – sonst zeigt Favorit bei einem per
+  Touch/Maus ausgelösten Öffnen (v. a. auf iOS) einen unpassend wirkenden
+  Fokusring. Ein „echter“ Tab-Druck erreicht Favorit danach ganz normal
+  als erstes fokussierbares Element und zeigt dort zurecht einen Ring
+  (Tastaturbedienung bleibt vollständig erhalten). Zwei Auslöser ergänzen
+  sich, um das Panel zu öffnen: eine selbst erfasste Pointer-Haltedauer
   (`onPointerDown`/`onPointerMove` mit ~500 ms-Timer + Bewegungstoleranz –
   der zuverlässige Weg für Touch, da iOS Safari das native
   `contextmenu`-Ereignis bei langem Druck auf generische Elemente wie einen
@@ -486,7 +495,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (274 Tests,
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (275 Tests,
   21 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
