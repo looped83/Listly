@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TileItem from '../TileItem';
 
@@ -107,6 +107,50 @@ describe('TileItem – Aktionen-Panel (langer Druck / Rechtsklick / Kontextmenü
     fireEvent.contextMenu(toggleButton());
 
     expect(screen.getByRole('button', { name: 'Hafermilch zu Favoriten hinzufügen' })).toHaveFocus();
+  });
+
+  it('öffnet die Aktionen über einen langen Pointer-Druck – ohne dass ein contextmenu-Ereignis nötig ist', () => {
+    // Deckt den eigentlichen Bugfix ab: iOS Safari feuert `contextmenu` bei
+    // langem Druck auf generische Elemente (z. B. einen Button) unzuverlässig.
+    // Die eigene Haltedauer-Erfassung über Pointer-Events ist der primäre Weg.
+    vi.useFakeTimers();
+    try {
+      renderTile();
+      fireEvent.pointerDown(toggleButton(), { pointerType: 'touch', clientX: 10, clientY: 10 });
+      act(() => vi.advanceTimersByTime(500));
+
+      expect(screen.getByRole('button', { name: 'Hafermilch bearbeiten' })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('bricht den langen Druck bei zu großer Bewegung ab (kein versehentliches Öffnen beim Scrollen)', () => {
+    vi.useFakeTimers();
+    try {
+      renderTile();
+      fireEvent.pointerDown(toggleButton(), { pointerType: 'touch', clientX: 10, clientY: 10 });
+      fireEvent.pointerMove(toggleButton(), { clientX: 40, clientY: 10 });
+      act(() => vi.advanceTimersByTime(500));
+
+      expect(screen.queryByRole('button', { name: 'Hafermilch bearbeiten' })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('öffnet die Aktionen NICHT bei einem kurzen Tap (Loslassen vor Ablauf) – normaler Klick bleibt möglich', async () => {
+    vi.useFakeTimers();
+    const { onToggle } = renderTile();
+    fireEvent.pointerDown(toggleButton(), { pointerType: 'touch', clientX: 10, clientY: 10 });
+    fireEvent.pointerUp(toggleButton());
+    act(() => vi.advanceTimersByTime(500));
+    expect(screen.queryByRole('button', { name: 'Hafermilch bearbeiten' })).not.toBeInTheDocument();
+    vi.useRealTimers();
+
+    const user = userEvent.setup();
+    await user.click(toggleButton());
+    expect(onToggle).toHaveBeenCalledWith('item-1');
   });
 
   it('Favorit-Klick löst NICHT Löschen/Bearbeiten aus und lässt das Panel offen', async () => {
