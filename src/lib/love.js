@@ -9,7 +9,7 @@ export const CHECKOUT_MESSAGES = [
   'Danke, dass du einkaufst 💚',
   'Ich liebe dich 💚',
   'Du bist mein Lieblingsmensch 💚',
-  'Danke fürs Einkaufen – ich hab dich lieb 💚',
+  'Danke fürs Einkaufen – ich liebe dich mein Schatz 💚',
   'Du machst mir das Leben schöner 💚',
   'Was hab ich dich lieb 💚',
 ];
@@ -17,7 +17,7 @@ export const CHECKOUT_MESSAGES = [
 /** Kurze Liebesbotschaften für das Herz beim Abhaken und das Logo-Geheimnis. */
 export const LOVE_MESSAGES = [
   'Ich liebe dich 💚',
-  'Ich hab dich lieb 💚',
+  'Ich liebe dich mein Schatz 💚',
   'Du bist der Beste 💚',
   'Danke, dass es dich gibt 💚',
   'Mein Herz gehört dir 💚',
