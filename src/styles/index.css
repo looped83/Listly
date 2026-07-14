@@ -990,12 +990,13 @@ textarea {
 /* Umschalt-Button: bewusst kompakt (kein eigenes Checkbox-Symbol – Icon +
    Name genügen, der Erledigt-Status zeigt sich über Durchstreichen/Dimmen).
    Menge und Name stehen als eigene Zeilen untereinander (nicht als ein
-   umbrechender Fließtext). */
+   umbrechender Fließtext). Icon oben, Menge unten (beide feste Größe), der
+   Name füllt den verbleibenden Raum aus und bleibt damit unabhängig von
+   deren Höhe stets in der vertikalen Mitte der Kachel. */
 .tile__toggle {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: var(--space-1);
   flex: 1;
   width: 100%;
@@ -1017,11 +1018,22 @@ textarea {
 }
 
 .tile .list-item__icon {
+  flex-shrink: 0;
   font-size: 1.6rem;
+}
+
+.tile__name-slot {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
 }
 
 .tile .list-item__qty {
   display: block;
+  flex-shrink: 0;
   margin-right: 0;
   font-size: 0.78rem;
 }
