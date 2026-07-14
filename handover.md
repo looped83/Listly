@@ -78,12 +78,12 @@ src/
 │   ├── FrequentChips.jsx   #   „Häufig gekauft“-Chips (im Hinzufügen-Sheet)
 │   ├── ShoppingList.jsx    #   Liste, nach Kategorie gruppiert (offen + erledigt), Fortschritt; rendert je nach viewMode ListItem oder TileItem
 │   ├── ListItem.jsx        #   Einzelzeile (Listenansicht): großer Umschalt-Button, Swipe-Aktionen (fokussierbar), Inline-Bearbeitung
-│   ├── TileItem.jsx        #   Einzelkarte (Kachelansicht): dieselben Handler/Aktionen wie ListItem, Favorit/Bearbeiten/Löschen dauerhaft sichtbar statt per Swipe
+│   ├── TileItem.jsx        #   Einzelkarte (Kachelansicht): dieselben Handler/Aktionen wie ListItem, Favorit/Bearbeiten/Löschen hinter langem Druck (grünes Aktionen-Panel)
 │   ├── ViewToggle.jsx      #   Listen-/Kachel-Umschalter im Header (kontrolliert, keine eigene Logik)
 │   ├── ItemEditInline.jsx  #   Artikel INLINE bearbeiten (kein Overlay) – in beiden Ansichten identisch genutzt
 │   ├── ProductIcon.jsx     #   rendert das Emoji eines Artikels
 │   ├── QuantityStepper.jsx #   Mengen-Stepper (−/+, Spinbutton, Standard/Min 1)
-│   ├── SyncStatus.jsx      #   Live/Verbinde/Offline-Anzeige (oben rechts)
+│   ├── SyncStatus.jsx      #   dezenter Sync-Hinweis hinter dem Titel (nur Icon, nur lokal/offline, blitzt kurz auf)
 │   ├── Toast.jsx           #   Snackbar-Anzeige + aria-live-Regionen (polite/assertive)
 │   ├── CheckoutDialog.jsx  #   „Einkauf abschließen“-Bottom-Sheet
 │   ├── CardsSheet.jsx      #   Kundenkarten-Overlay (Akkordeon) – via React.lazy geladen
@@ -180,8 +180,15 @@ Platzhalter). Normalisierung: `lib/itemFields.js` (siehe §8, §12).
   **Keine sensiblen Daten in die Liste legen.** Für echten Schutz bräuchte es
   eine Login-Variante (Supabase Auth) + strengere RLS-Policies.
 
-Status-Anzeige oben rechts (`SyncStatus.jsx`): `live` (verbunden), `connecting`,
-`error` (offline), `local` (kein Cloud-Sync konfiguriert).
+Status-Anzeige (`SyncStatus.jsx`), Zustände: `live` (verbunden), `connecting`,
+`error` (offline), `local` (kein Cloud-Sync konfiguriert). Bewusst dezent: bei
+`live`/`connecting` (dem Normalfall) erscheint **gar nichts**; nur bei
+`error`/`local` blitzt ein kleines Icon (kein Text/Badge mehr) hinter dem
+Titel „Listly“ kurz auf (3 s) und verblasst dann von selbst – bleibt aber per
+Hover/Fokus weiter abrufbar (Tooltip). Jeder Wechsel zwischen `error` und
+`local` lässt es erneut aufblitzen (State-Reset beim Rendern statt im Effekt,
+siehe Kommentar in der Komponente – vermeidet den
+`react-hooks/set-state-in-effect`-Lint-Fehler).
 
 ---
 
@@ -479,8 +486,8 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (267 Tests,
-  20 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (274 Tests,
+  21 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
