@@ -320,11 +320,14 @@ deployen.
   im Panel: Favorit sitzt **oben rechts** (`.tile__actions-fav`, absolut
   positioniert), Bearbeiten/Löschen liegen als eigenes Paar **unten
   zentriert** (`.tile__actions-main`) – beide ohne eigenen Rahmen, dieselbe
-  rahmenlose Icon-Optik für alle drei. Dazwischen zeigt `.tile__actions-title`
-  **mittig** (in einem `flex: 1`-Slot, unabhängig von der Höhe der
-  Aktionsleiste – analog zum Namens-Slot der normalen Kachel) den
-  Artikelnamen – rein visuell und `aria-hidden`, da die Gruppe ihn schon über
-  `aria-label` trägt. Der Fokus beim Öffnen landet
+  rahmenlose Icon-Optik für alle drei. `.tile__actions-title` zeigt den
+  Artikelnamen **exakt in der Kachelmitte** – rein visuell und `aria-hidden`
+  (die Gruppe trägt ihn schon über `aria-label`), absolut positioniert
+  (`top/left: 50%`, `transform: translate(-50%, -50%)`, `pointer-events: none`)
+  statt in einem flexiblen Slot, damit er unabhängig von der Höhe der
+  Aktionsleiste darunter **immer** exakt zentriert bleibt (kein Verrutschen
+  nach oben) und nie Klicks auf die Buttons blockiert. Der Fokus beim Öffnen
+  landet
   **nicht** auf dem Favorit-Button, sondern auf dem Panel-Container selbst
   (`tabIndex={-1}`, `outline: none`) – sonst zeigt Favorit bei einem per
   Touch/Maus ausgelösten Öffnen (v. a. auf iOS) einen unpassend wirkenden

@@ -164,12 +164,11 @@ function TileItem({
           </button>
 
           {/* Rein visuell (die Gruppe trägt den Namen schon über aria-label) –
-              zeigt mittig, für welchen Artikel die Aktionen gerade offen sind. */}
-          <div className="tile__actions-title-slot">
-            <p className="tile__actions-title" aria-hidden="true">
-              {item.name}
-            </p>
-          </div>
+              absolut positioniert, damit sie unabhängig von der Höhe der
+              Aktionsleiste darunter immer exakt in der Kachelmitte steht. */}
+          <p className="tile__actions-title" aria-hidden="true">
+            {item.name}
+          </p>
 
           <div className="tile__actions-main">
             <button
