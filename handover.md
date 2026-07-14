@@ -295,22 +295,26 @@ deployen.
   `App.jsx` und wird nur an `ShoppingList` durchgereicht – **keine eigene
   Geschäftslogik** in der Kachelansicht: `TileItem` nutzt dieselben Handler,
   denselben `itemFields`-Helfer und dieselbe Kategorie-Gruppierung wie
-  `ListItem`. Die Kachel selbst ist bewusst **kompakt** (Emoji + Name, kein
-  Checkbox-Symbol – der Erledigt-Status zeigt sich über Durchstreichen/
-  Dimmen wie in der Liste); Ziel sind **drei Kacheln nebeneinander** auf
-  einem Smartphone (`.tile-grid`: `repeat(auto-fill, minmax(102px, 1fr))`
-  statt fester Breakpoints). Favorit/Bearbeiten/Löschen sind **nicht**
-  dauerhaft sichtbar und liegen auch nicht hinter einer Wisch-Geste (die in
-  einem zweidimensionalen Grid nicht funktioniert), sondern hinter einem
-  **langen Druck**: ein `contextmenu`-Listener auf der Kachel (mit
-  `preventDefault`) ersetzt deren Inhalt durch ein zentriertes
-  Aktionen-Panel. Das native `contextmenu`-Ereignis deckt Touch (langer
-  Druck), Maus (Rechtsklick) **und** Tastatur (Kontextmenü-/Shift+F10-Taste)
-  mit einem einzigen Listener ab – keine eigene Gesten-Zeiterfassung nötig.
-  Schließen: Klick außerhalb, Escape, oder (bei Bearbeiten/Löschen)
-  automatisch nach der Aktion. Die Bearbeiten-Kachel (`.tile--editing`)
-  spannt beim Aufklappen über die volle Grid-Breite, damit `ItemEditInline`
-  wie in der Listenansicht Platz hat. Der Ansicht-Wechsel selbst blendet kurz
+  `ListItem`. Die Kachel selbst ist bewusst **kompakt und mindestens
+  quadratisch** (`aspect-ratio: 1 / 1`; Menge/Name als eigene Zeilen
+  untereinander statt umbrechendem Fließtext; kein Checkbox-Symbol – der
+  Erledigt-Status zeigt sich über Durchstreichen/Dimmen wie in der Liste);
+  Ziel sind **drei Kacheln nebeneinander** auf einem Smartphone (`.tile-grid`:
+  `repeat(auto-fill, minmax(102px, 1fr))` statt fester Breakpoints). Favorit/
+  Bearbeiten/Löschen sind **nicht** dauerhaft sichtbar und liegen auch nicht
+  hinter einer Wisch-Geste (die in einem zweidimensionalen Grid nicht
+  funktioniert), sondern hinter einem **langen Druck**, der den Karteninhalt
+  durch ein zentriertes Aktionen-Panel ersetzt. Zwei Auslöser ergänzen sich:
+  eine selbst erfasste Pointer-Haltedauer (`onPointerDown`/`onPointerMove`
+  mit ~500 ms-Timer + Bewegungstoleranz – der zuverlässige Weg für Touch, da
+  iOS Safari das native `contextmenu`-Ereignis bei langem Druck auf
+  generische Elemente wie einen Button **nicht** verlässlich auslöst) sowie
+  `onContextMenu` (mit `preventDefault`) für Rechtsklick (Maus) und die
+  Kontextmenü-/Shift+F10-Taste (Tastatur). Schließen: Klick außerhalb,
+  Escape, oder (bei Bearbeiten/Löschen) automatisch nach der Aktion. Die
+  Bearbeiten-Kachel (`.tile--editing`) hebt die quadratische Form auf und
+  spannt über die volle Grid-Breite, damit `ItemEditInline` wie in der
+  Listenansicht Platz hat. Der Ansicht-Wechsel selbst blendet kurz
   ein (`.view-transition`, respektiert `prefers-reduced-motion`).
 - **Liste:** offene und erledigte Artikel **nach Kategorie gruppiert**
   (Überschriften ohne Emoji, in Kategorie-Reihenfolge aus `products.json`).
@@ -466,7 +470,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (264 Tests,
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (267 Tests,
   20 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
