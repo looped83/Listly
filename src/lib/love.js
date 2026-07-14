@@ -9,7 +9,7 @@ export const CHECKOUT_MESSAGES = [
   'Danke, dass du einkaufst 💚',
   'Ich liebe dich 💚',
   'Du bist mein Lieblingsmensch 💚',
-  'Danke fürs Einkaufen – ich hab dich lieb 💚',
+  'Danke fürs Einkaufen – ich liebe dich mein Schatz 💚',
   'Du machst mir das Leben schöner 💚',
   'Was hab ich dich lieb 💚',
 ];
