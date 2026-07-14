@@ -1,4 +1,4 @@
-import { memo, useCallback, useId, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useDialogFocus } from '../hooks/useDialogFocus';
@@ -79,6 +79,18 @@ function CardsSheet({ onClose }) {
   const codeFieldId = useId();
   const codeErrorId = useId();
   const codeRef = useRef(null);
+  const nameRef = useRef(null);
+  const addButtonRef = useRef(null);
+
+  // Beim Umschalten Formular ⇄ Button verschwindet das fokussierte Element –
+  // den Fokus explizit nachführen, damit die Tastaturposition erhalten bleibt.
+  const prevAdding = useRef(adding);
+  useEffect(() => {
+    if (adding === prevAdding.current) return;
+    prevAdding.current = adding;
+    if (adding) nameRef.current?.focus();
+    else addButtonRef.current?.focus();
+  }, [adding]);
 
   // Swipe-nach-unten zum Schließen: wirksam, wenn die Geste in der Leiste
   // beginnt oder der scrollbare Bereich bereits ganz oben steht.
@@ -236,6 +248,7 @@ function CardsSheet({ onClose }) {
             </label>
             <input
               id={nameFieldId}
+              ref={nameRef}
               className="card-form__input"
               value={form.name}
               onChange={(e) => update({ name: e.target.value })}
@@ -294,7 +307,12 @@ function CardsSheet({ onClose }) {
             </div>
           </form>
         ) : (
-          <button type="button" className="button-add-card" onClick={() => setAdding(true)}>
+          <button
+            type="button"
+            className="button-add-card"
+            ref={addButtonRef}
+            onClick={() => setAdding(true)}
+          >
             <Plus size={18} aria-hidden="true" />
             Karte hinzufügen
           </button>

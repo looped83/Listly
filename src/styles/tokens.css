@@ -33,7 +33,8 @@
   --amber-soft: #f6e7d4;
   --amber-text: #a85f28;
 
-  --danger: #b3402f;
+  /* Dunkel genug für ≥ 4,5:1 auch auf --danger-soft (Offline-Badge, WCAG AA). */
+  --danger: #a93c2c;
   --danger-soft: #f6ded9;
 
   --shadow-sm: 0 1px 2px rgba(51, 40, 24, 0.08);

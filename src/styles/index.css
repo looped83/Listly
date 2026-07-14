@@ -200,7 +200,7 @@ input {
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-subtle);
+  color: var(--text-muted);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   background: var(--surface-sunken);
@@ -225,7 +225,8 @@ input {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-subtle);
+  /* text-muted statt text-subtle: kleine Schrift braucht ≥ 4,5:1 (WCAG AA). */
+  color: var(--text-muted);
 }
 
 .chips__list {
@@ -277,7 +278,7 @@ input {
 .chip__count {
   font-family: var(--font-mono);
   font-size: 0.7rem;
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .chip__remove {
@@ -874,7 +875,8 @@ input {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-subtle);
+  /* text-muted statt text-subtle: kleine Schrift braucht ≥ 4,5:1 (WCAG AA). */
+  color: var(--text-muted);
 }
 
 /* Anzahl direkt hinter dem Kategorienamen (mit dezentem Mittelpunkt-Trenner). */
@@ -971,6 +973,12 @@ input {
   display: flex;
   flex-direction: column;
   max-height: 92vh;
+}
+
+/* Formular ohne eigene Box: die Kinder (Kopf/Body/Aktionen) nehmen direkt am
+   Flex-Layout des Panels teil; role="dialog" bleibt auf dem Panel-Div. */
+.dialog__form {
+  display: contents;
 }
 
 .add-sheet .dialog__body {

@@ -141,171 +141,174 @@ function AddItemSheet({
 
   return (
     <div className="dialog dialog--top" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <form
+      {/* role="dialog" liegt auf dem div (auf <form> nicht erlaubt); das Formular
+          umschließt den Inhalt mit display:contents ohne Layout-Einfluss. */}
+      <div
         className="dialog__panel add-sheet"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         ref={panelRef}
         onKeyDown={onKeyDown}
-        onSubmit={submit}
       >
-        <div className="dialog__head">
-          <h2 className="dialog__title" id={titleId}>
-            <Plus size={20} aria-hidden="true" />
-            Artikel hinzufügen
-          </h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Schließen">
-            <X size={22} aria-hidden="true" />
-          </button>
-        </div>
-
-        <div className="dialog__body">
-          <div className="add-sheet__search">
-            <Search size={18} aria-hidden="true" />
-            <input
-              ref={searchRef}
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setActiveIndex(-1);
-              }}
-              onKeyDown={onSearchKeyDown}
-              placeholder="Produkt suchen oder eingeben …"
-              autoComplete="off"
-              aria-label="Produkt suchen oder hinzufügen"
-              aria-expanded={showSuggestions}
-              aria-controls={listId}
-              aria-autocomplete="list"
-              aria-activedescendant={
-                showSuggestions && activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined
-              }
-              role="combobox"
-            />
+        <form className="dialog__form" onSubmit={submit}>
+          <div className="dialog__head">
+            <h2 className="dialog__title" id={titleId}>
+              <Plus size={20} aria-hidden="true" />
+              Artikel hinzufügen
+            </h2>
+            <button type="button" className="icon-button" onClick={onClose} aria-label="Schließen">
+              <X size={22} aria-hidden="true" />
+            </button>
           </div>
 
-          {showSuggestions ? (
-            <ul className="suggestions suggestions--sheet" id={listId} role="listbox">
-              {suggestions.map((s, i) => (
-                // role="presentation": unter role="listbox" sind nur option-
-                // Kinder erlaubt – die Option ist der Button selbst.
-                <li key={normalizeName(s.name)} role="presentation">
-                  <button
-                    type="button"
-                    id={`${listId}-option-${i}`}
-                    className="suggestion"
-                    data-active={i === activeIndex}
-                    role="option"
-                    aria-selected={i === activeIndex}
-                    // Auswahl auf pointerdown: Auf Touch feuert das SOFORT beim
-                    // ersten Antippen – vor Fokuswechsel und Tastatur-Layoutsprung.
-                    // preventDefault hält den Fokus im Suchfeld (Tastatur bleibt
-                    // offen), sodass auch der erste Vorschlag zuverlässig greift.
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      pickSuggestion(s);
-                    }}
-                    onMouseEnter={() => setActiveIndex(i)}
-                  >
-                    <ProductIcon name={s.name} category={s.category} className="suggestion__icon" />
-                    <span className="suggestion__name">{s.name}</span>
-                    {SOURCE_LABEL[s.source] && (
-                      <span className="suggestion__tag">{SOURCE_LABEL[s.source]}</span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            frequentItems.length > 0 && (
-              <FrequentChips items={frequentItems} onAdd={quickAdd} onRemove={onRemoveFromHistory} />
-            )
-          )}
-
-          <div className="field-row">
-            <div className="field field--qty">
-              <label className="field__label" htmlFor={`${titleId}-qty`}>
-                Menge
-              </label>
+          <div className="dialog__body">
+            <div className="add-sheet__search">
+              <Search size={18} aria-hidden="true" />
               <input
-                id={`${titleId}-qty`}
-                className="field__input"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                inputMode="decimal"
+                ref={searchRef}
+                type="text"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setActiveIndex(-1);
+                }}
+                onKeyDown={onSearchKeyDown}
+                placeholder="Produkt suchen oder eingeben …"
                 autoComplete="off"
-                placeholder="z. B. 2"
-                aria-invalid={errors.quantity ? 'true' : undefined}
-                aria-describedby={errors.quantity ? qtyErrId : undefined}
+                aria-label="Produkt suchen oder hinzufügen"
+                aria-expanded={showSuggestions}
+                aria-controls={listId}
+                aria-autocomplete="list"
+                aria-activedescendant={
+                  showSuggestions && activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined
+                }
+                role="combobox"
               />
             </div>
-            <div className="field field--unit">
-              <label className="field__label" htmlFor={`${titleId}-unit`}>
-                Einheit
+
+            {showSuggestions ? (
+              <ul className="suggestions suggestions--sheet" id={listId} role="listbox">
+                {suggestions.map((s, i) => (
+                  // role="presentation": unter role="listbox" sind nur option-
+                  // Kinder erlaubt – die Option ist der Button selbst.
+                  <li key={normalizeName(s.name)} role="presentation">
+                    <button
+                      type="button"
+                      id={`${listId}-option-${i}`}
+                      className="suggestion"
+                      data-active={i === activeIndex}
+                      role="option"
+                      aria-selected={i === activeIndex}
+                      // Auswahl auf pointerdown: Auf Touch feuert das SOFORT beim
+                      // ersten Antippen – vor Fokuswechsel und Tastatur-Layoutsprung.
+                      // preventDefault hält den Fokus im Suchfeld (Tastatur bleibt
+                      // offen), sodass auch der erste Vorschlag zuverlässig greift.
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        pickSuggestion(s);
+                      }}
+                      onMouseEnter={() => setActiveIndex(i)}
+                    >
+                      <ProductIcon name={s.name} category={s.category} className="suggestion__icon" />
+                      <span className="suggestion__name">{s.name}</span>
+                      {SOURCE_LABEL[s.source] && (
+                        <span className="suggestion__tag">{SOURCE_LABEL[s.source]}</span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              frequentItems.length > 0 && (
+                <FrequentChips items={frequentItems} onAdd={quickAdd} onRemove={onRemoveFromHistory} />
+              )
+            )}
+
+            <div className="field-row">
+              <div className="field field--qty">
+                <label className="field__label" htmlFor={`${titleId}-qty`}>
+                  Menge
+                </label>
+                <input
+                  id={`${titleId}-qty`}
+                  className="field__input"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="z. B. 2"
+                  aria-invalid={errors.quantity ? 'true' : undefined}
+                  aria-describedby={errors.quantity ? qtyErrId : undefined}
+                />
+              </div>
+              <div className="field field--unit">
+                <label className="field__label" htmlFor={`${titleId}-unit`}>
+                  Einheit
+                </label>
+                <input
+                  id={`${titleId}-unit`}
+                  className="field__input"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  maxLength={MAX_UNIT_LENGTH}
+                  autoComplete="off"
+                  placeholder="z. B. g, Dose"
+                />
+              </div>
+            </div>
+            {errors.quantity && (
+              <p className="field__error" id={qtyErrId}>
+                {errors.quantity}
+              </p>
+            )}
+
+            <div className="field">
+              <label className="field__label" htmlFor={`${titleId}-cat`}>
+                Kategorie
+              </label>
+              <select
+                id={`${titleId}-cat`}
+                className="field__input"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="">Automatisch</option>
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Notiz kompakt als einzeiliges Feld – keine seitenweite Textfläche. */}
+            <div className="field">
+              <label className="field__label" htmlFor={`${titleId}-note`}>
+                Notiz
               </label>
               <input
-                id={`${titleId}-unit`}
+                id={`${titleId}-note`}
                 className="field__input"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                maxLength={MAX_UNIT_LENGTH}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                maxLength={MAX_NOTE_LENGTH}
                 autoComplete="off"
-                placeholder="z. B. g, Dose"
+                placeholder="z. B. ungesüßt"
               />
             </div>
           </div>
-          {errors.quantity && (
-            <p className="field__error" id={qtyErrId}>
-              {errors.quantity}
-            </p>
-          )}
 
-          <div className="field">
-            <label className="field__label" htmlFor={`${titleId}-cat`}>
-              Kategorie
-            </label>
-            <select
-              id={`${titleId}-cat`}
-              className="field__input"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="">Automatisch</option>
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+          <div className="dialog__actions">
+            <button type="button" className="text-button" onClick={onClose}>
+              Abbrechen
+            </button>
+            <button type="submit" className="button-primary">
+              Hinzufügen
+            </button>
           </div>
-
-          {/* Notiz kompakt als einzeiliges Feld – keine seitenweite Textfläche. */}
-          <div className="field">
-            <label className="field__label" htmlFor={`${titleId}-note`}>
-              Notiz
-            </label>
-            <input
-              id={`${titleId}-note`}
-              className="field__input"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={MAX_NOTE_LENGTH}
-              autoComplete="off"
-              placeholder="z. B. ungesüßt"
-            />
-          </div>
-        </div>
-
-        <div className="dialog__actions">
-          <button type="button" className="text-button" onClick={onClose}>
-            Abbrechen
-          </button>
-          <button type="submit" className="button-primary">
-            Hinzufügen
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
