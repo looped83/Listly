@@ -614,6 +614,37 @@ textarea {
   color: var(--text);
 }
 
+/* Ansicht-Umschalter (Liste/Kacheln): Segmented-Control im selben Pill-Look
+   wie der Kundenkarten-Button daneben. */
+.view-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.view-toggle__button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.view-toggle__button:hover {
+  color: var(--text);
+}
+
+.view-toggle__button[data-active='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
 /* ---------- Kundenkarten-Sheet ---------- */
 .sheet {
   position: fixed;
@@ -894,6 +925,121 @@ textarea {
 
 .list-group:last-child {
   margin-bottom: 0;
+}
+
+/* ---------- Kachelansicht (Grid) ---------- */
+/* auto-fill/minmax statt fester Breakpoints: die Spaltenzahl ergibt sich aus
+   der (auf --content-width begrenzten) verfügbaren Breite – vom Smartphone
+   (1–3 Karten) bis zur vollen Inhaltsbreite (bis zu 5 Karten). */
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s ease;
+}
+
+.tile[data-checked='true'] {
+  background: var(--surface-sunken);
+}
+
+.tile[data-checked='true'] .list-item__icon {
+  opacity: 0.5;
+}
+
+.tile[data-checked='true'] .list-item__name {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.tile[data-checked='true'] .list-item__qty {
+  color: var(--text-muted);
+}
+
+/* Umschalt-Button: dieselben Bausteine wie in der Listenansicht
+   (list-item__check/__icon/__name/__qty), nur senkrecht statt in einer Reihe
+   angeordnet und mittig ausgerichtet. */
+.tile__toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  transition: background 0.15s ease;
+}
+
+.tile__toggle:hover {
+  background: var(--surface-hover);
+}
+
+.tile .list-item__icon {
+  font-size: 1.75rem;
+}
+
+.tile .list-item__name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  font-size: 0.92rem;
+}
+
+/* Favorit/Bearbeiten/Löschen: in der Kachel dauerhaft sichtbar statt hinter
+   einer Wisch-Geste (die in einem zweidimensionalen Grid nicht funktioniert). */
+.tile__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+
+/* Inline-Bearbeitung braucht mehr Platz als eine einzelne Kachel – über alle
+   Spalten strecken, damit ItemEditInline (Name + Menge/Kategorie-Reihe) wie
+   in der Listenansicht komfortabel Platz hat. */
+.tile--editing {
+  grid-column: 1 / -1;
+}
+
+/* Kurze, dezente Ein-/Ausblend-Animation beim Wechsel zwischen den Ansichten. */
+@keyframes view-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.view-transition {
+  animation: view-fade-in 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-transition {
+    animation: none;
+  }
 }
 
 .list-group__header {

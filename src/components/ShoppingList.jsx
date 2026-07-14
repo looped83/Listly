@@ -1,6 +1,7 @@
 import { memo, useId, useMemo, useState } from 'react';
 import { ChevronDown, ClipboardList, ShoppingBag } from 'lucide-react';
 import ListItem from './ListItem';
+import TileItem from './TileItem';
 import { normalizeName } from '../lib/history';
 import { groupByCategory } from '../lib/groupItems';
 import { summarizeCheckout } from '../lib/checkout';
@@ -37,6 +38,7 @@ function ShoppingList({
   items,
   favoriteSet,
   editingId,
+  viewMode = 'list',
   onToggle,
   onToggleFavorite,
   onRemove,
@@ -70,9 +72,13 @@ function ShoppingList({
     );
   }
 
-  const renderItems = (list) =>
-    list.map((item) => (
-      <ListItem
+  // Beide Ansichten teilen sich Daten, State und Handler – nur die
+  // Item-Komponente (Zeile/Karte) und ihr Container unterscheiden sich.
+  const ItemComponent = viewMode === 'grid' ? TileItem : ListItem;
+
+  const renderItems = (list) => {
+    const children = list.map((item) => (
+      <ItemComponent
         key={item.id}
         item={item}
         isFavorite={favoriteSet.has(normalizeName(item.name))}
@@ -86,16 +92,25 @@ function ShoppingList({
         findConflict={findEditConflict}
       />
     ));
+    return viewMode === 'grid' ? (
+      <ul className="tile-grid">{children}</ul>
+    ) : (
+      <ul className="list">{children}</ul>
+    );
+  };
 
   const renderGroup = (group) => (
     <div className="list-group" key={group.category.id}>
       <h2 className="list-group__header">{group.category.name}</h2>
-      <ul className="list">{renderItems(group.items)}</ul>
+      {renderItems(group.items)}
     </div>
   );
 
   return (
-    <>
+    // key sorgt beim Ansichtswechsel für einen frischen Mount samt kurzer
+    // Ein-/Ausblend-Animation (siehe .view-transition); respektiert
+    // prefers-reduced-motion über CSS.
+    <div className="view-transition" key={viewMode}>
       <section aria-label="Offene Artikel">
         {/* Fortschritt erst zeigen, sobald der erste Artikel abgehakt wurde. */}
         {summary.checkedCount > 0 && (
@@ -138,7 +153,7 @@ function ShoppingList({
           </div>
         </section>
       )}
-    </>
+    </div>
   );
 }
 
