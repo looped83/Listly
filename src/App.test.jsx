@@ -543,3 +543,47 @@ describe('Standardansicht: Fortschritt & Erledigt (local mode)', () => {
     expect(screen.getByRole('button', { name: 'Apfel als offen markieren' })).toBeInTheDocument();
   });
 });
+
+describe('Easter Eggs (local mode)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', createLocalStorageMock());
+  });
+
+  it('zeigt beim Einkauf-Abschluss eine liebevolle Botschaft (mit Undo)', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addItem(user, 'Testartikel');
+    await user.click(screen.getByRole('button', { name: 'Testartikel als erledigt markieren' }));
+    await checkoutDefault(user);
+
+    // Statt der nüchternen Anzahl eine liebe Botschaft mit Herz – Undo bleibt da.
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('💚'));
+    expect(await screen.findByRole('button', { name: /Rückgängig/ })).toBeInTheDocument();
+  });
+
+  it('lässt beim ersten Abhaken (selten) ein Herz aufschweben', async () => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0); // erzwingt das seltene Herz
+    try {
+      const user = userEvent.setup();
+      render(<App />);
+      await addItem(user, 'Testartikel');
+      await user.click(screen.getByRole('button', { name: 'Testartikel als erledigt markieren' }));
+
+      expect(document.querySelector('.love-hearts')).toBeInTheDocument();
+    } finally {
+      random.mockRestore();
+    }
+  });
+
+  it('enthüllt das Logo-Geheimnis nach mehreren schnellen Tipps', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const logo = document.querySelector('.header__logo');
+    for (let i = 0; i < 5; i += 1) {
+      await user.click(logo);
+    }
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('💚'));
+  });
+});

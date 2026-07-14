@@ -1,5 +1,5 @@
 import { memo, useCallback, useId, useMemo, useRef, useState } from 'react';
-import { Plus, Search, X } from 'lucide-react';
+import { Check, Plus, Search, X } from 'lucide-react';
 import { buildSuggestions } from '../lib/suggestions';
 import { normalizeName } from '../lib/history';
 import { CATEGORY_OPTIONS } from '../lib/icons';
@@ -42,10 +42,11 @@ function AddItemSheet({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [quantity, setQuantity] = useState(MIN_QUANTITY);
   const [category, setCategory] = useState('');
-  // Nach dem Übernehmen eines Vorschlags die Liste schließen, obwohl der
-  // übernommene Name selbst noch zu Vorschlägen passt. Beim nächsten Tippen
-  // (onChange) wird sie wieder eingeblendet.
-  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
+  // Der übernommene Vorschlag (oder null). Solange gesetzt, ist die
+  // Vorschlagsliste geschlossen (obwohl der Name noch passen würde) und das
+  // gewählte Produkt wird als Bestätigung mit Emoji angezeigt. Beim nächsten
+  // Tippen (onChange) wird er zurückgesetzt.
+  const [selected, setSelected] = useState(null);
 
   const searchRef = useRef(null);
   const { panelRef, onKeyDown } = useDialogFocus({ onClose, initialFocusRef: searchRef });
@@ -57,13 +58,13 @@ function AddItemSheet({
     () => buildSuggestions(name, { history, favorites, excludeNames: existingNames }),
     [name, history, favorites, existingNames],
   );
-  const showSuggestions = name.trim() !== '' && suggestions.length > 0 && !suggestionsDismissed;
+  const showSuggestions = name.trim() !== '' && suggestions.length > 0 && !selected;
 
   // Suchfeld-Eingabe: Name setzen und die Vorschlagsliste wieder aktivieren.
   const onSearchChange = useCallback((value) => {
     setName(value);
     setActiveIndex(-1);
-    setSuggestionsDismissed(false);
+    setSelected(null);
   }, []);
 
   // Chip: sofort hinzufügen und Sheet schließen.
@@ -75,13 +76,14 @@ function AddItemSheet({
     [onAdd, onClose],
   );
 
-  // Vorschlag übernehmen: Name + Kategorie ins Formular, Liste schließen, Fokus
-  // zurück ins Suchfeld (Menge lässt sich danach noch am Stepper anpassen).
+  // Vorschlag übernehmen: Name + Kategorie ins Formular, Liste schließen, das
+  // gewählte Produkt merken (Bestätigung mit Emoji), Fokus zurück ins Suchfeld
+  // (Menge lässt sich danach noch am Stepper anpassen).
   const pickSuggestion = useCallback((s) => {
     setName(s.name);
     setCategory(s.category ?? '');
     setActiveIndex(-1);
-    setSuggestionsDismissed(true);
+    setSelected(s);
     searchRef.current?.focus();
   }, []);
 
@@ -201,6 +203,18 @@ function AddItemSheet({
                   </li>
                 ))}
               </ul>
+            ) : selected ? (
+              // Bestätigung des ausgewählten Produkts inkl. Emoji – erscheint dort,
+              // wo zuvor die Vorschlagsliste stand.
+              <p className="add-sheet__selected">
+                <ProductIcon
+                  name={selected.name}
+                  category={selected.category}
+                  className="add-sheet__selected-icon"
+                />
+                <span className="add-sheet__selected-name">{selected.name}</span>
+                <Check size={18} className="add-sheet__selected-check" aria-hidden="true" />
+              </p>
             ) : (
               frequentItems.length > 0 && (
                 <FrequentChips items={frequentItems} onAdd={quickAdd} onRemove={onRemoveFromHistory} />

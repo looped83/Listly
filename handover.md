@@ -318,7 +318,10 @@ deployen.
   **Menge** ist ein **Stepper** (`QuantityStepper`, −/+, Standard/Minimum 1). Ein
   **Chip** fügt sofort hinzu, ein **Vorschlag** übernimmt Name + Kategorie ins
   Formular (zum Ergänzen der Menge), **„Hinzufügen"** übernimmt Name + Menge.
-  Die Vorschlagsauswahl greift auf **`pointerdown`** (nicht `click`) mit
+  Nach dem Übernehmen eines Vorschlags erscheint an Stelle der Liste eine
+  **Bestätigung des gewählten Produkts inkl. Emoji** (`.add-sheet__selected`,
+  Zustand `selected`); beim Weitertippen verschwindet sie und die Liste kommt
+  zurück. Die Vorschlagsauswahl greift auf **`pointerdown`** (nicht `click`) mit
   `preventDefault`: so wird schon das **erste** Antippen zuverlässig übernommen,
   bevor Fokuswechsel/Tastatur einen Layoutsprung auslösen. Das Übernehmen eines
   hervorgehobenen Vorschlags per **Enter** passiert nur im Suchfeld – der
@@ -381,6 +384,18 @@ deployen.
   aus dem Verlauf.
 - **Icons:** Emoji je Produkt/Kategorie (in `products.json`), Auflösung Produkt →
   Kategorie → Standard `🛒` in `lib/icons.js` (`getItemEmoji`).
+- **Easter Eggs (liebevolle Überraschungen 💚):** kleine, versteckte Grüße beim
+  Einkaufen. Texte in `lib/love.js` (`CHECKOUT_MESSAGES`, `LOVE_MESSAGES`),
+  Herz-Animation in `components/LoveHearts.jsx`, verdrahtet in `App.jsx`:
+  1. **Abschluss-Botschaft** – der Einkauf-Abschluss zeigt statt der Anzahl eine
+     rotierende liebe Botschaft (Undo bleibt erreichbar).
+  2. **Herz beim Abhaken** – selten (`CHECK_HEART_CHANCE`) schwebt beim
+     Neu-Abhaken ein 💚 auf.
+  3. **Logo-Geheimnis** – `LOGO_TAPS_TO_UNLOCK` schnelle Tipps aufs Logo lösen
+     Herzen + eine Liebesbotschaft aus.
+  Alle respektieren `prefers-reduced-motion` (dann nur Text statt Animation);
+  die Herzen sind `aria-hidden` und fangen keine Klicks ab. Zum Anpassen/Entfernen
+  genügt `lib/love.js` bzw. die drei Stellen in `App.jsx`.
 
 ---
 
