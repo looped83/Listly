@@ -49,10 +49,6 @@ function TileItem({
   const pressStartRef = useRef({ x: 0, y: 0 });
   const hintId = useId();
 
-  const { quantity } = readItemExtras(item);
-  const qtyLabel = formatQuantityBadge(quantity);
-  const descriptor = itemLabel(item);
-
   const clearPressTimer = () => {
     if (pressTimerRef.current) {
       clearTimeout(pressTimerRef.current);
@@ -124,6 +120,12 @@ function TileItem({
       </li>
     );
   }
+
+  // Erst ab hier gebraucht (die Editieren-Kachel oben zeigt weder Menge noch
+  // Aktions-Label) – unnötige Arbeit während des Bearbeitens vermieden.
+  const { quantity } = readItemExtras(item);
+  const qtyLabel = formatQuantityBadge(quantity);
+  const descriptor = itemLabel(item);
 
   return (
     <li
@@ -205,10 +207,10 @@ function TileItem({
             {/* Der Name bleibt der visuelle Anker in der Kachelmitte, unabhängig
                 davon, wie viel Platz Icon/Menge oben bzw. unten einnehmen. */}
             <span className="tile__name-slot">
-              <span className="list-item__name tile__name">{item.name}</span>
+              <span className="list-item__name">{item.name}</span>
             </span>
             {qtyLabel && (
-              <span className="list-item__qty tile__qty" aria-hidden="true">
+              <span className="list-item__qty" aria-hidden="true">
                 {qtyLabel}
               </span>
             )}

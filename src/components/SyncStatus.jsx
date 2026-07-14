@@ -20,26 +20,29 @@ const CONFIG = {
  * auch nachdem es verblasst ist.
  */
 function SyncStatus({ status }) {
+  const entry = CONFIG[status];
+
   // Bei Statuswechsel während des Renderns auf „sichtbar“ zurücksetzen (statt
   // in einem Effekt) – die von React empfohlene Variante, um State an eine
   // geänderte Prop anzupassen, ohne einen zusätzlichen Render-Durchlauf
-  // auszulösen.
+  // auszulösen. Bei live/verbinde (kein `entry`) lohnt sich das nicht – da
+  // wird ohnehin nichts gerendert.
   const [prevStatus, setPrevStatus] = useState(status);
   const [visible, setVisible] = useState(true);
   if (status !== prevStatus) {
     setPrevStatus(status);
-    setVisible(true);
+    if (entry) setVisible(true);
   }
 
   // Verblassen nach VISIBLE_MS: reiner Zeitgeber-Seiteneffekt, daher im Effekt
   // (setzt visible nur asynchron im Timeout-Callback, nicht synchron im
-  // Effekt-Körper).
+  // Effekt-Körper). Ohne `entry` (live/verbinde) erübrigt sich der Timer.
   useEffect(() => {
+    if (!entry) return undefined;
     const timer = setTimeout(() => setVisible(false), VISIBLE_MS);
     return () => clearTimeout(timer);
-  }, [status]);
+  }, [status, entry]);
 
-  const entry = CONFIG[status];
   if (!entry) return null; // live/verbinde: kein Hinweis nötig
 
   const { Icon, tone, title } = entry;
