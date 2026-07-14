@@ -49,3 +49,27 @@ export function rowToItem(row) {
   if (note) item.note = note;
   return item;
 }
+
+/**
+ * App-Artikel → DB-Zeile (Gegenstück zu rowToItem), z. B. beim Anlegen und bei
+ * der Undo-Wiederherstellung. Die optionalen Felder quantity/unit/note werden
+ * omit-empty übernommen – eine Wiederherstellung bleibt dadurch verlustfrei,
+ * ohne leere Werte zu materialisieren.
+ */
+export function itemToRow(item) {
+  const row = {
+    id: item.id,
+    list_id: LIST_ID,
+    name: item.name,
+    category: item.category,
+    checked: Boolean(item.checked),
+  };
+  if (item.createdAt) row.created_at = item.createdAt;
+  const quantity = coerceQuantity(item.quantity);
+  if (quantity !== null) row.quantity = quantity;
+  const unit = coerceUnit(item.unit);
+  if (unit) row.unit = unit;
+  const note = coerceNote(item.note);
+  if (note) row.note = note;
+  return row;
+}
