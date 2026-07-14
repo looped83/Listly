@@ -141,7 +141,7 @@ function TileItem({
           <button
             type="button"
             ref={firstActionRef}
-            className="icon-button icon-button--fav"
+            className="icon-button icon-button--fav tile__actions-fav"
             data-active={isFavorite}
             onClick={() => onToggleFavorite(item.name)}
             aria-pressed={isFavorite}
@@ -154,29 +154,31 @@ function TileItem({
             <Star size={16} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
           </button>
 
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => {
-              closeActions();
-              onEdit(item.id);
-            }}
-            aria-label={`${descriptor} bearbeiten`}
-          >
-            <Pencil size={16} aria-hidden="true" />
-          </button>
+          <div className="tile__actions-main">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => {
+                closeActions();
+                onEdit(item.id);
+              }}
+              aria-label={`${descriptor} bearbeiten`}
+            >
+              <Pencil size={16} aria-hidden="true" />
+            </button>
 
-          <button
-            type="button"
-            className="icon-button icon-button--danger"
-            onClick={() => {
-              closeActions();
-              onRemove(item.id);
-            }}
-            aria-label={`${descriptor} entfernen`}
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
+            <button
+              type="button"
+              className="icon-button icon-button--danger"
+              onClick={() => {
+                closeActions();
+                onRemove(item.id);
+              }}
+              aria-label={`${descriptor} entfernen`}
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       ) : (
         <>

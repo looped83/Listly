@@ -1034,22 +1034,33 @@ textarea {
 /*
  * Aktionen-Panel: ersetzt bei langem Druck (Touch), Rechtsklick (Maus) oder
  * Kontextmenü-Taste (Tastatur) den Karteninhalt – Favorit/Bearbeiten/Löschen
- * zentriert statt dauerhaft sichtbar oder hinter einer Wisch-Geste (die in
- * einem zweidimensionalen Grid nicht funktioniert). Der Artikelname tritt
- * hier zurück (Farbe/Position der Kachel identifizieren sie ausreichend) –
- * dadurch bleibt reichlich Platz, die drei Aktionen großzügig zu verteilen.
- * Farben/Hover wie in `.swipe__actions` der Listenansicht (grüner Grund,
- * Icons in --on-accent).
+ * statt dauerhaft sichtbar oder hinter einer Wisch-Geste (die in einem
+ * zweidimensionalen Grid nicht funktioniert). Der Artikelname tritt hier
+ * zurück (Farbe/Position der Kachel identifizieren sie ausreichend). Favorit
+ * sitzt oben rechts (analog zur Stern-Ecke vieler Karten-UIs), Bearbeiten/
+ * Löschen zentriert nebeneinander in der Mitte. Farben/Hover wie in
+ * `.swipe__actions` der Listenansicht (grüner Grund, Icons in --on-accent).
  */
 .tile__actions {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  align-content: center;
   justify-content: center;
-  gap: var(--space-2);
   width: 100%;
   height: 100%;
+}
+
+.tile__actions-fav {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.tile__actions-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
 }
 
 .tile__actions .icon-button {
