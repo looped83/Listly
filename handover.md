@@ -296,25 +296,33 @@ deployen.
   Geschäftslogik** in der Kachelansicht: `TileItem` nutzt dieselben Handler,
   denselben `itemFields`-Helfer und dieselbe Kategorie-Gruppierung wie
   `ListItem`. Die Kachel selbst ist bewusst **kompakt und mindestens
-  quadratisch** (`aspect-ratio: 1 / 1`; Menge/Name als eigene Zeilen
-  untereinander statt umbrechendem Fließtext; kein Checkbox-Symbol – der
+  quadratisch** (`aspect-ratio: 1 / 1`; Name und darunter die Menge als eigene
+  Zeilen statt umbrechendem Fließtext; kein Checkbox-Symbol – der
   Erledigt-Status zeigt sich über Durchstreichen/Dimmen wie in der Liste);
   Ziel sind **drei Kacheln nebeneinander** auf einem Smartphone (`.tile-grid`:
   `repeat(auto-fill, minmax(102px, 1fr))` statt fester Breakpoints). Favorit/
   Bearbeiten/Löschen sind **nicht** dauerhaft sichtbar und liegen auch nicht
   hinter einer Wisch-Geste (die in einem zweidimensionalen Grid nicht
   funktioniert), sondern hinter einem **langen Druck**, der den Karteninhalt
-  durch ein zentriertes Aktionen-Panel ersetzt. Zwei Auslöser ergänzen sich:
-  eine selbst erfasste Pointer-Haltedauer (`onPointerDown`/`onPointerMove`
-  mit ~500 ms-Timer + Bewegungstoleranz – der zuverlässige Weg für Touch, da
-  iOS Safari das native `contextmenu`-Ereignis bei langem Druck auf
-  generische Elemente wie einen Button **nicht** verlässlich auslöst) sowie
-  `onContextMenu` (mit `preventDefault`) für Rechtsklick (Maus) und die
-  Kontextmenü-/Shift+F10-Taste (Tastatur). Schließen: Klick außerhalb,
-  Escape, oder (bei Bearbeiten/Löschen) automatisch nach der Aktion. Die
-  Bearbeiten-Kachel (`.tile--editing`) hebt die quadratische Form auf und
-  spannt über die volle Grid-Breite, damit `ItemEditInline` wie in der
-  Listenansicht Platz hat. Der Ansicht-Wechsel selbst blendet kurz
+  durch ein zentriertes Aktionen-Panel ersetzt – **ohne Größenänderung** der
+  Kachel (bleibt exakt quadratisch) und **grün eingefärbt**
+  (`.tile[data-revealed='true']`, Akzentfarbe wie `.swipe__actions` der
+  Listenansicht, überschreibt dabei auch den „erledigt“-Sunken-Ton). Der
+  Artikelname wird im Panel bewusst **nicht** wiederholt (Farbe/Position der
+  Kachel identifizieren sie ausreichend) – dadurch bleibt Platz, die drei
+  Aktionen großzügig zu verteilen; sie brechen bei Bedarf automatisch in eine
+  zweite Zeile um (`flex-wrap`), statt gequetscht in einer Reihe zu kleben.
+  Zwei Auslöser ergänzen sich: eine selbst erfasste Pointer-Haltedauer
+  (`onPointerDown`/`onPointerMove` mit ~500 ms-Timer + Bewegungstoleranz –
+  der zuverlässige Weg für Touch, da iOS Safari das native
+  `contextmenu`-Ereignis bei langem Druck auf generische Elemente wie einen
+  Button **nicht** verlässlich auslöst) sowie `onContextMenu` (mit
+  `preventDefault`) für Rechtsklick (Maus) und die Kontextmenü-/Shift+F10-
+  Taste (Tastatur). Schließen: Klick außerhalb, Escape, oder (bei
+  Bearbeiten/Löschen) automatisch nach der Aktion. Die Bearbeiten-Kachel
+  (`.tile--editing`) hebt die quadratische Form auf und spannt über die
+  volle Grid-Breite, damit `ItemEditInline` wie in der Listenansicht Platz
+  hat. Der Ansicht-Wechsel selbst blendet kurz
   ein (`.view-transition`, respektiert `prefers-reduced-motion`).
 - **Liste:** offene und erledigte Artikel **nach Kategorie gruppiert**
   (Überschriften ohne Emoji, in Kategorie-Reihenfolge aus `products.json`).

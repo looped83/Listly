@@ -19,7 +19,10 @@ const MOVE_TOLERANCE_PX = 10;
  * Favorit/Bearbeiten/Löschen liegen NICHT dauerhaft sichtbar in der Karte
  * (dafür ist eine Kachel zu klein) und auch nicht hinter einer Wisch-Geste
  * (passt nicht in ein zweidimensionales Grid). Stattdessen ersetzt ein langer
- * Druck den Karteninhalt durch die drei zentrierten Aktionen.
+ * Druck den Karteninhalt durch die drei zentrierten Aktionen – die Kachel
+ * bleibt dabei exakt gleich groß (kein Layoutsprung) und färbt sich grün
+ * (Akzentfarbe, wie die Aktionsleiste der Listenansicht); der Artikelname
+ * tritt dabei zurück (Farbe + Position der Kachel identifizieren sie).
  *
  * Zwei Auslöser ergänzen sich: eine selbst erfasste Pointer-Haltedauer
  * (zuverlässig für Touch – das native `contextmenu`-Ereignis feuert auf
@@ -135,48 +138,45 @@ function TileItem({
     >
       {revealed ? (
         <div className="tile__actions" role="group" aria-label={`Aktionen für ${descriptor}`}>
-          <p className="tile__actions-label">{item.name}</p>
-          <div className="tile__actions-row">
-            <button
-              type="button"
-              ref={firstActionRef}
-              className="icon-button icon-button--fav"
-              data-active={isFavorite}
-              onClick={() => onToggleFavorite(item.name)}
-              aria-pressed={isFavorite}
-              aria-label={
-                isFavorite
-                  ? `${item.name} aus Favoriten entfernen`
-                  : `${item.name} zu Favoriten hinzufügen`
-              }
-            >
-              <Star size={18} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
-            </button>
+          <button
+            type="button"
+            ref={firstActionRef}
+            className="icon-button icon-button--fav"
+            data-active={isFavorite}
+            onClick={() => onToggleFavorite(item.name)}
+            aria-pressed={isFavorite}
+            aria-label={
+              isFavorite
+                ? `${item.name} aus Favoriten entfernen`
+                : `${item.name} zu Favoriten hinzufügen`
+            }
+          >
+            <Star size={16} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
+          </button>
 
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => {
-                closeActions();
-                onEdit(item.id);
-              }}
-              aria-label={`${descriptor} bearbeiten`}
-            >
-              <Pencil size={18} aria-hidden="true" />
-            </button>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => {
+              closeActions();
+              onEdit(item.id);
+            }}
+            aria-label={`${descriptor} bearbeiten`}
+          >
+            <Pencil size={16} aria-hidden="true" />
+          </button>
 
-            <button
-              type="button"
-              className="icon-button icon-button--danger"
-              onClick={() => {
-                closeActions();
-                onRemove(item.id);
-              }}
-              aria-label={`${descriptor} entfernen`}
-            >
-              <X size={18} aria-hidden="true" />
-            </button>
-          </div>
+          <button
+            type="button"
+            className="icon-button icon-button--danger"
+            onClick={() => {
+              closeActions();
+              onRemove(item.id);
+            }}
+            aria-label={`${descriptor} entfernen`}
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
         </div>
       ) : (
         <>
@@ -193,12 +193,12 @@ function TileItem({
             }
           >
             <ProductIcon name={item.name} category={item.category} className="list-item__icon" />
+            <span className="list-item__name tile__name">{item.name}</span>
             {qtyLabel && (
               <span className="list-item__qty tile__qty" aria-hidden="true">
                 {qtyLabel}
               </span>
             )}
-            <span className="list-item__name tile__name">{item.name}</span>
           </button>
           <span id={hintId} className="visually-hidden">
             Lange drücken oder Kontextmenü-Taste für Favorit, Bearbeiten und Löschen

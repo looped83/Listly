@@ -946,19 +946,16 @@ textarea {
   display: flex;
   flex-direction: column;
   /* Mindestens quadratisch: die Höhe folgt der (vom Grid zugewiesenen)
-     Breite. Für das Aktionen-Panel/die Bearbeiten-Kachel unten aufgehoben,
-     falls deren Inhalt mehr Platz braucht. */
+     Breite – bleibt auch im aufgeklappten Aktionen-Panel unverändert (kein
+     Layoutsprung). Nur die separat gestreckte Bearbeiten-Kachel hebt das auf. */
   aspect-ratio: 1 / 1;
   padding: var(--space-2);
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
-  transition: background 0.2s ease;
-}
-
-.tile[data-revealed='true'] {
-  aspect-ratio: auto;
+  overflow: hidden;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .tile[data-checked='true'] {
@@ -976,6 +973,14 @@ textarea {
 
 .tile[data-checked='true'] .list-item__qty {
   color: var(--text-muted);
+}
+
+/* Aufgeklapptes Aktionen-Panel: Akzentgrün wie die Aktionsleiste der
+   Listenansicht (.swipe__actions) – überschreibt bewusst auch den
+   „erledigt“-Sunken-Ton, solange die Aktionen offen sind. */
+.tile[data-revealed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 /* Umschalt-Button: bewusst kompakt (kein eigenes Checkbox-Symbol – Icon +
@@ -1030,34 +1035,46 @@ textarea {
  * Aktionen-Panel: ersetzt bei langem Druck (Touch), Rechtsklick (Maus) oder
  * Kontextmenü-Taste (Tastatur) den Karteninhalt – Favorit/Bearbeiten/Löschen
  * zentriert statt dauerhaft sichtbar oder hinter einer Wisch-Geste (die in
- * einem zweidimensionalen Grid nicht funktioniert).
+ * einem zweidimensionalen Grid nicht funktioniert). Der Artikelname tritt
+ * hier zurück (Farbe/Position der Kachel identifizieren sie ausreichend) –
+ * dadurch bleibt reichlich Platz, die drei Aktionen großzügig zu verteilen.
+ * Farben/Hover wie in `.swipe__actions` der Listenansicht (grüner Grund,
+ * Icons in --on-accent).
  */
 .tile__actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
+  align-content: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 44px;
-  padding: var(--space-1) 0;
+  width: 100%;
+  height: 100%;
 }
 
-.tile__actions-label {
-  margin: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--text-muted);
+.tile__actions .icon-button {
+  width: 30px;
+  height: 30px;
+  color: var(--on-accent);
 }
 
-.tile__actions-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
+.tile__actions .icon-button:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--on-accent);
+}
+
+.tile__actions .icon-button--fav[data-active='true'] {
+  color: var(--on-accent);
+}
+
+.tile__actions .icon-button--danger:hover {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+/* Fokusring auf Grün sichtbar machen (der grüne Standard-Ring verschwände sonst). */
+.tile__actions :focus-visible {
+  outline-color: var(--on-accent);
 }
 
 /* Inline-Bearbeitung braucht mehr Platz als eine einzelne Kachel – über alle
