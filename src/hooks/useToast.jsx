@@ -33,14 +33,14 @@ export function ToastProvider({ children }) {
   // Normale Statusmeldung (aria-live: polite). Mit Undo-Aktion länger sichtbar.
   const notify = useCallback(
     (message, { tone = 'info', action, duration } = {}) =>
-      show({ message, tone, action, duration: duration ?? (action ? 8000 : 5000) }),
+      show({ message, tone, action, duration: duration ?? (action ? 6000 : 3500) }),
     [show],
   );
 
   // Echter Fehler (aria-live: assertive). Ebenfalls länger sichtbar.
   const notifyError = useCallback(
     (message, { action, duration } = {}) =>
-      show({ message, tone: 'error', action, duration: duration ?? (action ? 10000 : 6000) }),
+      show({ message, tone: 'error', action, duration: duration ?? (action ? 7500 : 4500) }),
     [show],
   );
 

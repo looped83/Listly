@@ -321,13 +321,16 @@ deployen.
   positioniert), Bearbeiten/Löschen liegen als eigenes Paar **unten
   zentriert** (`.tile__actions-main`) – beide ohne eigenen Rahmen, dieselbe
   rahmenlose Icon-Optik für alle drei. `.tile__actions-title` zeigt den
-  Artikelnamen **exakt in der Kachelmitte** – rein visuell und `aria-hidden`
-  (die Gruppe trägt ihn schon über `aria-label`), absolut positioniert
-  (`top/left: 50%`, `transform: translate(-50%, -50%)`, `pointer-events: none`)
-  statt in einem flexiblen Slot, damit er unabhängig von der Höhe der
-  Aktionsleiste darunter **immer** exakt zentriert bleibt (kein Verrutschen
-  nach oben) und nie Klicks auf die Buttons blockiert. Der Fokus beim Öffnen
-  landet
+  Artikelnamen – rein visuell und `aria-hidden` (die Gruppe trägt ihn schon
+  über `aria-label`), absolut positioniert (`top: 44%; left: 50%`,
+  `transform: translate(-50%, -50%)`, `pointer-events: none`) statt in einem
+  flexiblen Slot, damit er unabhängig von der Höhe der Aktionsleiste darunter
+  stets an derselben Stelle sitzt (kein Verrutschen) und nie Klicks auf die
+  Buttons blockiert. Bewusst leicht **über** der exakten Mitte (44 % statt
+  50 %) verankert: bei zweizeiligem Namen (`-webkit-line-clamp: 2`) wächst
+  der Textblock sonst symmetrisch nach unten in Richtung Buttonzeile – der
+  Versatz schafft dafür Luft, ohne bei einzeiligen Namen spürbar unzentriert
+  zu wirken. Der Fokus beim Öffnen landet
   **nicht** auf dem Favorit-Button, sondern auf dem Panel-Container selbst
   (`tabIndex={-1}`, `outline: none`) – sonst zeigt Favorit bei einem per
   Touch/Maus ausgelösten Öffnen (v. a. auf iOS) einen unpassend wirkenden
@@ -421,9 +424,12 @@ deployen.
   Toast **Undo** (stellt Liste **und** Kaufverlauf vollständig wieder her).
 - **Feedback & Undo (`useToast.jsx`, `Toast.jsx`):** zentrale Snackbar-
   Infrastruktur, ohne UI-Bibliothek. Normale Meldungen sind `aria-live="polite"`,
-  echte Fehler `aria-live="assertive"`. Auto-Dismiss pausiert bei Hover/Fokus;
-  Undo-Aktionen sind per Tastatur erreichbar. Aktuell genutzt für: Artikel
-  löschen, Einkauf abschließen, Artikel bearbeiten/Dublette/Reaktivierung.
+  echte Fehler `aria-live="assertive"`. Standard-Anzeigedauer (überschreibbar
+  über die `duration`-Option): `notify` 3,5 s ohne / 6 s mit Undo-Aktion,
+  `notifyError` 4,5 s ohne / 7,5 s mit Aktion. Auto-Dismiss pausiert bei
+  Hover/Fokus; Undo-Aktionen sind per Tastatur erreichbar. Aktuell genutzt
+  für: Artikel löschen, Einkauf abschließen, Artikel bearbeiten/Dublette/
+  Reaktivierung.
 - **Dialoge (`useDialogFocus.js`):** gemeinsame Zugänglichkeits-Logik für
   `CheckoutDialog` und `AddItemSheet` – Fokusfalle (Tab/Shift+Tab zirkulieren
   im Panel), Escape schließt, initialer Fokus beim Öffnen, Fokusrückgabe an das
