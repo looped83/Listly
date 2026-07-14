@@ -87,28 +87,12 @@ function ShoppingList({
       />
     ));
 
-  const renderGroup = (group) => {
-    const count = group.items.length;
-    return (
-      <div className="list-group" key={group.category.id}>
-        {/*
-          aria-label ersetzt den vorgelesenen Namen der Überschrift durch einen
-          vollständigen Satz („Obst & Gemüse, 3 Artikel“) – die sichtbaren
-          Kind-Elemente (Name + Zähler-Badge) bleiben dabei rein visuell.
-        */}
-        <h2
-          className="list-group__header"
-          aria-label={`${group.category.name}, ${count} Artikel`}
-        >
-          <span aria-hidden="true">{group.category.name}</span>
-          <span className="list-group__count" aria-hidden="true">
-            {count}
-          </span>
-        </h2>
-        <ul className="list">{renderItems(group.items)}</ul>
-      </div>
-    );
-  };
+  const renderGroup = (group) => (
+    <div className="list-group" key={group.category.id}>
+      <h2 className="list-group__header">{group.category.name}</h2>
+      <ul className="list">{renderItems(group.items)}</ul>
+    </div>
+  );
 
   return (
     <>

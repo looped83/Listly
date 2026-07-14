@@ -1,5 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, LIST_ID } from './supabaseConfig';
-import { coerceQuantity, coerceUnit } from './itemFields';
+import { coerceQuantity } from './itemFields';
 
 // Cloud-Sync ist nur aktiv, wenn URL und Key konfiguriert sind. Andernfalls
 // bleibt Listly im lokalen Modus (localStorage) voll funktionsfähig.
@@ -29,10 +29,10 @@ export function getSupabase() {
 }
 
 /**
- * DB-Zeile → App-Artikel. Die optionalen Spalten quantity/unit werden defensiv
- * gelesen: fehlen sie (ältere DB ohne die Spalten), greifen die Standardwerte,
- * sodass Cloud-Sync auch ohne Schema-Update funktioniert. Eine evtl. noch
- * vorhandene note-Spalte wird bewusst ignoriert (Feature entfernt).
+ * DB-Zeile → App-Artikel. Die optionale Spalte quantity wird defensiv gelesen:
+ * fehlt sie (ältere DB ohne die Spalte), greift der Standardwert, sodass
+ * Cloud-Sync auch ohne Schema-Update funktioniert. Evtl. noch vorhandene
+ * unit-/note-Spalten werden bewusst ignoriert (Felder entfernt).
  */
 export function rowToItem(row) {
   const item = {
@@ -44,16 +44,14 @@ export function rowToItem(row) {
   };
   const quantity = coerceQuantity(row.quantity);
   if (quantity !== null) item.quantity = quantity;
-  const unit = coerceUnit(row.unit);
-  if (unit) item.unit = unit;
   return item;
 }
 
 /**
  * App-Artikel → DB-Zeile (Gegenstück zu rowToItem), z. B. beim Anlegen und bei
- * der Undo-Wiederherstellung. Die optionalen Felder quantity/unit werden
- * omit-empty übernommen – eine Wiederherstellung bleibt dadurch verlustfrei,
- * ohne leere Werte zu materialisieren.
+ * der Undo-Wiederherstellung. Die optionale Menge wird omit-empty übernommen –
+ * eine Wiederherstellung bleibt dadurch verlustfrei, ohne leere Werte zu
+ * materialisieren.
  */
 export function itemToRow(item) {
   const row = {
@@ -66,7 +64,5 @@ export function itemToRow(item) {
   if (item.createdAt) row.created_at = item.createdAt;
   const quantity = coerceQuantity(item.quantity);
   if (quantity !== null) row.quantity = quantity;
-  const unit = coerceUnit(item.unit);
-  if (unit) row.unit = unit;
   return row;
 }

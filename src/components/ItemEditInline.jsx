@@ -1,17 +1,12 @@
 import { memo, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { cleanName } from '../lib/history';
 import { CATEGORY_OPTIONS } from '../lib/icons';
-import {
-  MAX_UNIT_LENGTH,
-  coerceUnit,
-  formatQuantityNumber,
-  parseQuantityInput,
-  readItemExtras,
-} from '../lib/itemFields';
+import { coerceQuantity, readItemExtras } from '../lib/itemFields';
+import QuantityStepper, { MIN_QUANTITY } from './QuantityStepper';
 
 /**
  * Bearbeiten eines Artikels DIREKT in der aufgeklappten Kachel – kein Overlay.
- * Bearbeitbar: Name, Menge, Einheit und Kategorie.
+ * Bearbeitbar: Name, Menge und Kategorie.
  *
  * Der Fokus wird beim Aufklappen auf das Namensfeld gelegt. Die Kachel bleibt
  * Teil der Seite (nicht modal), daher keine Fokusfalle – Escape bricht ab.
@@ -29,10 +24,8 @@ import {
 function ItemEditInline({ item, findConflict, onSave, onCancel }) {
   const extras = readItemExtras(item);
   const [name, setName] = useState(item.name);
-  const [quantity, setQuantity] = useState(
-    extras.quantity === null ? '' : formatQuantityNumber(extras.quantity),
-  );
-  const [unit, setUnit] = useState(extras.unit);
+  // Stepper-Wert: die gespeicherte Menge (≥ 2) oder die Standardmenge 1.
+  const [quantity, setQuantity] = useState(extras.quantity ?? MIN_QUANTITY);
   const [category, setCategory] = useState(item.category ?? '');
   const [errors, setErrors] = useState({});
   const [pendingMerge, setPendingMerge] = useState(null);
@@ -42,7 +35,6 @@ function ItemEditInline({ item, findConflict, onSave, onCancel }) {
 
   const baseId = useId();
   const nameErrId = `${baseId}-name-err`;
-  const qtyErrId = `${baseId}-qty-err`;
 
   // Namensfeld beim Aufklappen fokussieren.
   useEffect(() => {
@@ -59,23 +51,21 @@ function ItemEditInline({ item, findConflict, onSave, onCancel }) {
   }, [pendingMerge]);
 
   const validate = useCallback(() => {
-    const nextErrors = {};
     const cleanedName = cleanName(name);
-    if (!cleanedName) nextErrors.name = 'Bitte einen Namen eingeben.';
+    if (!cleanedName) {
+      setErrors({ name: 'Bitte einen Namen eingeben.' });
+      return null;
+    }
+    setErrors({});
 
-    const parsed = parseQuantityInput(quantity);
-    if (!parsed.ok) nextErrors.quantity = 'Bitte eine positive Zahl eingeben.';
-
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return null;
-
+    // quantity ist über den Stepper stets gültig; coerceQuantity gibt die
+    // Standardmenge 1 als null zurück (löscht ein vorhandenes Mengenfeld).
     return {
       name: cleanedName,
-      quantity: parsed.value,
-      unit: coerceUnit(unit),
+      quantity: coerceQuantity(quantity),
       category: category || null,
     };
-  }, [name, quantity, unit, category]);
+  }, [name, quantity, category]);
 
   const submit = useCallback(
     (e) => {
@@ -155,56 +145,26 @@ function ItemEditInline({ item, findConflict, onSave, onCancel }) {
               <label className="field__label" htmlFor={`${baseId}-qty`}>
                 Menge
               </label>
-              <input
-                id={`${baseId}-qty`}
-                className="field__input"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                inputMode="decimal"
-                autoComplete="off"
-                placeholder="z. B. 2"
-                aria-invalid={errors.quantity ? 'true' : undefined}
-                aria-describedby={errors.quantity ? qtyErrId : undefined}
-              />
+              <QuantityStepper value={quantity} onChange={setQuantity} inputId={`${baseId}-qty`} />
             </div>
-            <div className="field field--unit">
-              <label className="field__label" htmlFor={`${baseId}-unit`}>
-                Einheit
+            <div className="field field--cat">
+              <label className="field__label" htmlFor={`${baseId}-cat`}>
+                Kategorie
               </label>
-              <input
-                id={`${baseId}-unit`}
+              <select
+                id={`${baseId}-cat`}
                 className="field__input"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                maxLength={MAX_UNIT_LENGTH}
-                autoComplete="off"
-                placeholder="z. B. g, Dose"
-              />
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="">Keine Kategorie</option>
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
-          {errors.quantity && (
-            <p className="field__error" id={qtyErrId}>
-              {errors.quantity}
-            </p>
-          )}
-
-          <div className="field">
-            <label className="field__label" htmlFor={`${baseId}-cat`}>
-              Kategorie
-            </label>
-            <select
-              id={`${baseId}-cat`}
-              className="field__input"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="">Keine Kategorie</option>
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="item-edit__actions">

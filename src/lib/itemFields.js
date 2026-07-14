@@ -1,84 +1,49 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  Reine Helfer für die optionalen Artikelfelder Menge und Einheit.
+//  Reine Helfer für das optionale Artikelfeld Menge.
 // ─────────────────────────────────────────────────────────────────────────────
-//  Ziel-Datenmodell (rückwärtskompatibel, beide optional):
-//    quantity : positive Zahl oder null
-//    unit     : kurze, getrimmte Zeichenkette oder ''
+//  Datenmodell: quantity = ganze Zahl ≥ 2 oder nicht gesetzt. Die Menge 1 ist
+//  die implizite Standardmenge und wird weder gespeichert noch angezeigt.
 //  Ohne React-Bezug und ohne Seiteneffekte – identisch nutzbar im Sanitizer,
-//  in der Migration, in der Anzeige und in der Validierung des Dialogs.
-
-export const MAX_UNIT_LENGTH = 16;
+//  in der Cloud-Abbildung, in der Anzeige und in den Bearbeiten-Feldern.
 
 /**
- * Menge aus beliebiger Eingabe defensiv zu einer positiven Zahl oder null.
- * Akzeptiert Zahlen und Zeichenketten mit Dezimalkomma ODER -punkt.
- * Ungültige oder nicht positive Werte werden still zu null (Speicher-Sanitizer).
+ * Menge defensiv auf eine speicher-/anzeigbare Menge normalisieren: eine ganze
+ * Zahl ≥ 2 – oder null (nicht gesetzt). Akzeptiert Zahlen und Zahl-Strings
+ * (Komma oder Punkt als Dezimaltrenner). 1, 0, Negatives, Nachkommastellen
+ * unter 2 und Ungültiges werden zu null, da 1 die implizite Standardmenge ist
+ * und nicht materialisiert wird.
  */
 export function coerceQuantity(value) {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) && value > 0 ? value : null;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (trimmed === '') return null;
-    const n = Number(trimmed.replace(/,/g, '.'));
-    return Number.isFinite(n) && n > 0 ? n : null;
-  }
-  return null;
-}
-
-/** Einheit: getrimmt und auf MAX_UNIT_LENGTH begrenzt (sonst ''). */
-export function coerceUnit(value) {
-  return typeof value === 'string' ? value.trim().slice(0, MAX_UNIT_LENGTH) : '';
+  const n =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number(value.trim().replace(/,/g, '.'))
+        : NaN;
+  if (!Number.isFinite(n)) return null;
+  const rounded = Math.round(n);
+  return rounded >= 2 ? rounded : null;
 }
 
 /**
- * Validiert die Mengen-Eingabe des Dialogs. Unterscheidet bewusst „leer"
- * (gültig → null) von „ungültig" (nicht numerisch oder ≤ 0), damit das
- * Formular gezielt Fehler anzeigen kann.
- * @returns {{ ok: boolean, value: number|null }}
+ * Anzeigepräfix für die Menge: „2 ×“ ab einer Menge von 2, sonst leer – die
+ * Standardmenge 1 wird bewusst nicht angezeigt. Erwartet eine bereits über
+ * coerceQuantity normalisierte Menge (ganze Zahl ≥ 2 oder null).
  */
-export function parseQuantityInput(raw) {
-  const str = (typeof raw === 'string' ? raw : String(raw ?? '')).trim();
-  if (str === '') return { ok: true, value: null };
-  const n = Number(str.replace(/,/g, '.'));
-  if (!Number.isFinite(n) || n <= 0) return { ok: false, value: null };
-  return { ok: true, value: n };
-}
-
-/** Zahl mit deutschem Dezimalkomma darstellen (2 → „2", 0.5 → „0,5"). */
-export function formatQuantityNumber(n) {
-  return String(n).replace('.', ',');
-}
-
-/**
- * Kompaktes Mengen-/Einheiten-Präfix für die Anzeige:
- *   (2, '')     → „2 ×"
- *   (500, 'g')  → „500 g"
- *   (null, 'g') → „g"   (seltener Fall: Einheit ohne Menge)
- *   (null, '')  → ''
- */
-export function formatQuantity(quantity, unit) {
-  const u = typeof unit === 'string' ? unit.trim() : '';
-  if (quantity === null || quantity === undefined) return u;
-  const num = formatQuantityNumber(quantity);
-  return u ? `${num} ${u}` : `${num} ×`;
+export function formatQuantity(quantity) {
+  return quantity != null && quantity >= 2 ? `${quantity} ×` : '';
 }
 
 /** Normalisierte optionale Felder eines Artikels (Defaults für fehlende). */
 export function readItemExtras(item) {
-  return {
-    quantity: coerceQuantity(item?.quantity),
-    unit: coerceUnit(item?.unit),
-  };
+  return { quantity: coerceQuantity(item?.quantity) };
 }
 
 /**
- * Sprechende Kurzbezeichnung inkl. Menge/Einheit, z. B. „2 × Hafermilch".
+ * Sprechende Kurzbezeichnung inkl. Menge, z. B. „2 × Hafermilch“.
  * Für aria-labels der Zeilen-Aktionen.
  */
 export function itemLabel(item) {
-  const { quantity, unit } = readItemExtras(item);
-  const prefix = formatQuantity(quantity, unit);
+  const prefix = formatQuantity(coerceQuantity(item?.quantity));
   return prefix ? `${prefix} ${item.name}` : item.name;
 }

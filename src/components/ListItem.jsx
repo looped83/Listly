@@ -36,8 +36,8 @@ function ListItem({
     openThreshold: OPEN_THRESHOLD,
   });
 
-  const { quantity, unit } = readItemExtras(item);
-  const qtyLabel = formatQuantity(quantity, unit);
+  const { quantity } = readItemExtras(item);
+  const qtyLabel = formatQuantity(quantity);
   // Sprechende Bezeichnung inkl. Menge für die Aktions-Labels.
   const descriptor = itemLabel(item);
 

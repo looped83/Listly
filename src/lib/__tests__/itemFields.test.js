@@ -1,30 +1,31 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MAX_UNIT_LENGTH,
   coerceQuantity,
-  coerceUnit,
   formatQuantity,
-  formatQuantityNumber,
   itemLabel,
-  parseQuantityInput,
   readItemExtras,
 } from '../itemFields';
 
 describe('coerceQuantity', () => {
-  it('akzeptiert positive Zahlen', () => {
+  it('akzeptiert ganze Zahlen ab 2', () => {
     expect(coerceQuantity(2)).toBe(2);
-    expect(coerceQuantity(0.5)).toBe(0.5);
+    expect(coerceQuantity(5)).toBe(5);
   });
 
-  it('akzeptiert Zeichenketten mit Komma oder Punkt', () => {
-    expect(coerceQuantity('1,5')).toBe(1.5);
-    expect(coerceQuantity('1.5')).toBe(1.5);
-    expect(coerceQuantity('  3  ')).toBe(3);
+  it('behandelt 1 als impliziten Standard (→ null, nicht materialisiert)', () => {
+    expect(coerceQuantity(1)).toBeNull();
   });
 
-  it('gibt null für nicht positive, leere oder ungültige Werte', () => {
+  it('akzeptiert Zahl-Strings (Komma/Punkt) und rundet auf ganze Zahlen', () => {
+    expect(coerceQuantity('3')).toBe(3);
+    expect(coerceQuantity('2,4')).toBe(2);
+    expect(coerceQuantity('2.6')).toBe(3);
+  });
+
+  it('gibt null für nicht positive, zu kleine, leere oder ungültige Werte', () => {
     expect(coerceQuantity(0)).toBeNull();
     expect(coerceQuantity(-2)).toBeNull();
+    expect(coerceQuantity(0.5)).toBeNull(); // rundet auf 1 → unter 2
     expect(coerceQuantity('')).toBeNull();
     expect(coerceQuantity('abc')).toBeNull();
     expect(coerceQuantity(null)).toBeNull();
@@ -33,64 +34,29 @@ describe('coerceQuantity', () => {
   });
 });
 
-describe('coerceUnit', () => {
-  it('trimmt und begrenzt die Länge', () => {
-    expect(coerceUnit('  g  ')).toBe('g');
-    expect(coerceUnit('x'.repeat(50))).toHaveLength(MAX_UNIT_LENGTH);
-  });
-
-  it('gibt bei Nicht-Strings den leeren String', () => {
-    expect(coerceUnit(5)).toBe('');
-  });
-});
-
-describe('parseQuantityInput', () => {
-  it('leere Eingabe ist gültig und ergibt null', () => {
-    expect(parseQuantityInput('')).toEqual({ ok: true, value: null });
-    expect(parseQuantityInput('   ')).toEqual({ ok: true, value: null });
-  });
-
-  it('positive Zahlen (Komma/Punkt) sind gültig', () => {
-    expect(parseQuantityInput('2')).toEqual({ ok: true, value: 2 });
-    expect(parseQuantityInput('0,25')).toEqual({ ok: true, value: 0.25 });
-  });
-
-  it('nicht positive oder nicht-numerische Eingaben sind ungültig', () => {
-    expect(parseQuantityInput('0')).toEqual({ ok: false, value: null });
-    expect(parseQuantityInput('-1')).toEqual({ ok: false, value: null });
-    expect(parseQuantityInput('abc')).toEqual({ ok: false, value: null });
-  });
-});
-
 describe('formatQuantity', () => {
-  it('nur Menge → „2 ד', () => {
-    expect(formatQuantity(2, '')).toBe('2 ×');
+  it('zeigt die Menge ab 2 als „N ×“', () => {
+    expect(formatQuantity(2)).toBe('2 ×');
+    expect(formatQuantity(12)).toBe('12 ×');
   });
-  it('Menge + Einheit → „500 g"', () => {
-    expect(formatQuantity(500, 'g')).toBe('500 g');
-  });
-  it('Dezimal mit deutschem Komma', () => {
-    expect(formatQuantityNumber(0.5)).toBe('0,5');
-    expect(formatQuantity(0.5, 'l')).toBe('0,5 l');
-  });
-  it('ohne Menge → leer (oder reine Einheit)', () => {
-    expect(formatQuantity(null, '')).toBe('');
-    expect(formatQuantity(null, 'g')).toBe('g');
+
+  it('zeigt die Standardmenge 1 (bzw. keine Menge) nicht an', () => {
+    expect(formatQuantity(1)).toBe('');
+    expect(formatQuantity(null)).toBe('');
+    expect(formatQuantity(undefined)).toBe('');
   });
 });
 
 describe('readItemExtras / itemLabel', () => {
-  it('liefert normalisierte Defaults', () => {
-    expect(readItemExtras({})).toEqual({ quantity: null, unit: '' });
-    expect(readItemExtras({ quantity: '2', unit: ' g ' })).toEqual({
-      quantity: 2,
-      unit: 'g',
-    });
+  it('liefert die normalisierte Menge (Default null)', () => {
+    expect(readItemExtras({})).toEqual({ quantity: null });
+    expect(readItemExtras({ quantity: '3' })).toEqual({ quantity: 3 });
+    expect(readItemExtras({ quantity: 1 })).toEqual({ quantity: null });
   });
 
   it('baut ein sprechendes Label inkl. Menge', () => {
     expect(itemLabel({ name: 'Hafermilch', quantity: 2 })).toBe('2 × Hafermilch');
-    expect(itemLabel({ name: 'Mehl', quantity: 500, unit: 'g' })).toBe('500 g Mehl');
     expect(itemLabel({ name: 'Tofu' })).toBe('Tofu');
+    expect(itemLabel({ name: 'Apfel', quantity: 1 })).toBe('Apfel'); // 1 wird nicht gezeigt
   });
 });

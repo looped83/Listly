@@ -31,7 +31,7 @@ gemeinsam in Echtzeit genutzt.
   Bearbeiten klappt die Kachel **inline** auf (kein Overlay).
 - **Feedback:** zentrale Toast-/aria-live-Infrastruktur mit Undo für Löschen/
   Abschließen; Bottom-Sheet für den Einkaufsabschluss, Inline-Editor für die
-  Artikel-Bearbeitung (Menge/Einheit/Kategorie)
+  Artikel-Bearbeitung (Menge/Kategorie)
 
 ---
 
@@ -80,6 +80,7 @@ src/
 │   ├── ListItem.jsx        #   Einzelzeile: großer Umschalt-Button, Swipe-Aktionen (fokussierbar), Inline-Bearbeitung
 │   ├── ItemEditInline.jsx  #   Artikel INLINE in der aufgeklappten Kachel bearbeiten (kein Overlay)
 │   ├── ProductIcon.jsx     #   rendert das Emoji eines Artikels
+│   ├── QuantityStepper.jsx #   Mengen-Stepper (−/+, Spinbutton, Standard/Min 1)
 │   ├── SyncStatus.jsx      #   Live/Verbinde/Offline-Anzeige (oben rechts)
 │   ├── Toast.jsx           #   Snackbar-Anzeige + aria-live-Regionen (polite/assertive)
 │   ├── CheckoutDialog.jsx  #   „Einkauf abschließen“-Bottom-Sheet
@@ -102,7 +103,7 @@ src/
 │   ├── icons.js            #   Emoji-Auflösung + Kategorie-Infos/-Optionen
 │   ├── cards.js            #   Händler-Metadaten, Barcode-Format, Code-Inhalt
 │   ├── checkout.js         #   reine Helfer: Zusammenfassung/Auswahl beim Einkaufsabschluss
-│   ├── itemFields.js       #   reine Helfer: Menge/Einheit (Coerce/Parse/Format)
+│   ├── itemFields.js       #   reine Helfer: Menge (coerce/format; ganze Zahl ≥ 2)
 │   ├── groupItems.js       #   reine Helfer: Artikel nach Kategorie gruppieren (Sonstiges zuletzt)
 │   └── schema.js           #   localStorage-Migrationen + Sanitizer (siehe §12)
 ├── data/products.json      # 356 Produkte / 16 Kategorien (Emoji je Produkt)
@@ -123,7 +124,7 @@ Alle Keys in `src/lib/storage.js` (`STORAGE_KEYS`).
 
 | Ort            | Key/Tabelle        | Inhalt                                                              |
 | -------------- | ------------------ | ------------------------------------------------------------------- |
-| **Supabase**   | Tabelle `list_items` | Geteilte Liste: `{ id, list_id, name, category, checked, created_at, quantity?, unit? }` |
+| **Supabase**   | Tabelle `list_items` | Geteilte Liste: `{ id, list_id, name, category, checked, created_at, quantity? }` |
 | localStorage   | `listly.items`     | Liste **nur im lokalen Modus** (wenn Supabase nicht konfiguriert)   |
 | localStorage   | `listly.favorites` | Favoriten `["Hafermilch", …]` (pro Gerät)                           |
 | localStorage   | `listly.history`   | Kaufverlauf `{ [name]: { name, category, count, lastPurchased } }`   |
@@ -139,11 +140,11 @@ Der lokale Speicher ist **versioniert** – beim App-Start läuft eine idempoten
 Migrations-/Validierungspipeline (siehe **§12**), bevor Daten gelesen werden.
 
 Artikel-Objekt (in App/State):
-`{ id, name, category, checked, createdAt, quantity?, unit? }`.
+`{ id, name, category, checked, createdAt, quantity? }`.
 `category` ist eine Kategorie-`id` aus `products.json` (oder `null` → „Sonstiges“).
-`quantity` (positive Zahl) und `unit` (kurze Zeichenkette) sind
-**optional** – fehlen sie, wird nichts angezeigt (kein leerer Platzhalter).
-Normalisierung/Begrenzung: `lib/itemFields.js` (siehe §8, §12).
+`quantity` ist **optional**: eine ganze Zahl **≥ 2**. Die Menge 1 ist der
+implizite Standard und wird weder gespeichert noch angezeigt (kein leerer
+Platzhalter). Normalisierung: `lib/itemFields.js` (siehe §8, §12).
 
 ---
 
@@ -162,7 +163,7 @@ Normalisierung/Begrenzung: `lib/itemFields.js` (siehe §8, §12).
   `completeCheckout` (Einkaufsabschluss, s. §8). Bei Fehlern wird neu geladen
   (`refetch`).
 - **Schema:** `supabase/schema.sql` (idempotent). Legt Tabelle + die optionalen
-  Spalten `quantity`/`unit` an (`add column if not exists`), aktiviert
+  Spalte `quantity` an (`add column if not exists`), aktiviert
   `REPLICA IDENTITY FULL` (nötig, damit Realtime-DELETE mit `list_id`-Filter
   funktioniert), RLS mit einer permissiven anon-Policy und die Realtime-
   Publikation. Bei einem neuen Supabase-Projekt (oder nach einem Spalten-Update
@@ -287,10 +288,9 @@ deployen.
   Gruppierung in `lib/groupItems.js` (`groupByCategory`, pure Funktion): leere
   Kategorien entfallen, unbekannte/fehlende Kategorien landen gemeinsam zuletzt
   unter „Sonstiges“, die Reihenfolge innerhalb einer Kategorie bleibt stabil. Die
-  **Artikelanzahl steht direkt hinter dem Kategorienamen** („Obst & Gemüse · 3“);
-  ein `aria-label` liefert Screenreadern den vollständigen Satz („Obst & Gemüse,
-  3 Artikel“). Kompakte Anzeige inkl. optionaler Menge/Einheit („2 × Hafermilch“,
-  „500 g Mehl“) – nur, wenn tatsächlich gesetzt (kein leerer Platzhalter).
+  Kategorie-Überschriften zeigen nur den **Namen** (ohne Artikel-Anzahl). Kompakte
+  Anzeige inkl. optionaler Menge („2 × Hafermilch“) – nur ab einer Menge von 2
+  (die Standardmenge 1 wird nicht angezeigt, kein leerer Platzhalter).
 - **Fortschritt & Erledigt (`ShoppingList.jsx`):** ein **Fortschrittsbalken**
   „x von y erledigt" (`role="progressbar"`, aus `summarizeCheckout`) erscheint
   **erst, sobald der erste Artikel abgehakt wurde** (`checkedCount > 0`). Die
@@ -312,18 +312,20 @@ deployen.
 - **Artikel hinzufügen (`AddItemSheet.jsx`, geöffnet über den FAB):** ein
   **oben angedocktes** Sheet (`.dialog--top`, damit es auf Mobilgeräten nicht von
   der Tastatur verdeckt wird) mit **Produktsuche** (Autovervollständigung), den
-  **Häufig-gekauft-Chips** und den **Detailfeldern** (Menge, Einheit, Kategorie)
-  in einem Schritt. Interaktion: ein **Chip**
-  fügt sofort hinzu (Sheet bleibt offen für Folge-Adds), ein **Vorschlag**
-  übernimmt Name + Kategorie ins Formular (zum Ergänzen von Details),
-  **„Hinzufügen"** übernimmt Name + Details. Die Vorschlagsauswahl greift auf
-  **`pointerdown`** (nicht `click`) mit `preventDefault`: so wird schon der
-  **erste** Antippen zuverlässig übernommen, bevor Fokuswechsel/Tastatur einen
-  Layoutsprung auslösen (behebt „erstes Produkt lässt sich nicht auswählen").
-  Nach dem Hinzufügen bleibt das Sheet offen (Felder geleert, Suche fokussiert);
-  Schließen über X/Abbrechen/Escape/Backdrop. Barrierefreiheit über
-  `useDialogFocus` (Fokusfalle, Escape, initialer Fokus auf der Suche,
-  Fokusrückgabe an den FAB).
+  **Häufig-gekauft-Chips** und den **Detailfeldern** (Menge, Kategorie – Menge
+  und Kategorie stehen nebeneinander in einer Reihe) in einem Schritt. Die
+  **Menge** ist ein **Stepper** (`QuantityStepper`, −/+, Standard/Minimum 1). Ein
+  **Chip** fügt sofort hinzu, ein **Vorschlag** übernimmt Name + Kategorie ins
+  Formular (zum Ergänzen der Menge), **„Hinzufügen"** übernimmt Name + Menge.
+  Die Vorschlagsauswahl greift auf **`pointerdown`** (nicht `click`) mit
+  `preventDefault`: so wird schon das **erste** Antippen zuverlässig übernommen,
+  bevor Fokuswechsel/Tastatur einen Layoutsprung auslösen. Das Übernehmen eines
+  hervorgehobenen Vorschlags per **Enter** passiert nur im Suchfeld – der
+  „Hinzufügen"-Button fügt **immer** hinzu (kein versehentliches Übernehmen, wenn
+  die Maus beim Klick einen Vorschlag streift). **Nach dem Hinzufügen schließt
+  sich das Sheet** (Chip wie Button); Schließen sonst über
+  X/Abbrechen/Escape/Backdrop. Barrierefreiheit über `useDialogFocus`
+  (Fokusfalle, Escape, initialer Fokus auf der Suche, Fokusrückgabe an den FAB).
 - **Hinzufügen-Ergebnis:** `addItem` (im Hook) liefert ein eindeutiges Ergebnis
   (`added` / `alreadyOpen` / `reactivated` / `invalid`) statt still zu bleiben –
   identisch für Suche, Vorschlag und Chip. Bei einer Dublette (Name case-/
@@ -332,12 +334,11 @@ deployen.
   offen). Feedback über die Toast-Infrastruktur.
 - **Artikel bearbeiten (inline, kein Overlay):** der Stift-Eintrag der Wisch-
   Leiste klappt die Kachel **direkt an Ort und Stelle** auf und
-  zeigt `ItemEditInline.jsx` (Name, Menge, Einheit, Kategorie) inline –
-  gesteuert über `editingId` in `App.jsx`, das an `ShoppingList` → `ListItem`
-  durchgereicht wird (`isEditing`). Validierung: Name darf nicht leer
-  sein, Menge muss eine positive Zahl sein (Komma **und** Punkt als
-  Dezimaltrennzeichen werden akzeptiert), die Einheit wird getrimmt und
-  begrenzt (`MAX_UNIT_LENGTH` in `lib/itemFields.js`). Führt
+  zeigt `ItemEditInline.jsx` (Name, Menge, Kategorie – Menge/Kategorie
+  nebeneinander, Menge als Stepper) inline – gesteuert über `editingId` in
+  `App.jsx`, das an `ShoppingList` → `ListItem` durchgereicht wird (`isEditing`).
+  Validierung: Name darf nicht leer sein; die Menge liefert der Stepper stets
+  gültig (Standard 1 → keine gespeicherte Menge). Führt
   das Umbenennen zu einem Namenskonflikt mit einem anderen Artikel, fragt der
   Editor eine **bewusste Zusammenführung** ab (kein stilles Duplikat): der
   bearbeitete Artikel gewinnt (behält `id`/Position/`checked`), der andere
@@ -403,8 +404,8 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 
 - **Suche:** deterministisches Trefferscoring (siehe §8, `lib/textMatch.js`), aber
   **keine** vollständige natürlichsprachliche Eingabe (z. B. „2 Äpfel und Milch“
-  in einem Feld); Menge/Einheit werden im Hinzufügen-Sheet über eigene Felder
-  erfasst, nicht aus dem Suchtext geparst.
+  in einem Feld); die Menge wird im Hinzufügen-Sheet über den Stepper erfasst,
+  nicht aus dem Suchtext geparst.
 - **`lib/quickInput.js` wurde entfernt (war nicht mehr verdrahtet):** der Parser
   („2 hafermilch" → `{ name, quantity, … }`) wurde von der früheren, entfernten
   `AddItemForm` genutzt; das Hinzufügen-Sheet verwendet explizite Detailfelder.
@@ -413,8 +414,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
   kein Screen-Wake-Lock mehr. Bei Bedarf als kleine, bewusste Einstellung
   wieder aufnehmbar (früherer `useWakeLock`-Hook ist in der Git-Historie).
 - **Keine Mengen-Zusammenrechnung:** eine Zusammenführung beim Umbenennen
-  (siehe §8) summiert Mengen bewusst **nicht** (Einheiten könnten
-  unterschiedlich/inkompatibel sein) – der bearbeitete Artikel gewinnt.
+  (siehe §8) summiert Mengen bewusst **nicht** – der bearbeitete Artikel gewinnt.
 - **dm-Kartentoken** ist evtl. dynamisch (siehe §7).
 - **Kundenkarten sind gerätelokal** – kein Sync (bewusst, Datenschutz). Sync
   wäre nur mit echtem Login sinnvoll.
@@ -445,7 +445,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **Feld im Hinzufügen-Sheet ändern:** `src/components/AddItemSheet.jsx`
   (Suche + Chips + Detailfelder). Die eigentliche Anlege-Logik/Dubletten liegt in
   `useShoppingItems.addItem`; App-Verdrahtung (Toast, Sheet öffnen) in `App.jsx`.
-- **Neues Artikelfeld (wie Menge/Einheit):** Sanitizer in `schema.js`
+- **Neues Artikelfeld (wie Menge):** Sanitizer in `schema.js`
   erweitern + `SCHEMA_VERSION` hochzählen (§12), Coerce-Helfer in
   `lib/itemFields.js` ergänzen, `ItemEditInline.jsx` (und ggf. `AddItemSheet.jsx`)
   um das Feld erweitern,
@@ -466,13 +466,13 @@ aus **`src/lib/schema.js`** auf. Die Pipeline ist **idempotent** und **defensiv*
   einmal** (Versions-Gate) – ein erneuter Start wendet sie nicht doppelt an.
 - **Version 1** = das bestehende Datenmodell (items, favorites, history, cards,
   theme). Der v0→v1-Schritt ist bewusst identisch (keine Strukturänderung).
-- **Version 2** = Artikel um die optionalen Felder `quantity` (positive Zahl oder
-  entfällt) und `unit` (kurze Zeichenkette, getrimmt/begrenzt) erweitert. Additiv
-  und rückwärtskompatibel: Altartikel bleiben unverändert gültig, leere Felder
-  werden **nicht** materialisiert (omit-empty). Normalisierung/Begrenzung erledigt
-  `sanitizeItems` (siehe `lib/itemFields.js`). Das früher ebenfalls in v2 geführte
-  Feld `note` wurde entfernt; `sanitizeItems` verwirft einen evtl. noch
-  gespeicherten `note`-Wert still (kein Datenmodell-Rest).
+- **Version 2** = Artikel um das optionale Feld `quantity` (ganze Zahl ≥ 2, sonst
+  entfällt) erweitert. Additiv und rückwärtskompatibel: Altartikel bleiben
+  unverändert gültig, die Standardmenge 1 und leere Felder werden **nicht**
+  materialisiert (omit-empty). Normalisierung erledigt `sanitizeItems` (siehe
+  `lib/itemFields.js`). Die früher ebenfalls in v2 geführten Felder `unit`/`note`
+  wurden entfernt; `sanitizeItems` verwirft evtl. noch gespeicherte Werte still
+  (kein Datenmodell-Rest).
 - **Defensive Validierung:** je Domäne ein reiner *Sanitizer*. Beschädigte Werte
   fallen **isoliert** auf einen sicheren Standard zurück (nie der ganze Speicher);
   **unbekannte Zusatzfelder bleiben erhalten**. Karten (`cards`) sind reine

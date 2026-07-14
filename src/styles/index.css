@@ -893,9 +893,6 @@ input {
 }
 
 .list-group__header {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
   margin: 0 0 var(--space-2);
   font-size: 0.74rem;
   font-weight: 600;
@@ -903,20 +900,6 @@ input {
   letter-spacing: 0.05em;
   /* text-muted statt text-subtle: kleine Schrift braucht ≥ 4,5:1 (WCAG AA). */
   color: var(--text-muted);
-}
-
-/* Anzahl direkt hinter dem Kategorienamen (mit dezentem Mittelpunkt-Trenner). */
-.list-group__count {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.list-group__count::before {
-  content: '·';
-  margin-right: var(--space-1);
-  color: var(--text-subtle);
 }
 
 /* ---------- Fortschritt „x von y erledigt“ ---------- */
@@ -999,6 +982,9 @@ input {
   display: flex;
   flex-direction: column;
   max-height: 92vh;
+  /* Oben angedockt → unten kein Safe-Area-Abstand nötig; kompakter Abschluss
+     direkt unter den Aktionen. */
+  padding-bottom: var(--space-3);
 }
 
 /* Formular ohne eigene Box: die Kinder (Kopf/Body/Aktionen) nehmen direkt am
@@ -1488,19 +1474,74 @@ input {
   color: var(--danger);
 }
 
-/* Menge + Einheit nebeneinander: Menge schmaler, Einheit füllt den Rest. */
+/* Menge (kompakter Stepper) + Kategorie nebeneinander; Kategorie füllt den Rest.
+   align-items: flex-end hält Stepper und Dropdown auf gleicher Grundlinie, auch
+   wenn ein Label umbricht. */
 .field-row {
   display: flex;
   gap: var(--space-3);
+  align-items: flex-end;
 }
 
 .field--qty {
-  flex: 0 0 40%;
+  flex: 0 0 auto;
 }
 
-.field--unit {
+.field--cat {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* Kategorie-Dropdown auf exakt dieselbe Höhe wie die übrigen Eingabefelder. */
+.field--cat .field__input {
+  height: 44px;
+}
+
+/* ---------- Mengen-Stepper (−/+) ---------- */
+.stepper {
+  display: flex;
+  align-items: stretch;
+  height: 44px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.stepper__btn {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  flex-shrink: 0;
+  color: var(--accent-text);
+  background: var(--surface-hover);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.stepper__btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.stepper__btn:disabled {
+  color: var(--text-subtle);
+  cursor: default;
+}
+
+.stepper__value {
+  width: 3ch;
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.stepper__value:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 /* ---------- Inline-Bearbeitung: aufgeklappte Kachel statt Overlay ---------- */
@@ -1514,6 +1555,10 @@ input {
   border-color: var(--accent);
   box-shadow: var(--shadow-sm);
   cursor: default;
+  /* Kein Hintergrund-Übergang beim Aufklappen: sonst blitzt beim Wechsel aus der
+     (grünen) aufgedeckten Swipe-Leiste kurz die Übergangsfarbe auf. */
+  background: var(--surface);
+  transition: none;
 }
 
 .item-edit {

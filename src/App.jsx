@@ -123,7 +123,7 @@ function AppContent() {
       const result = addItem(rawName, category, extras);
 
       if (result.status === 'added') {
-        // Interpretierte Menge/Einheit kompakt zeigen (z. B. „2 × Hafermilch“).
+        // Menge kompakt mitzeigen (z. B. „2 × Hafermilch“; 1 wird nicht gezeigt).
         notify(`„${itemLabel(result.item)}“ hinzugefügt`, { tone: 'success' });
       } else if (result.status === 'alreadyOpen') {
         notify(`„${result.item.name}“ steht bereits auf der Liste`);

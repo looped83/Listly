@@ -129,8 +129,8 @@ describe('ListItem – Semantik & Trefferflächen', () => {
   });
 });
 
-describe('ListItem – Menge und Einheit', () => {
-  it('zeigt ein Mengen-Präfix „2 ד ohne Einheit', () => {
+describe('ListItem – Menge', () => {
+  it('zeigt ein Mengen-Präfix „2 ×“ ab einer Menge von 2', () => {
     renderItem({ item: { ...item, quantity: 2 } });
     expect(screen.getByText('2 ×')).toHaveClass('list-item__qty');
     // Umschalt-Label nennt die Menge mit.
@@ -139,14 +139,14 @@ describe('ListItem – Menge und Einheit', () => {
     ).toBeInTheDocument();
   });
 
-  it('zeigt Menge und Einheit als „500 g"', () => {
-    renderItem({ item: { ...item, quantity: 500, unit: 'g' } });
-    expect(screen.getByText('500 g')).toHaveClass('list-item__qty');
+  it('zeigt größere Mengen als „12 ×“', () => {
+    renderItem({ item: { ...item, quantity: 12 } });
+    expect(screen.getByText('12 ×')).toHaveClass('list-item__qty');
   });
 
-  it('stellt Dezimalmengen mit deutschem Komma dar', () => {
-    renderItem({ item: { ...item, quantity: 0.5, unit: 'l' } });
-    expect(screen.getByText('0,5 l')).toBeInTheDocument();
+  it('zeigt die Standardmenge 1 nicht an (kein Präfix)', () => {
+    renderItem({ item: { ...item, quantity: 1 } });
+    expect(document.querySelector('.list-item__qty')).toBeNull();
   });
 
   it('ruft onEdit mit der Artikel-id auf', async () => {
@@ -189,12 +189,13 @@ describe('ListItem – Inline-Bearbeitung (aufgeklappte Kachel)', () => {
     const user = userEvent.setup();
     const { onSave } = renderItem({ isEditing: true });
 
-    await user.type(screen.getByLabelText('Menge'), '2');
-    await user.type(screen.getByLabelText('Einheit'), 'l');
+    // Menge über den Stepper auf 3 (zweimal „+“ ab 1).
+    await user.click(screen.getByRole('button', { name: 'Menge erhöhen' }));
+    await user.click(screen.getByRole('button', { name: 'Menge erhöhen' }));
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
 
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect(onSave.mock.calls[0][0]).toMatchObject({ name: 'Hafermilch', quantity: 2, unit: 'l' });
+    expect(onSave.mock.calls[0][0]).toMatchObject({ name: 'Hafermilch', quantity: 3 });
   });
 
   it('bricht die Inline-Bearbeitung über onCancel ab', async () => {
