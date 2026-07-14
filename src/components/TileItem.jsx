@@ -44,7 +44,7 @@ function TileItem({
 }) {
   const [revealed, setRevealed] = useState(false);
   const liRef = useRef(null);
-  const firstActionRef = useRef(null);
+  const actionsRef = useRef(null);
   const pressTimerRef = useRef(null);
   const pressStartRef = useRef({ x: 0, y: 0 });
   const hintId = useId();
@@ -89,11 +89,13 @@ function TileItem({
 
   useEffect(() => clearPressTimer, []);
 
-  // Aufgeklappt: Fokus auf die erste Aktion (wichtig, wenn per Tastatur
-  // geöffnet), Klick außerhalb oder Escape schließt wieder.
+  // Aufgeklappt: Fokus auf das Panel selbst (nicht auf den Favorit-Button –
+  // sonst zeigt der beim Öffnen per Touch/Maus einen unpassenden Fokusring).
+  // Ein „echter“ Tab-Druck erreicht Favorit als Erstes ganz normal und zeigt
+  // dann zurecht einen Ring. Klick außerhalb oder Escape schließt wieder.
   useEffect(() => {
     if (!revealed) return undefined;
-    firstActionRef.current?.focus();
+    actionsRef.current?.focus();
     const onDocPointerDown = (e) => {
       if (!liRef.current?.contains(e.target)) closeActions();
     };
@@ -137,10 +139,15 @@ function TileItem({
       onContextMenu={onContextMenu}
     >
       {revealed ? (
-        <div className="tile__actions" role="group" aria-label={`Aktionen für ${descriptor}`}>
+        <div
+          className="tile__actions"
+          role="group"
+          aria-label={`Aktionen für ${descriptor}`}
+          ref={actionsRef}
+          tabIndex={-1}
+        >
           <button
             type="button"
-            ref={firstActionRef}
             className="icon-button icon-button--fav tile__actions-fav"
             data-active={isFavorite}
             onClick={() => onToggleFavorite(item.name)}

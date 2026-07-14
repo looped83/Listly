@@ -607,15 +607,15 @@ textarea {
 .icon-button--header {
   width: 42px;
   height: 42px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
   border-radius: var(--radius-pill);
-  color: var(--text-muted);
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-sm);
 }
 
 .icon-button--header:hover {
-  background: var(--surface-hover);
-  color: var(--text);
+  background: var(--accent-hover);
+  color: var(--on-accent);
 }
 
 /* Ansicht-Umschalter (Liste/Kacheln): Segmented-Control im selben Pill-Look
@@ -1041,17 +1041,26 @@ textarea {
  * statt dauerhaft sichtbar oder hinter einer Wisch-Geste (die in einem
  * zweidimensionalen Grid nicht funktioniert). Der Artikelname tritt hier
  * zurück (Farbe/Position der Kachel identifizieren sie ausreichend). Favorit
- * sitzt oben rechts (analog zur Stern-Ecke vieler Karten-UIs), Bearbeiten/
- * Löschen zentriert nebeneinander in der Mitte. Farben/Hover wie in
+ * sitzt oben rechts (analog zur Stern-Ecke vieler Karten-UIs) OHNE eigenen
+ * Rahmen – dieselbe rahmenlose Optik gilt auch für Bearbeiten/Löschen, die
+ * als eigenes Paar unten zentriert liegen. Farben/Hover wie in
  * `.swipe__actions` der Listenansicht (grüner Grund, Icons in --on-accent).
  */
 .tile__actions {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   width: 100%;
   height: 100%;
+  padding-bottom: var(--space-1);
+}
+
+/* Programmatischer Fokusanker beim Öffnen (siehe TileItem.jsx) – zeigt
+   bewusst KEINEN Ring; ein „echter“ Tab-Druck erreicht die Buttons einzeln
+   und zeigt dort ganz normal einen Ring. */
+.tile__actions:focus {
+  outline: none;
 }
 
 .tile__actions-fav {
