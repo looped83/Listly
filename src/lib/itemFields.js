@@ -1,15 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  Reine Helfer für die optionalen Artikelfelder Menge, Einheit und Notiz.
+//  Reine Helfer für die optionalen Artikelfelder Menge und Einheit.
 // ─────────────────────────────────────────────────────────────────────────────
-//  Ziel-Datenmodell (rückwärtskompatibel, alle drei optional):
+//  Ziel-Datenmodell (rückwärtskompatibel, beide optional):
 //    quantity : positive Zahl oder null
 //    unit     : kurze, getrimmte Zeichenkette oder ''
-//    note     : getrimmte Zeichenkette oder ''
 //  Ohne React-Bezug und ohne Seiteneffekte – identisch nutzbar im Sanitizer,
 //  in der Migration, in der Anzeige und in der Validierung des Dialogs.
 
 export const MAX_UNIT_LENGTH = 16;
-export const MAX_NOTE_LENGTH = 200;
 
 /**
  * Menge aus beliebiger Eingabe defensiv zu einer positiven Zahl oder null.
@@ -32,11 +30,6 @@ export function coerceQuantity(value) {
 /** Einheit: getrimmt und auf MAX_UNIT_LENGTH begrenzt (sonst ''). */
 export function coerceUnit(value) {
   return typeof value === 'string' ? value.trim().slice(0, MAX_UNIT_LENGTH) : '';
-}
-
-/** Notiz: getrimmt und auf MAX_NOTE_LENGTH begrenzt (sonst ''). */
-export function coerceNote(value) {
-  return typeof value === 'string' ? value.trim().slice(0, MAX_NOTE_LENGTH) : '';
 }
 
 /**
@@ -77,7 +70,6 @@ export function readItemExtras(item) {
   return {
     quantity: coerceQuantity(item?.quantity),
     unit: coerceUnit(item?.unit),
-    note: coerceNote(item?.note),
   };
 }
 

@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MAX_NOTE_LENGTH,
   MAX_UNIT_LENGTH,
-  coerceNote,
   coerceQuantity,
   coerceUnit,
   formatQuantity,
@@ -35,17 +33,14 @@ describe('coerceQuantity', () => {
   });
 });
 
-describe('coerceUnit / coerceNote', () => {
+describe('coerceUnit', () => {
   it('trimmt und begrenzt die Länge', () => {
     expect(coerceUnit('  g  ')).toBe('g');
     expect(coerceUnit('x'.repeat(50))).toHaveLength(MAX_UNIT_LENGTH);
-    expect(coerceNote('  hallo  ')).toBe('hallo');
-    expect(coerceNote('y'.repeat(500))).toHaveLength(MAX_NOTE_LENGTH);
   });
 
   it('gibt bei Nicht-Strings den leeren String', () => {
     expect(coerceUnit(5)).toBe('');
-    expect(coerceNote(null)).toBe('');
   });
 });
 
@@ -86,11 +81,10 @@ describe('formatQuantity', () => {
 
 describe('readItemExtras / itemLabel', () => {
   it('liefert normalisierte Defaults', () => {
-    expect(readItemExtras({})).toEqual({ quantity: null, unit: '', note: '' });
-    expect(readItemExtras({ quantity: '2', unit: ' g ', note: ' x ' })).toEqual({
+    expect(readItemExtras({})).toEqual({ quantity: null, unit: '' });
+    expect(readItemExtras({ quantity: '2', unit: ' g ' })).toEqual({
       quantity: 2,
       unit: 'g',
-      note: 'x',
     });
   });
 

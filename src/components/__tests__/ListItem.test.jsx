@@ -129,7 +129,7 @@ describe('ListItem – Semantik & Trefferflächen', () => {
   });
 });
 
-describe('ListItem – Menge, Einheit und Notiz', () => {
+describe('ListItem – Menge und Einheit', () => {
   it('zeigt ein Mengen-Präfix „2 ד ohne Einheit', () => {
     renderItem({ item: { ...item, quantity: 2 } });
     expect(screen.getByText('2 ×')).toHaveClass('list-item__qty');
@@ -147,16 +147,6 @@ describe('ListItem – Menge, Einheit und Notiz', () => {
   it('stellt Dezimalmengen mit deutschem Komma dar', () => {
     renderItem({ item: { ...item, quantity: 0.5, unit: 'l' } });
     expect(screen.getByText('0,5 l')).toBeInTheDocument();
-  });
-
-  it('zeigt die Notiz als eigene Zeile', () => {
-    renderItem({ item: { ...item, note: 'ungesüßt' } });
-    expect(screen.getByText('ungesüßt')).toHaveClass('list-item__note');
-  });
-
-  it('rendert ohne Notiz keinen leeren Platzhalter', () => {
-    renderItem();
-    expect(document.querySelector('.list-item__note')).toBeNull();
   });
 
   it('ruft onEdit mit der Artikel-id auf', async () => {

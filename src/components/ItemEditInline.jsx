@@ -2,10 +2,8 @@ import { memo, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { cleanName } from '../lib/history';
 import { CATEGORY_OPTIONS } from '../lib/icons';
 import {
-  MAX_NOTE_LENGTH,
   MAX_UNIT_LENGTH,
   coerceUnit,
-  coerceNote,
   formatQuantityNumber,
   parseQuantityInput,
   readItemExtras,
@@ -13,8 +11,7 @@ import {
 
 /**
  * Bearbeiten eines Artikels DIREKT in der aufgeklappten Kachel – kein Overlay.
- * Bearbeitbar: Name, Menge, Einheit, Kategorie und Notiz (kompakt, nicht mehr
- * als seitenweite Fläche).
+ * Bearbeitbar: Name, Menge, Einheit und Kategorie.
  *
  * Der Fokus wird beim Aufklappen auf das Namensfeld gelegt. Die Kachel bleibt
  * Teil der Seite (nicht modal), daher keine Fokusfalle – Escape bricht ab.
@@ -36,7 +33,6 @@ function ItemEditInline({ item, findConflict, onSave, onCancel }) {
     extras.quantity === null ? '' : formatQuantityNumber(extras.quantity),
   );
   const [unit, setUnit] = useState(extras.unit);
-  const [note, setNote] = useState(extras.note);
   const [category, setCategory] = useState(item.category ?? '');
   const [errors, setErrors] = useState({});
   const [pendingMerge, setPendingMerge] = useState(null);
@@ -77,10 +73,9 @@ function ItemEditInline({ item, findConflict, onSave, onCancel }) {
       name: cleanedName,
       quantity: parsed.value,
       unit: coerceUnit(unit),
-      note: coerceNote(note),
       category: category || null,
     };
-  }, [name, quantity, unit, note, category]);
+  }, [name, quantity, unit, category]);
 
   const submit = useCallback(
     (e) => {
@@ -210,22 +205,6 @@ function ItemEditInline({ item, findConflict, onSave, onCancel }) {
                 </option>
               ))}
             </select>
-          </div>
-
-          {/* Notiz kompakt als einzeiliges Feld – keine seitenweite Textfläche mehr. */}
-          <div className="field">
-            <label className="field__label" htmlFor={`${baseId}-note`}>
-              Notiz
-            </label>
-            <input
-              id={`${baseId}-note`}
-              className="field__input"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={MAX_NOTE_LENGTH}
-              autoComplete="off"
-              placeholder="z. B. ungesüßt"
-            />
           </div>
 
           <div className="item-edit__actions">

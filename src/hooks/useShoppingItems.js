@@ -3,7 +3,7 @@ import { isCloudEnabled, getSupabase, rowToItem, itemToRow, TABLE, LIST_ID } fro
 import { readStorage, writeStorage, STORAGE_KEYS } from '../lib/storage';
 import { cleanName, normalizeName } from '../lib/history';
 import { getKnownCategory } from '../lib/icons';
-import { coerceQuantity, coerceUnit, coerceNote } from '../lib/itemFields';
+import { coerceQuantity, coerceUnit } from '../lib/itemFields';
 
 const createId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -171,7 +171,7 @@ export function useShoppingItems({ onPurchase } = {}) {
    * Aufruf stets den aktuellen `itemsRef`-Stand – keine stale Closures, keine
    * Race Conditions durch parallele Aufrufe aus verschiedenen Quellen.
    *
-   * `extras` (optional, aus der Schnelleingabe) trägt Menge/Einheit/Notiz bei –
+   * `extras` (optional, aus der Schnelleingabe) trägt Menge/Einheit bei –
    * sie werden nur an einem NEU angelegten Artikel gesetzt. Die Dubletten-
    * Erkennung läuft unverändert allein über den (normalisierten) Namen; ein
    * bereits vorhandener Artikel wird nicht mit einer neuen Menge überschrieben.
@@ -204,10 +204,8 @@ export function useShoppingItems({ onPurchase } = {}) {
       // (omit-empty, konsistent mit Sanitizer/Migration).
       const quantity = coerceQuantity(extras?.quantity);
       const unit = coerceUnit(extras?.unit);
-      const note = coerceNote(extras?.note);
       if (quantity !== null) item.quantity = quantity;
       if (unit) item.unit = unit;
-      if (note) item.note = note;
 
       applyItems((prev) => [...prev, item]); // optimistisch
 
@@ -218,7 +216,7 @@ export function useShoppingItems({ onPurchase } = {}) {
     [applyItems, runCloudWrite, toggleItem],
   );
 
-  // Aktualisiert Felder eines Artikels (Name, Kategorie, Menge, Einheit, Notiz).
+  // Aktualisiert Felder eines Artikels (Name, Kategorie, Menge, Einheit).
   // Reiner State-Patch; die Cloud-Aktualisierung läuft im Hintergrund.
   const updateItem = useCallback(
     (id, patch) => {
@@ -230,7 +228,6 @@ export function useShoppingItems({ onPurchase } = {}) {
         if ('category' in patch) dbPatch.category = patch.category;
         if ('quantity' in patch) dbPatch.quantity = patch.quantity;
         if ('unit' in patch) dbPatch.unit = patch.unit || null;
-        if ('note' in patch) dbPatch.note = patch.note || null;
         return supabase.from(TABLE).update(dbPatch).eq('id', id);
       });
     },
@@ -265,8 +262,8 @@ export function useShoppingItems({ onPurchase } = {}) {
         return merged.sort(byCreatedAt);
       });
 
-      // itemToRow überträgt auch quantity/unit/note – die Wiederherstellung
-      // bleibt dadurch geräteübergreifend verlustfrei.
+      // itemToRow überträgt auch quantity/unit – die Wiederherstellung bleibt
+      // dadurch geräteübergreifend verlustfrei.
       runCloudWrite((supabase) => supabase.from(TABLE).insert(restored.map(itemToRow)));
     },
     [applyItems, runCloudWrite],

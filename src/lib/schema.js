@@ -32,11 +32,13 @@
 //    5. Test in `__tests__/schema.test.js` ergänzen (siehe vorhandene Fälle).
 
 import { STORAGE_KEYS } from './storage';
-import { coerceQuantity, coerceUnit, coerceNote } from './itemFields';
+import { coerceQuantity, coerceUnit } from './itemFields';
 
 // Aktuelle Zielversion des Schemas.
 //   Version 1 = Basis-Datenmodell (items, favorites, history, cards, theme).
-//   Version 2 = Artikel um optionale Felder quantity/unit/note erweitert.
+//   Version 2 = Artikel um optionale Felder quantity/unit erweitert.
+//   (Das früher ebenfalls in v2 eingeführte Feld `note` wurde entfernt; ein
+//   evtl. noch gespeicherter note-Wert wird von sanitizeItems still verworfen.)
 export const SCHEMA_VERSION = 2;
 
 const createId = () =>
@@ -52,10 +54,11 @@ const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArr
 // verworfen. Ist der ganze Wert defekt, greift der Domänen-Standard.
 
 /**
- * Liste: Array von `{ id, name, category, checked, createdAt?, quantity?, unit?, note? }`.
- * Die optionalen Felder quantity/unit/note werden normalisiert und nur bei
- * Bedarf geschrieben (omit-empty) – so bleiben Altdaten unverändert gültig und
- * der Speicher schlank.
+ * Liste: Array von `{ id, name, category, checked, createdAt?, quantity?, unit? }`.
+ * Die optionalen Felder quantity/unit werden normalisiert und nur bei Bedarf
+ * geschrieben (omit-empty) – so bleiben Altdaten unverändert gültig und der
+ * Speicher schlank. Das entfernte Feld `note` wird bewusst herausdestrukturiert
+ * (nicht in `rest`) und damit still aus dem Speicher entfernt.
  */
 export function sanitizeItems(value) {
   if (!Array.isArray(value)) return [];
@@ -63,6 +66,7 @@ export function sanitizeItems(value) {
   for (const entry of value) {
     if (!isPlainObject(entry)) continue;
     if (typeof entry.name !== 'string' || entry.name.trim() === '') continue;
+    // `note` bewusst herausdestrukturiert (Feature entfernt) → nicht in `rest`.
     const { id, name, category, checked, createdAt, quantity, unit, note, ...rest } = entry;
     const clean = {
       ...rest, // unbekannte Zusatzfelder erhalten
@@ -77,8 +81,6 @@ export function sanitizeItems(value) {
     if (q !== null) clean.quantity = q;
     const u = coerceUnit(unit);
     if (u) clean.unit = u;
-    const n = coerceNote(note);
-    if (n) clean.note = n;
 
     out.push(clean);
   }
@@ -150,7 +152,7 @@ export const MIGRATIONS = [
   {
     version: 2,
     describe:
-      'v2: Artikel um optionale Felder quantity/unit/note erweitern. Additiv und ' +
+      'v2: Artikel um optionale Felder quantity/unit erweitern. Additiv und ' +
       'rückwärtskompatibel – Altartikel bleiben unverändert gültig; die eigentliche ' +
       'Normalisierung/Begrenzung übernimmt der (bei jedem Start laufende) sanitizeItems.',
     migrate: (state) => state,

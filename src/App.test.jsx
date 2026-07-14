@@ -424,20 +424,20 @@ describe('Artikel bearbeiten (local mode)', () => {
     return screen.findByRole('form', { name: /bearbeiten/ });
   }
 
-  it('ergänzt Menge, Einheit und Notiz und zeigt sie kompakt an', async () => {
+  it('ergänzt Menge und Einheit und zeigt sie kompakt an', async () => {
     const user = userEvent.setup();
     render(<App />);
     await addItem(user, 'Hafermilch');
 
     const form = await openEdit(user, 'Hafermilch');
+    // Kein Notiz-Feld mehr im Bearbeiten-Formular.
+    expect(within(form).queryByLabelText('Notiz')).not.toBeInTheDocument();
     await user.type(within(form).getByLabelText('Menge'), '2');
     await user.type(within(form).getByLabelText('Einheit'), 'l');
-    await user.type(within(form).getByLabelText('Notiz'), 'ungesüßt');
     await user.click(within(form).getByRole('button', { name: 'Speichern' }));
 
-    // Kompaktdarstellung „2 l" + Notizzeile.
+    // Kompaktdarstellung „2 l".
     expect(await screen.findByText('2 l')).toHaveClass('list-item__qty');
-    expect(screen.getByText('ungesüßt')).toHaveClass('list-item__note');
     // Bestätigungsmeldung.
     expect(screen.getByRole('status')).toHaveTextContent('„Hafermilch“ aktualisiert');
   });
