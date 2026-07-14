@@ -1625,3 +1625,56 @@ textarea {
 .item-edit__actions .button-primary {
   min-height: 44px;
 }
+
+/* ---------- Easter Egg: liebevolle Herz-Animation ---------- */
+/*
+ * Rein dekorative, aufschwebende 💚. Fängt keine Klicks ab (pointer-events:none)
+ * und liegt unter den Toasts (z-index < 200), damit eine begleitende
+ * Textmeldung lesbar bleibt. Bei reduzierter Bewegung komplett ausgeblendet –
+ * der Aufrufer zeigt dann stattdessen eine liebe Textmeldung.
+ */
+.love-hearts {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.love-hearts__heart {
+  position: absolute;
+  bottom: 14%;
+  line-height: 1;
+  opacity: 0;
+  animation: love-float 2.1s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes love-float {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-58vh) scale(1.1);
+  }
+}
+
+/* Rapide Tipps aufs Logo (Easter Egg) sollen keinen Text markieren. */
+.header__logo {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .love-hearts {
+    display: none;
+  }
+}

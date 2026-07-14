@@ -384,6 +384,18 @@ deployen.
   aus dem Verlauf.
 - **Icons:** Emoji je Produkt/Kategorie (in `products.json`), Auflösung Produkt →
   Kategorie → Standard `🛒` in `lib/icons.js` (`getItemEmoji`).
+- **Easter Eggs (liebevolle Überraschungen 💚):** kleine, versteckte Grüße beim
+  Einkaufen. Texte in `lib/love.js` (`CHECKOUT_MESSAGES`, `LOVE_MESSAGES`),
+  Herz-Animation in `components/LoveHearts.jsx`, verdrahtet in `App.jsx`:
+  1. **Abschluss-Botschaft** – der Einkauf-Abschluss zeigt statt der Anzahl eine
+     rotierende liebe Botschaft (Undo bleibt erreichbar).
+  2. **Herz beim Abhaken** – selten (`CHECK_HEART_CHANCE`) schwebt beim
+     Neu-Abhaken ein 💚 auf.
+  3. **Logo-Geheimnis** – `LOGO_TAPS_TO_UNLOCK` schnelle Tipps aufs Logo lösen
+     Herzen + eine Liebesbotschaft aus.
+  Alle respektieren `prefers-reduced-motion` (dann nur Text statt Animation);
+  die Herzen sind `aria-hidden` und fangen keine Klicks ab. Zum Anpassen/Entfernen
+  genügt `lib/love.js` bzw. die drei Stellen in `App.jsx`.
 
 ---
 

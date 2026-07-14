@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useSystemTheme } from './hooks/useTheme';
 import { useShoppingItems } from './hooks/useShoppingItems';
@@ -8,15 +8,31 @@ import { cleanName, normalizeName, recordPurchase } from './lib/history';
 import { itemLabel } from './lib/itemFields';
 import { frequentSuggestions } from './lib/suggestions';
 import { summarizeCheckout } from './lib/checkout';
+import { CHECKOUT_MESSAGES, LOVE_MESSAGES, randomFrom } from './lib/love';
 import ShoppingList from './components/ShoppingList';
 import AddItemSheet from './components/AddItemSheet';
 import CheckoutDialog from './components/CheckoutDialog';
 import SyncStatus from './components/SyncStatus';
+import LoveHearts from './components/LoveHearts';
 import { Plus, ShoppingBasket, Wallet } from 'lucide-react';
 
 // Kundenkarten-Overlay lazy laden: es zieht qrcode + jsbarcode nach, die erst
 // beim Öffnen der Karten gebraucht werden. So bleiben sie aus dem Initial-Bundle.
 const CardsSheet = lazy(() => import('./components/CardsSheet'));
+
+// ── Easter Eggs (liebevolle Überraschungen beim Einkaufen) ───────────────────
+// Wahrscheinlichkeit, dass beim Abhaken ein Herz aufschwebt – selten genug,
+// damit es etwas Besonderes bleibt.
+const CHECK_HEART_CHANCE = 0.14;
+// Logo-Geheimnis: so viele schnelle Tipps aufs Logo lösen es aus …
+const LOGO_TAPS_TO_UNLOCK = 5;
+// … solange die Tipps jeweils dichter als so viele ms aufeinander folgen.
+const LOGO_TAP_WINDOW_MS = 800;
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false;
 
 export default function App() {
   return (
@@ -33,6 +49,9 @@ function AppContent() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
+  // Easter Egg: eine laufende Herz-Animation ({ id, count }) oder null.
+  const [loveBurst, setLoveBurst] = useState(null);
+  const logoTaps = useRef({ count: 0, last: 0 });
   const { notify } = useToast();
   useSystemTheme();
 
@@ -40,6 +59,32 @@ function AppContent() {
   const closeCheckout = useCallback(() => setCheckoutOpen(false), []);
   const closeEdit = useCallback(() => setEditingId(null), []);
   const closeAddSheet = useCallback(() => setAddSheetOpen(false), []);
+
+  // Easter Egg: Herzen aufschweben lassen (bei reduzierter Bewegung stattdessen
+  // eine liebevolle Textmeldung, damit die Überraschung trotzdem ankommt).
+  const showLoveHearts = useCallback(
+    (count) => {
+      if (prefersReducedMotion()) {
+        notify(randomFrom(LOVE_MESSAGES), { tone: 'success' });
+      } else {
+        setLoveBurst({ id: Date.now(), count });
+      }
+    },
+    [notify],
+  );
+  const clearLoveBurst = useCallback(() => setLoveBurst(null), []);
+
+  // Logo-Geheimnis: mehrere schnelle Tipps aufs Logo → Liebesbotschaft + Herzen.
+  const handleLogoTap = useCallback(() => {
+    const now = Date.now();
+    const previous = logoTaps.current;
+    const count = now - previous.last < LOGO_TAP_WINDOW_MS ? previous.count + 1 : 1;
+    logoTaps.current = { count, last: now };
+    if (count < LOGO_TAPS_TO_UNLOCK) return;
+    logoTaps.current = { count: 0, last: 0 };
+    notify(randomFrom(LOVE_MESSAGES), { tone: 'success', duration: 6000 });
+    if (!prefersReducedMotion()) setLoveBurst({ id: Date.now(), count: 16 });
+  }, [notify]);
 
   // Erledigte Artikel im (lokalen) Kaufverlauf verbuchen. Reiner State-Update:
   // recordPurchase ist immutabel, daher unter StrictMode kein Doppelverbuchen.
@@ -134,6 +179,18 @@ function AppContent() {
     [addItem, notify],
   );
 
+  // Abhaken (aus der Zeile). Wird ein Artikel NEU als erledigt markiert, schwebt
+  // selten ein Herz auf (Easter Egg) – nicht beim Wieder-Öffnen.
+  const handleToggle = useCallback(
+    (id) => {
+      const current = items.find((it) => it.id === id);
+      const willCheck = current ? !current.checked : false;
+      toggleItem(id);
+      if (willCheck && Math.random() < CHECK_HEART_CHANCE) showLoveHearts(3);
+    },
+    [items, toggleItem, showLoveHearts],
+  );
+
   // Einzelnen Artikel löschen – mit Undo (Artikel unverändert wiederherstellen).
   const handleRemoveItem = useCallback(
     (id) => {
@@ -155,9 +212,10 @@ function AppContent() {
       const completed = completeCheckout(includeOpen);
       setCheckoutOpen(false);
       if (completed.length === 0) return;
-      const label =
-        completed.length === 1 ? '1 Artikel abgeschlossen' : `${completed.length} Artikel abgeschlossen`;
-      notify(label, {
+      // Easter Egg: statt der nüchternen Anzahl eine liebevolle Botschaft – das
+      // Rückgängigmachen bleibt darüber erreichbar.
+      notify(randomFrom(CHECKOUT_MESSAGES), {
+        tone: 'success',
         action: {
           label: 'Rückgängig',
           onAction: () => {
@@ -215,7 +273,10 @@ function AppContent() {
     <div className="app">
       <header className="header">
         <div className="header__brand">
-          <span className="header__logo">
+          {/* Das Logo trägt ein verstecktes Easter Egg: mehrere schnelle Tipps
+              zaubern eine kleine Liebesbotschaft. Bewusst rein dekorativ (kein
+              Button/keine Ansage) – es soll ein Geheimnis bleiben. */}
+          <span className="header__logo" onClick={handleLogoTap}>
             <ShoppingBasket size={24} aria-hidden="true" />
           </span>
           <h1 className="header__title">Listly</h1>
@@ -239,7 +300,7 @@ function AppContent() {
           items={items}
           favoriteSet={favoriteSet}
           editingId={editingId}
-          onToggle={toggleItem}
+          onToggle={handleToggle}
           onToggleFavorite={toggleFavorite}
           onRemove={handleRemoveItem}
           onEdit={setEditingId}
@@ -286,6 +347,10 @@ function AppContent() {
           onConfirm={handleConfirmCheckout}
           onClose={closeCheckout}
         />
+      )}
+
+      {loveBurst && (
+        <LoveHearts key={loveBurst.id} count={loveBurst.count} onDone={clearLoveBurst} />
       )}
     </div>
   );
