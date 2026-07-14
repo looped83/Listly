@@ -1051,12 +1051,14 @@ textarea {
  * Aktionen-Panel: ersetzt bei langem Druck (Touch), Rechtsklick (Maus) oder
  * Kontextmenü-Taste (Tastatur) den Karteninhalt – Favorit/Bearbeiten/Löschen
  * statt dauerhaft sichtbar oder hinter einer Wisch-Geste (die in einem
- * zweidimensionalen Grid nicht funktioniert). Der Artikelname tritt hier
- * zurück (Farbe/Position der Kachel identifizieren sie ausreichend). Favorit
- * sitzt oben rechts (analog zur Stern-Ecke vieler Karten-UIs) OHNE eigenen
- * Rahmen – dieselbe rahmenlose Optik gilt auch für Bearbeiten/Löschen, die
- * als eigenes Paar unten zentriert liegen. Farben/Hover wie in
- * `.swipe__actions` der Listenansicht (grüner Grund, Icons in --on-accent).
+ * zweidimensionalen Grid nicht funktioniert). Favorit sitzt oben rechts
+ * (analog zur Stern-Ecke vieler Karten-UIs) OHNE eigenen Rahmen – dieselbe
+ * rahmenlose Optik gilt auch für Bearbeiten/Löschen, die als eigenes Paar
+ * unten zentriert liegen. Der Artikelname (rein visuell, die Gruppe selbst
+ * trägt ihn schon über aria-label) ist absolut positioniert und dadurch
+ * IMMER exakt in der Kachelmitte – unabhängig von der Höhe der Aktionsleiste
+ * darunter. Farben/Hover wie in `.swipe__actions` der Listenansicht (grüner
+ * Grund, Icons in --on-accent).
  */
 .tile__actions {
   position: relative;
@@ -1079,6 +1081,26 @@ textarea {
   position: absolute;
   top: 0;
   right: 0;
+}
+
+.tile__actions-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  margin: 0;
+  padding: 0 var(--space-2);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--on-accent);
+  text-align: center;
+  /* rein dekorativ – darf Klicks auf Favorit/Bearbeiten/Löschen nie blockieren */
+  pointer-events: none;
 }
 
 .tile__actions-main {

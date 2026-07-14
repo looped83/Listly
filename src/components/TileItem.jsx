@@ -163,6 +163,13 @@ function TileItem({
             <Star size={16} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
           </button>
 
+          {/* Rein visuell (die Gruppe trägt den Namen schon über aria-label) –
+              absolut positioniert, damit sie unabhängig von der Höhe der
+              Aktionsleiste darunter immer exakt in der Kachelmitte steht. */}
+          <p className="tile__actions-title" aria-hidden="true">
+            {item.name}
+          </p>
+
           <div className="tile__actions-main">
             <button
               type="button"
