@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TileItem from '../TileItem';
 
@@ -33,41 +33,27 @@ function renderTile(overrides = {}) {
   return { onToggle, onToggleFavorite, onRemove, onEdit, onSave, onCancelEdit, findConflict };
 }
 
-describe('TileItem – Kachelansicht: dieselben Aktionen wie ListItem', () => {
-  it('bietet Umschalten, Favorit, Bearbeiten und Löschen an – ohne verschachtelte Buttons', () => {
+const toggleButton = () => screen.getByRole('button', { name: 'Hafermilch als erledigt markieren' });
+
+describe('TileItem – kompakte Kachel (Standardzustand)', () => {
+  it('zeigt standardmäßig nur den Umschalt-Button – Favorit/Bearbeiten/Löschen sind nicht sichtbar', () => {
     renderTile();
 
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(4);
+    expect(toggleButton()).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Hafermilch als erledigt markieren' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Hafermilch zu Favoriten hinzufügen' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Hafermilch bearbeiten' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Hafermilch entfernen' })).toBeInTheDocument();
-    for (const button of buttons) {
-      expect(button.querySelector('button')).toBeNull();
-    }
-  });
-
-  it('Favorit/Bearbeiten/Löschen sind ohne Wisch-Geste sofort sichtbar (kein data-revealed nötig)', () => {
-    renderTile();
-    // Anders als ListItem: die Aktionen liegen nicht hinter einer Wisch-Geste,
-    // sondern sind als eigene Leiste dauerhaft sichtbar/fokussierbar.
-    expect(
-      screen.getByRole('button', { name: 'Hafermilch zu Favoriten hinzufügen' }),
-    ).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Hafermilch bearbeiten' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Hafermilch entfernen' })).toBeVisible();
+      screen.queryByRole('button', { name: 'Hafermilch zu Favoriten hinzufügen' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hafermilch bearbeiten' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hafermilch entfernen' })).not.toBeInTheDocument();
+    // Nur ein Button (der Umschalter) im Standardzustand.
+    expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 
   it('schaltet den Erledigt-Status um, wenn die Karte angeklickt wird', async () => {
     const user = userEvent.setup();
     const { onToggle } = renderTile();
 
-    await user.click(screen.getByRole('button', { name: 'Hafermilch als erledigt markieren' }));
+    await user.click(toggleButton());
 
     expect(onToggle).toHaveBeenCalledTimes(1);
     expect(onToggle).toHaveBeenCalledWith('item-1');
@@ -75,65 +61,139 @@ describe('TileItem – Kachelansicht: dieselben Aktionen wie ListItem', () => {
 
   it('spiegelt den Erledigt-Status über aria-pressed und passendes Label', () => {
     renderTile({ item: { ...item, checked: true } });
-
-    const toggle = screen.getByRole('button', { name: 'Hafermilch als offen markieren' });
-    expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  it('Favorit-Klick löst NICHT den Erledigt-Status oder Löschen aus', async () => {
-    const user = userEvent.setup();
-    const { onToggle, onToggleFavorite, onRemove } = renderTile();
-
-    await user.click(screen.getByRole('button', { name: 'Hafermilch zu Favoriten hinzufügen' }));
-
-    expect(onToggleFavorite).toHaveBeenCalledTimes(1);
-    expect(onToggleFavorite).toHaveBeenCalledWith('Hafermilch');
-    expect(onToggle).not.toHaveBeenCalled();
-    expect(onRemove).not.toHaveBeenCalled();
-  });
-
-  it('Löschen-Klick löst NICHT den Erledigt-Status oder Favorisieren aus', async () => {
-    const user = userEvent.setup();
-    const { onToggle, onToggleFavorite, onRemove } = renderTile();
-
-    await user.click(screen.getByRole('button', { name: 'Hafermilch entfernen' }));
-
-    expect(onRemove).toHaveBeenCalledTimes(1);
-    expect(onRemove).toHaveBeenCalledWith('item-1');
-    expect(onToggle).not.toHaveBeenCalled();
-    expect(onToggleFavorite).not.toHaveBeenCalled();
-  });
-
-  it('zeigt den Favoriten-Status über aria-pressed', () => {
-    renderTile({ isFavorite: true });
     expect(
-      screen.getByRole('button', { name: 'Hafermilch aus Favoriten entfernen' }),
+      screen.getByRole('button', { name: 'Hafermilch als offen markieren' }),
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('ruft onEdit mit der Artikel-id auf', async () => {
-    const user = userEvent.setup();
-    const { onEdit, onToggle } = renderTile();
-
-    await user.click(screen.getByRole('button', { name: 'Hafermilch bearbeiten' }));
-
-    expect(onEdit).toHaveBeenCalledWith('item-1');
-    expect(onToggle).not.toHaveBeenCalled();
-  });
-});
-
-describe('TileItem – Menge', () => {
   it('zeigt ein Mengen-Präfix „2 ×“ ab einer Menge von 2', () => {
     renderTile({ item: { ...item, quantity: 2 } });
     expect(screen.getByText('2 ×')).toHaveClass('list-item__qty');
-    expect(
-      screen.getByRole('button', { name: '2 × Hafermilch als erledigt markieren' }),
-    ).toBeInTheDocument();
   });
 
   it('zeigt die Standardmenge (keine gespeicherte Menge) als „1 ×“', () => {
     renderTile();
     expect(screen.getByText('1 ×')).toHaveClass('list-item__qty');
+  });
+
+  it('nennt Screenreadern per aria-describedby, wie sich die Aktionen öffnen lassen', () => {
+    renderTile();
+    const hintId = toggleButton().getAttribute('aria-describedby');
+    expect(document.getElementById(hintId)).toHaveTextContent(
+      'Lange drücken oder Kontextmenü-Taste für Favorit, Bearbeiten und Löschen',
+    );
+  });
+});
+
+describe('TileItem – Aktionen-Panel (langer Druck / Rechtsklick / Kontextmenü-Taste)', () => {
+  it('öffnet bei contextmenu die zentrierten Aktionen und ersetzt den Umschalt-Button', () => {
+    renderTile();
+
+    fireEvent.contextMenu(toggleButton());
+
+    expect(screen.queryByRole('button', { name: /als erledigt markieren/ })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('group', { name: 'Aktionen für Hafermilch' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Hafermilch zu Favoriten hinzufügen' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hafermilch bearbeiten' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hafermilch entfernen' })).toBeInTheDocument();
+  });
+
+  it('fokussiert beim Öffnen die erste Aktion (wichtig bei Tastaturbedienung)', () => {
+    renderTile();
+    fireEvent.contextMenu(toggleButton());
+
+    expect(screen.getByRole('button', { name: 'Hafermilch zu Favoriten hinzufügen' })).toHaveFocus();
+  });
+
+  it('Favorit-Klick löst NICHT Löschen/Bearbeiten aus und lässt das Panel offen', async () => {
+    const user = userEvent.setup();
+    const { onToggleFavorite, onRemove, onEdit } = renderTile();
+    fireEvent.contextMenu(toggleButton());
+
+    await user.click(screen.getByRole('button', { name: 'Hafermilch zu Favoriten hinzufügen' }));
+
+    expect(onToggleFavorite).toHaveBeenCalledWith('Hafermilch');
+    expect(onRemove).not.toHaveBeenCalled();
+    expect(onEdit).not.toHaveBeenCalled();
+    // Panel bleibt offen (Favorit ist ein schneller Umschalter).
+    expect(screen.getByRole('button', { name: 'Hafermilch bearbeiten' })).toBeInTheDocument();
+  });
+
+  it('ruft onEdit mit der Artikel-id auf und schließt das Panel', async () => {
+    const user = userEvent.setup();
+    const { onEdit, onToggle } = renderTile();
+    fireEvent.contextMenu(toggleButton());
+
+    await user.click(screen.getByRole('button', { name: 'Hafermilch bearbeiten' }));
+
+    expect(onEdit).toHaveBeenCalledWith('item-1');
+    expect(onToggle).not.toHaveBeenCalled();
+    // Panel geschlossen – der Umschalt-Button ist wieder da.
+    expect(toggleButton()).toBeInTheDocument();
+  });
+
+  it('ruft onRemove mit der Artikel-id auf', async () => {
+    const user = userEvent.setup();
+    const { onRemove, onToggle, onToggleFavorite } = renderTile();
+    fireEvent.contextMenu(toggleButton());
+
+    await user.click(screen.getByRole('button', { name: 'Hafermilch entfernen' }));
+
+    expect(onRemove).toHaveBeenCalledWith('item-1');
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(onToggleFavorite).not.toHaveBeenCalled();
+  });
+
+  it('zeigt den Favoriten-Status im Panel über aria-pressed', () => {
+    renderTile({ isFavorite: true });
+    fireEvent.contextMenu(toggleButton());
+
+    expect(
+      screen.getByRole('button', { name: 'Hafermilch aus Favoriten entfernen' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('schließt das Panel über Escape', () => {
+    renderTile();
+    fireEvent.contextMenu(toggleButton());
+    expect(screen.getByRole('button', { name: 'Hafermilch bearbeiten' })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByRole('button', { name: 'Hafermilch bearbeiten' })).not.toBeInTheDocument();
+    expect(toggleButton()).toBeInTheDocument();
+  });
+
+  it('schließt das Panel bei Klick außerhalb der Kachel', () => {
+    render(
+      <div>
+        <ul>
+          <TileItem
+            item={item}
+            isFavorite={false}
+            onToggle={vi.fn()}
+            onToggleFavorite={vi.fn()}
+            onRemove={vi.fn()}
+            onEdit={vi.fn()}
+            onSave={vi.fn()}
+            onCancelEdit={vi.fn()}
+            findConflict={() => null}
+          />
+        </ul>
+        <button type="button">Außerhalb</button>
+      </div>,
+    );
+
+    fireEvent.contextMenu(toggleButton());
+    expect(screen.getByRole('button', { name: 'Hafermilch bearbeiten' })).toBeInTheDocument();
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Außerhalb' }));
+
+    expect(screen.queryByRole('button', { name: 'Hafermilch bearbeiten' })).not.toBeInTheDocument();
   });
 });
 
