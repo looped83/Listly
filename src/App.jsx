@@ -284,6 +284,7 @@ function AppContent() {
             <ShoppingBasket size={24} aria-hidden="true" />
           </span>
           <h1 className="header__title">Listly</h1>
+          <SyncStatus status={status} />
         </div>
         <div className="header__actions">
           <ViewToggle view={viewMode} onChange={setViewMode} />
@@ -296,7 +297,6 @@ function AppContent() {
           >
             <Wallet size={20} aria-hidden="true" />
           </button>
-          <SyncStatus status={status} />
         </div>
       </header>
 
