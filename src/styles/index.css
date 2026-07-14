@@ -1085,7 +1085,11 @@ textarea {
 
 .tile__actions-title {
   position: absolute;
-  top: 50%;
+  /* Etwas über der Mitte verankert: bei zweizeiligem Text (line-clamp: 2)
+     wächst der Block sonst symmetrisch nach unten in Richtung Buttonzeile –
+     der leichte Versatz nach oben schafft dafür Luft, ohne bei einzeiligem
+     Text spürbar unzentriert zu wirken. */
+  top: 44%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: 100%;
