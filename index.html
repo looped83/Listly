@@ -4,9 +4,12 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <!-- Zoom bleibt erlaubt (WCAG 1.4.4); Doppeltipp-Zoom unterbindet
-         touch-action: manipulation im CSS, ohne Pinch-Zoom zu blockieren. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Zoom bewusst deaktiviert (Pinch- UND Doppeltipp-Zoom) – auf Wunsch
+         abweichend von WCAG 1.4.4, das Zoom bis 200% empfiehlt. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <!-- theme-color wird zur Laufzeit an den aktiven Modus angepasst (siehe useTheme) -->
     <meta name="theme-color" content="#faf6ee" />
     <meta name="description" content="Listly – vegane Einkaufsliste mit Kaufverlauf, offline nutzbar." />

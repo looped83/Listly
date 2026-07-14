@@ -288,9 +288,10 @@ deployen.
 - **Layout:** Gesamtseite nicht scrollbar/wippend (`body { overflow:hidden;
   overscroll-behavior:none }`), nur der Listenbereich scrollt. Es gibt **keine
   feste Eingabeleiste** mehr; Hinzufügen läuft über einen **schwebenden
-  Plus-Button (FAB)** unten rechts (`.fab`). **Pinch-Zoom bleibt erlaubt**
-  (WCAG 1.4.4 – keine `user-scalable=no`-Sperre); nur der versehentliche
-  **Doppeltipp-Zoom** ist per CSS `touch-action: manipulation` unterbunden.
+  Plus-Button (FAB)** unten rechts (`.fab`). **Zoom ist deaktiviert** (Pinch-
+  UND Doppeltipp-Zoom) über `user-scalable=no, maximum-scale=1.0` im
+  Viewport-Meta-Tag (`index.html`) – bewusst abweichend von WCAG 1.4.4 (das
+  Zoom bis 200% empfiehlt), auf ausdrücklichen Wunsch.
 - **Einkaufs-Look:** große, leicht treffbare Zeilen/Karten, erledigte Artikel
   standardmäßig eingeklappt. (Das frühere Plan/Shop-Konzept und das
   Bildschirm-wachhalten wurden entfernt – siehe §10; unabhängig davon gibt es
@@ -373,9 +374,21 @@ deployen.
   – die drei Aktions-Buttons bleiben aber fokussierbar (kein `aria-hidden`),
   sodass sie **ohne Geste per Tastatur/Screenreader** erreichbar sind: erhält
   einer den Fokus, klappt die Leiste automatisch auf; verlässt der Fokus sie,
-  schließt sie wieder. Die komplette Gesten-/Aufdeck-Logik steckt im Hook
-  `useSwipeReveal` – die Zeile selbst bleibt rein präsentational und spreadet nur
-  die gelieferten Prop-Bündel (`rowProps`/`actionsProps`).
+  schließt sie wieder. Ein **kompletter Wisch** (weiter als `REVEAL_WIDTH`,
+  bis ~72 % der Zeilenbreite – `DELETE_THRESHOLD_RATIO`) entfernt den Artikel
+  beim Loslassen **direkt**, ohne den Löschen-Button antippen zu müssen; die
+  Zeile gleitet dabei vollständig hinaus (Animation), bevor `onRemove`
+  läuft. Der dahinterliegende Hintergrund (`.swipe__backdrop`, eine eigene
+  Ebene über die volle Zeilenbreite – nicht mehr die Aktionsleiste selbst)
+  färbt sich währenddessen stufenlos von Grün nach Rot ein
+  (`color-mix()`, gesteuert über die CSS-Property `--swipe-progress`,
+  0 bis `REVEAL_WIDTH` unverändert grün, danach linear bis zur
+  Lösch-Schwelle) – eine Live-Vorschau, ob Loslassen jetzt löschen würde.
+  Die komplette Gesten-/Aufdeck-/Lösch-Logik steckt im Hook
+  `useSwipeReveal` – die Zeile selbst bleibt rein präsentational und spreadet
+  nur die gelieferten Prop-Bündel (`rowProps`/`actionsProps`/`backdropProps`).
+  Bewusst eine reine Touch-Abkürzung: der fokussierbare Löschen-Button bleibt
+  unverändert die vollständige, tastatur-/screenreader-taugliche Alternative.
 - **Artikel hinzufügen (`AddItemSheet.jsx`, geöffnet über den FAB):** ein
   **oben angedocktes** Sheet (`.dialog--top`, damit es auf Mobilgeräten nicht von
   der Tastatur verdeckt wird) mit **Produktsuche** (Autovervollständigung), den
@@ -506,8 +519,8 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (276 Tests,
-  21 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (283 Tests,
+  22 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
