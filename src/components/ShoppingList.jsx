@@ -65,7 +65,7 @@ function ShoppingList({
       <div className="empty">
         <ClipboardList size={40} className="empty__icon" aria-hidden="true" />
         <p className="empty__title">Deine Liste ist leer</p>
-        <p className="empty__text">Tippe oben einen Artikel ein oder wähle einen Vorschlag.</p>
+        <p className="empty__text">Tippe auf das Plus unten rechts, um Artikel hinzuzufügen.</p>
       </div>
     );
   }
@@ -96,7 +96,7 @@ function ShoppingList({
           vollständigen Satz („Obst & Gemüse, 3 Artikel“) – die sichtbaren
           Kind-Elemente (Name + Zähler-Badge) bleiben dabei rein visuell.
         */}
-        <h3
+        <h2
           className="list-group__header"
           aria-label={`${group.category.name}, ${count} Artikel`}
         >
@@ -104,7 +104,7 @@ function ShoppingList({
           <span className="list-group__count" aria-hidden="true">
             {count}
           </span>
-        </h3>
+        </h2>
         <ul className="list">{renderItems(group.items)}</ul>
       </div>
     );
@@ -120,9 +120,7 @@ function ShoppingList({
         {open.length > 0 ? (
           openGroups.map((group) => renderGroup(group))
         ) : (
-          <p className="empty__text" style={{ paddingLeft: 4 }}>
-            Alles erledigt! 🎉
-          </p>
+          <p className="empty__text empty__text--inline">Alles erledigt! 🎉</p>
         )}
       </section>
 

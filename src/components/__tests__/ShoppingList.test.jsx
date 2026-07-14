@@ -31,7 +31,7 @@ describe('ShoppingList – Kategorie-Gruppierung', () => {
 
     // aria-label liefert den vollständigen, für Screenreader verständlichen Namen.
     expect(
-      screen.getByRole('heading', { level: 3, name: 'Obst & Gemüse, 2 Artikel' }),
+      screen.getByRole('heading', { level: 2, name: 'Obst & Gemüse, 2 Artikel' }),
     ).toBeInTheDocument();
   });
 
@@ -45,7 +45,7 @@ describe('ShoppingList – Kategorie-Gruppierung', () => {
     renderList([item('X', 'nicht-existent'), item('Y', null)]);
 
     expect(
-      screen.getByRole('heading', { level: 3, name: 'Sonstiges, 2 Artikel' }),
+      screen.getByRole('heading', { level: 2, name: 'Sonstiges, 2 Artikel' }),
     ).toBeInTheDocument();
   });
 

@@ -539,6 +539,11 @@ input {
   font-size: 0.9rem;
 }
 
+/* Variante im Listenfluss (z. B. „Alles erledigt!“ über der Erledigt-Sektion). */
+.empty__text--inline {
+  padding-left: var(--space-1);
+}
+
 /* ---------- Section divider ---------- */
 .section {
   margin-top: var(--space-5);

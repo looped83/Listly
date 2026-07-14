@@ -178,6 +178,9 @@ function AddItemSheet({
               aria-expanded={showSuggestions}
               aria-controls={listId}
               aria-autocomplete="list"
+              aria-activedescendant={
+                showSuggestions && activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined
+              }
               role="combobox"
             />
           </div>
@@ -185,9 +188,12 @@ function AddItemSheet({
           {showSuggestions ? (
             <ul className="suggestions suggestions--sheet" id={listId} role="listbox">
               {suggestions.map((s, i) => (
-                <li key={normalizeName(s.name)}>
+                // role="presentation": unter role="listbox" sind nur option-
+                // Kinder erlaubt – die Option ist der Button selbst.
+                <li key={normalizeName(s.name)} role="presentation">
                   <button
                     type="button"
+                    id={`${listId}-option-${i}`}
                     className="suggestion"
                     data-active={i === activeIndex}
                     role="option"
