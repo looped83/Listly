@@ -344,9 +344,26 @@ textarea {
 }
 
 /*
+ * Hintergrund über die gesamte Zeilenbreite, hinter Aktionsleiste UND Zeile.
+ * Standardmäßig Grün (wie zuvor die Aktionsleiste selbst); ein kompletter
+ * Wisch über die Aktionsleiste hinaus färbt ihn stufenlos nach Rot ein
+ * (`--swipe-progress`, 0–1, gesetzt von useSwipeReveal) – Vorschau, ob
+ * Loslassen jetzt löschen würde. `color-mix()` ohne Unterstützung fällt auf
+ * das zuerst deklarierte Grün zurück (die Deklaration wird dann ignoriert).
+ */
+.swipe__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  background: color-mix(in srgb, var(--danger) calc(var(--swipe-progress, 0) * 100%), var(--accent));
+}
+
+/*
  * Aufgedeckte Aktionsleiste hinter der Zeile (per Wisch-Geste oder Fokus
- * sichtbar). Hauptfarbe (Grün) als Hintergrund, damit die Aktionen deutlich
- * auffallen. Die Icons darin stehen auf --on-accent für ausreichenden Kontrast.
+ * sichtbar). Der Hintergrund kommt von `.swipe__backdrop` dahinter – so
+ * bleibt die Grün→Rot-Einfärbung auch im Bereich der Buttons sichtbar. Die
+ * Icons darin stehen auf --on-accent für ausreichenden Kontrast (auf Rot wie
+ * auf Grün).
  */
 .swipe__actions {
   position: absolute;
@@ -358,7 +375,6 @@ textarea {
   justify-content: flex-end;
   gap: var(--space-1);
   padding: 0 var(--space-2);
-  background: var(--accent);
 }
 
 .swipe__actions .icon-button {

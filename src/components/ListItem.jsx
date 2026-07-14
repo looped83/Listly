@@ -7,12 +7,15 @@ import { formatQuantityBadge, itemLabel, readItemExtras } from '../lib/itemField
 
 const REVEAL_WIDTH = 156; // px, Breite der aufgedeckten Aktionsleiste (3 Buttons)
 const OPEN_THRESHOLD = 56; // px, ab hier rastet die Aktionsleiste beim Loslassen ein
+const DELETE_THRESHOLD_RATIO = 0.72; // Anteil der Zeilenbreite für „kompletten“ Wisch → Löschen
 
 /**
  * Eine Zeile der Einkaufsliste.
  *
  * Wischen von rechts nach links deckt drei Aktionen auf: Favorit, Bearbeiten,
- * Löschen. Für die Bedienung ohne Geste (Tastatur/Screenreader) sind dieselben
+ * Löschen. Ein kompletter Wisch (weit über die Aktionsleiste hinaus) entfernt
+ * den Artikel direkt – der freigelegte Hintergrund färbt sich dabei von Grün
+ * nach Rot. Für die Bedienung ohne Geste (Tastatur/Screenreader) sind dieselben
  * Aktionen fokussierbar – erhält eine von ihnen den Fokus, klappt die Leiste
  * automatisch auf.
  *
@@ -31,9 +34,11 @@ function ListItem({
   onCancelEdit,
   findConflict,
 }) {
-  const { rowProps, actionsProps, closeAfterAction } = useSwipeReveal({
+  const { rowProps, actionsProps, backdropProps, closeAfterAction } = useSwipeReveal({
     revealWidth: REVEAL_WIDTH,
     openThreshold: OPEN_THRESHOLD,
+    deleteThresholdRatio: DELETE_THRESHOLD_RATIO,
+    onDelete: () => onRemove(item.id),
   });
 
   const { quantity } = readItemExtras(item);
@@ -60,6 +65,11 @@ function ListItem({
 
   return (
     <li className="swipe">
+      {/* Hintergrund hinter Aktionsleiste/Zeile: Grün→Rot je nach
+          Wisch-Fortschritt Richtung „kompletter Wisch löscht“ (aria-hidden,
+          rein visuelles Feedback – die eigentliche Löschen-Aktion bleibt der
+          fokussierbare Button in der Aktionsleiste). */}
+      <div className="swipe__backdrop" aria-hidden="true" {...backdropProps} />
       {/*
         Aufgedeckte Aktionsleiste hinter der Kachel. Sie bleibt fokussierbar
         (kein aria-hidden), damit Favorit/Bearbeiten/Löschen auch ohne
