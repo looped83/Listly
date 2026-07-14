@@ -29,8 +29,11 @@ export function useShoppingItems({ onPurchase } = {}) {
 
   // Aktuelle Liste als Ref, damit asynchrone Callbacks (DB, Realtime) stets den
   // neuesten Stand lesen können, ohne von veralteten Closures abzuhängen.
+  // Aktualisierung im Effekt (nach dem Commit), nicht während des Renderns.
   const itemsRef = useRef(items);
-  itemsRef.current = items;
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   // Setzt Items. Reiner State-Update ohne Seiteneffekt – so bleibt der Updater
   // unter React StrictMode gefahrlos doppelt aufrufbar.
@@ -88,6 +91,9 @@ export function useShoppingItems({ onPurchase } = {}) {
 
     let active = true;
     let channel = null;
+    // Initiales Laden vom Server: asynchroner Roundtrip, setState erst nach
+    // der Antwort – kein synchroner Kaskaden-Render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refetch();
 
     // Client wird lazy geladen; Abo erst aufbauen, wenn er bereit ist.
