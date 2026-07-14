@@ -5,6 +5,7 @@
 //   history       – Kaufverlauf:      { [normalizedName]: { name, category, count, lastPurchased } }
 //   theme         – 'light' | 'dark' | 'system' (historisch, aktuell ungenutzt)
 //   cards         – Kundenkarten:     [{ id, retailer, name, code, codeType, number? }]
+//   viewMode      – 'list' | 'grid' (Ansicht der Einkaufsliste, unbekannt → 'list')
 //   schemaVersion – Ganzzahl; Version des localStorage-Schemas (siehe lib/schema.js)
 
 export const STORAGE_KEYS = {
@@ -13,6 +14,7 @@ export const STORAGE_KEYS = {
   history: 'listly.history',
   theme: 'listly.theme',
   cards: 'listly.cards',
+  viewMode: 'listly.viewMode',
   schemaVersion: 'listly.schemaVersion',
 };
 

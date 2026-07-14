@@ -14,6 +14,7 @@ import AddItemSheet from './components/AddItemSheet';
 import CheckoutDialog from './components/CheckoutDialog';
 import SyncStatus from './components/SyncStatus';
 import LoveHearts from './components/LoveHearts';
+import ViewToggle from './components/ViewToggle';
 import { Plus, ShoppingBasket, Wallet } from 'lucide-react';
 
 // Kundenkarten-Overlay lazy laden: es zieht qrcode + jsbarcode nach, die erst
@@ -45,6 +46,9 @@ export default function App() {
 function AppContent() {
   const [favorites, setFavorites] = useLocalStorage(STORAGE_KEYS.favorites, []);
   const [history, setHistory] = useLocalStorage(STORAGE_KEYS.history, {});
+  const [storedViewMode, setViewMode] = useLocalStorage(STORAGE_KEYS.viewMode, 'list');
+  // Unbekannter/beschädigter Wert fällt defensiv auf die Listenansicht zurück.
+  const viewMode = storedViewMode === 'grid' ? 'grid' : 'list';
   const [cardsOpen, setCardsOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -282,6 +286,7 @@ function AppContent() {
           <h1 className="header__title">Listly</h1>
         </div>
         <div className="header__actions">
+          <ViewToggle view={viewMode} onChange={setViewMode} />
           <button
             type="button"
             className="icon-button icon-button--header"
@@ -300,6 +305,7 @@ function AppContent() {
           items={items}
           favoriteSet={favoriteSet}
           editingId={editingId}
+          viewMode={viewMode}
           onToggle={handleToggle}
           onToggleFavorite={toggleFavorite}
           onRemove={handleRemoveItem}

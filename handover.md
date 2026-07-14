@@ -76,9 +76,11 @@ src/
 ├── components/
 │   ├── AddItemSheet.jsx    #   Hinzufügen-Bottom-Sheet: Suche + Chips + Detailfelder (über FAB)
 │   ├── FrequentChips.jsx   #   „Häufig gekauft“-Chips (im Hinzufügen-Sheet)
-│   ├── ShoppingList.jsx    #   Liste, nach Kategorie gruppiert (offen + erledigt), Fortschritt
-│   ├── ListItem.jsx        #   Einzelzeile: großer Umschalt-Button, Swipe-Aktionen (fokussierbar), Inline-Bearbeitung
-│   ├── ItemEditInline.jsx  #   Artikel INLINE in der aufgeklappten Kachel bearbeiten (kein Overlay)
+│   ├── ShoppingList.jsx    #   Liste, nach Kategorie gruppiert (offen + erledigt), Fortschritt; rendert je nach viewMode ListItem oder TileItem
+│   ├── ListItem.jsx        #   Einzelzeile (Listenansicht): großer Umschalt-Button, Swipe-Aktionen (fokussierbar), Inline-Bearbeitung
+│   ├── TileItem.jsx        #   Einzelkarte (Kachelansicht): dieselben Handler/Aktionen wie ListItem, Favorit/Bearbeiten/Löschen dauerhaft sichtbar statt per Swipe
+│   ├── ViewToggle.jsx      #   Listen-/Kachel-Umschalter im Header (kontrolliert, keine eigene Logik)
+│   ├── ItemEditInline.jsx  #   Artikel INLINE bearbeiten (kein Overlay) – in beiden Ansichten identisch genutzt
 │   ├── ProductIcon.jsx     #   rendert das Emoji eines Artikels
 │   ├── QuantityStepper.jsx #   Mengen-Stepper (−/+, Spinbutton, Standard/Min 1)
 │   ├── SyncStatus.jsx      #   Live/Verbinde/Offline-Anzeige (oben rechts)
@@ -130,6 +132,7 @@ Alle Keys in `src/lib/storage.js` (`STORAGE_KEYS`).
 | localStorage   | `listly.history`   | Kaufverlauf `{ [name]: { name, category, count, lastPurchased } }`   |
 | localStorage   | `listly.cards`     | Kundenkarten `[{ id, retailer, name, code, codeType, number? }]` (pro Gerät) |
 | localStorage   | `listly.theme`     | (historisch; wird aktuell **nicht** genutzt, Dark Mode folgt System)|
+| localStorage   | `listly.viewMode`  | Ansicht der Einkaufsliste: `'list'` \| `'grid'` (pro Gerät; unbekannter Wert → `'list'`) |
 | localStorage   | `listly.schemaVersion` | Ganzzahl: Version des localStorage-Schemas (siehe §12)          |
 
 **Wichtig:** Sobald Supabase konfiguriert ist (Standard), lebt die **Liste in
@@ -279,10 +282,28 @@ deployen.
   Plus-Button (FAB)** unten rechts (`.fab`). **Pinch-Zoom bleibt erlaubt**
   (WCAG 1.4.4 – keine `user-scalable=no`-Sperre); nur der versehentliche
   **Doppeltipp-Zoom** ist per CSS `touch-action: manipulation` unterbunden.
-- **Einheitlicher Einkaufs-Look (kein Modus-Umschalter):** die App hat **eine**
-  Standardansicht – große, leicht treffbare Zeilen, erledigte Artikel
-  standardmäßig eingeklappt. (Der frühere Plan/Shop-Umschalter und das
-  Bildschirm-wachhalten wurden dabei entfernt.)
+- **Einkaufs-Look:** große, leicht treffbare Zeilen/Karten, erledigte Artikel
+  standardmäßig eingeklappt. (Das frühere Plan/Shop-Konzept und das
+  Bildschirm-wachhalten wurden entfernt – siehe §10; unabhängig davon gibt es
+  seit der Kachelansicht wieder einen kleinen, rein visuellen Listen-/
+  Kachel-Umschalter, siehe unten.)
+- **Listen-/Kachelansicht (`ViewToggle.jsx`, `TileItem.jsx`):** ein
+  dezenter Segmented-Umschalter im Header (`.view-toggle`, neben dem
+  Kundenkarten-Button) wechselt zwischen der Zeilen- und einer Karten-Ansicht
+  derselben Artikel. Der State (`viewMode`, persistiert unter
+  `listly.viewMode`, Fallback bei unbekanntem Wert → `'list'`) lebt in
+  `App.jsx` und wird nur an `ShoppingList` durchgereicht – **keine eigene
+  Geschäftslogik** in der Kachelansicht: `TileItem` nutzt dieselben Handler,
+  denselben `itemFields`-Helfer und dieselbe Kategorie-Gruppierung wie
+  `ListItem`. Einziger bewusster Unterschied: Favorit/Bearbeiten/Löschen
+  liegen in der Karte **dauerhaft sichtbar** unter dem Umschalt-Button statt
+  hinter der Wisch-Geste – eine horizontale Swipe-Geste passt nicht in ein
+  zweidimensionales Kachel-Grid. Das Grid (`.tile-grid`) nutzt
+  `repeat(auto-fill, minmax(140px, 1fr))` statt fester Breakpoints; die
+  Bearbeiten-Kachel (`.tile--editing`) spannt beim Aufklappen über die volle
+  Grid-Breite, damit `ItemEditInline` wie in der Listenansicht Platz hat. Der
+  Wechsel selbst blendet kurz ein (`.view-transition`, respektiert
+  `prefers-reduced-motion`).
 - **Liste:** offene und erledigte Artikel **nach Kategorie gruppiert**
   (Überschriften ohne Emoji, in Kategorie-Reihenfolge aus `products.json`).
   Gruppierung in `lib/groupItems.js` (`groupByCategory`, pure Funktion): leere
@@ -437,8 +458,8 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (225 Tests,
-  16 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (260 Tests,
+  20 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
