@@ -144,56 +144,6 @@ input {
   background: var(--danger-soft);
 }
 
-/* ---------- Add form ---------- */
-.add-form {
-  position: relative;
-}
-
-.add-form__row {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.add-form__input {
-  flex: 1;
-  min-width: 0;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius);
-  border: 1px solid var(--border-strong);
-  background: var(--bg-elevated);
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
-  transition: border-color 0.2s ease;
-}
-
-.add-form__input::placeholder {
-  color: var(--text-subtle);
-}
-
-.add-form__input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.add-form__submit {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--on-accent);
-  box-shadow: var(--shadow-sm);
-  transition: background 0.2s ease, transform 0.05s ease;
-}
-
-.add-form__submit:hover {
-  background: var(--accent-hover);
-}
-
-.add-form__submit:active {
-  transform: scale(0.96);
-}
-
 /* ---------- Suggestions dropdown ---------- */
 .suggestions {
   position: absolute;
@@ -345,14 +295,6 @@ input {
 }
 
 /* ---------- List ---------- */
-.list-section__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-
 .list-section__title {
   margin: 0;
   font-family: var(--font-display);
@@ -930,10 +872,6 @@ input {
   color: var(--text-subtle);
 }
 
-.list-group__emoji {
-  font-size: 0.95rem;
-}
-
 /* Anzahl direkt hinter dem Kategorienamen (mit dezentem Mittelpunkt-Trenner). */
 .list-group__count {
   font-family: var(--font-mono);
@@ -998,7 +936,6 @@ input {
   transform: rotate(180deg);
 }
 
-/* ---------- Dock: optional einklappen (Einkaufsmodus) ---------- */
 /* ---------- Schwebender Hinzufügen-Button (FAB) ---------- */
 .fab {
   position: fixed;

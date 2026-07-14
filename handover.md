@@ -101,7 +101,6 @@ src/
 │   ├── cards.js            #   Händler-Metadaten, Barcode-Format, Code-Inhalt
 │   ├── checkout.js         #   reine Helfer: Zusammenfassung/Auswahl beim Einkaufsabschluss
 │   ├── itemFields.js       #   reine Helfer: Menge/Einheit/Notiz (Coerce/Parse/Format)
-│   ├── quickInput.js       #   reiner Parser für Schnelleingabe (aktuell NICHT verdrahtet, s. §10)
 │   ├── groupItems.js       #   reine Helfer: Artikel nach Kategorie gruppieren (Sonstiges zuletzt)
 │   └── schema.js           #   localStorage-Migrationen + Sanitizer (siehe §12)
 ├── data/products.json      # 356 Produkte / 16 Kategorien (Emoji je Produkt)
@@ -404,11 +403,10 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
   **keine** vollständige natürlichsprachliche Eingabe (z. B. „2 Äpfel und Milch“
   in einem Feld); Menge/Einheit werden im Hinzufügen-Sheet über eigene Felder
   erfasst, nicht aus dem Suchtext geparst.
-- **`lib/quickInput.js` ist aktuell nicht verdrahtet (loses Ende):** der Parser
+- **`lib/quickInput.js` wurde entfernt (war nicht mehr verdrahtet):** der Parser
   („2 hafermilch" → `{ name, quantity, … }`) wurde von der früheren, entfernten
-  `AddItemForm` genutzt. Das Hinzufügen-Sheet verwendet stattdessen explizite
-  Detailfelder. Modul + Tests bleiben bestehen; entweder ins Sheet-Suchfeld
-  integrieren oder bei Gelegenheit (mit Test) entfernen.
+  `AddItemForm` genutzt; das Hinzufügen-Sheet verwendet explizite Detailfelder.
+  Modul + Tests liegen bei Bedarf in der Git-Historie.
 - **Bildschirm-wachhalten entfernt:** mit dem Wegfall des Einkaufsmodus gibt es
   kein Screen-Wake-Lock mehr. Bei Bedarf als kleine, bewusste Einstellung
   wieder aufnehmbar (früherer `useWakeLock`-Hook ist in der Git-Historie).
