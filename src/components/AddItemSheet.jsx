@@ -3,13 +3,7 @@ import { Plus, Search, X } from 'lucide-react';
 import { buildSuggestions } from '../lib/suggestions';
 import { normalizeName } from '../lib/history';
 import { CATEGORY_OPTIONS } from '../lib/icons';
-import {
-  MAX_NOTE_LENGTH,
-  MAX_UNIT_LENGTH,
-  coerceNote,
-  coerceUnit,
-  parseQuantityInput,
-} from '../lib/itemFields';
+import { MAX_UNIT_LENGTH, coerceUnit, parseQuantityInput } from '../lib/itemFields';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import FrequentChips from './FrequentChips';
 import ProductIcon from './ProductIcon';
@@ -18,8 +12,8 @@ const SOURCE_LABEL = { history: 'Verlauf', favorite: 'Favorit' };
 
 /**
  * Bottom-Sheet zum Hinzufügen eines Artikels: Produktsuche mit
- * Autovervollständigung, Häufig-gekauft-Chips und allen Detailfeldern
- * (Menge, Einheit, Kategorie, Notiz) in einem Schritt.
+ * Autovervollständigung, Häufig-gekauft-Chips und den Detailfeldern
+ * (Menge, Einheit, Kategorie) in einem Schritt.
  *
  * Interaktionsmodell:
  *  - Chip antippen  → sofort hinzufügen (schneller Mehrfach-Zugriff), Sheet bleibt offen.
@@ -48,7 +42,6 @@ function AddItemSheet({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState('');
-  const [note, setNote] = useState('');
   const [category, setCategory] = useState('');
   const [errors, setErrors] = useState({});
 
@@ -69,7 +62,6 @@ function AddItemSheet({
     setName('');
     setQuantity('');
     setUnit('');
-    setNote('');
     setCategory('');
     setActiveIndex(-1);
     setErrors({});
@@ -116,13 +108,12 @@ function AddItemSheet({
       onAdd(trimmed, category || undefined, {
         quantity: parsed.value,
         unit: coerceUnit(unit),
-        note: coerceNote(note),
       });
       // Sheet offen lassen für schnelle Folge-Adds; Felder leeren, Suche fokussieren.
       resetForm();
       searchRef.current?.focus();
     },
-    [activeIndex, suggestions, pickSuggestion, name, quantity, category, unit, note, onAdd, resetForm],
+    [activeIndex, suggestions, pickSuggestion, name, quantity, category, unit, onAdd, resetForm],
   );
 
   const onSearchKeyDown = useCallback(
@@ -280,22 +271,6 @@ function AddItemSheet({
                   </option>
                 ))}
               </select>
-            </div>
-
-            {/* Notiz kompakt als einzeiliges Feld – keine seitenweite Textfläche. */}
-            <div className="field">
-              <label className="field__label" htmlFor={`${titleId}-note`}>
-                Notiz
-              </label>
-              <input
-                id={`${titleId}-note`}
-                className="field__input"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                maxLength={MAX_NOTE_LENGTH}
-                autoComplete="off"
-                placeholder="z. B. ungesüßt"
-              />
             </div>
           </div>
 

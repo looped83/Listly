@@ -106,7 +106,7 @@ describe('useShoppingItems – addItem Ergebnis-Status', () => {
     expect(result.current.items).toHaveLength(0);
   });
 
-  it('übernimmt Menge/Einheit/Notiz aus der Schnelleingabe an einem neuen Artikel', () => {
+  it('übernimmt Menge/Einheit aus der Schnelleingabe an einem neuen Artikel', () => {
     const { result } = renderHook(() => useShoppingItems());
 
     let outcome;
@@ -114,26 +114,24 @@ describe('useShoppingItems – addItem Ergebnis-Status', () => {
       outcome = result.current.addItem('Tofu', undefined, {
         quantity: 500,
         unit: 'g',
-        note: 'fest',
       });
     });
 
     expect(outcome.status).toBe('added');
-    expect(outcome.item).toMatchObject({ name: 'Tofu', quantity: 500, unit: 'g', note: 'fest' });
-    expect(result.current.items[0]).toMatchObject({ quantity: 500, unit: 'g', note: 'fest' });
+    expect(outcome.item).toMatchObject({ name: 'Tofu', quantity: 500, unit: 'g' });
+    expect(result.current.items[0]).toMatchObject({ quantity: 500, unit: 'g' });
   });
 
   it('materialisiert leere Zusatzfelder nicht (omit-empty)', () => {
     const { result } = renderHook(() => useShoppingItems());
 
     act(() => {
-      result.current.addItem('Apfel', undefined, { quantity: null, unit: '', note: '' });
+      result.current.addItem('Apfel', undefined, { quantity: null, unit: '' });
     });
 
     const item = result.current.items[0];
     expect('quantity' in item).toBe(false);
     expect('unit' in item).toBe(false);
-    expect('note' in item).toBe(false);
   });
 
   it('Dublettenerkennung läuft über den Namen – auch mit Mengen-Extras', () => {
@@ -146,7 +144,7 @@ describe('useShoppingItems – addItem Ergebnis-Status', () => {
     let outcome;
     act(() => {
       // Simuliert „2 × Hafermilch": geparster Name „Hafermilch" + extras.
-      outcome = result.current.addItem('Hafermilch', undefined, { quantity: 2, unit: '', note: '' });
+      outcome = result.current.addItem('Hafermilch', undefined, { quantity: 2, unit: '' });
     });
 
     expect(outcome.status).toBe('alreadyOpen');

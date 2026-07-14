@@ -19,11 +19,10 @@ create table if not exists public.list_items (
   created_at timestamptz not null default now()
 );
 
--- Optionale Artikelfelder (Menge, Einheit, Notiz). Additiv und idempotent –
+-- Optionale Artikelfelder (Menge, Einheit). Additiv und idempotent –
 -- bei einer bestehenden Tabelle einfach dieses Skript erneut ausführen.
 alter table public.list_items add column if not exists quantity numeric;
 alter table public.list_items add column if not exists unit text;
-alter table public.list_items add column if not exists note text;
 
 create index if not exists list_items_list_id_idx
   on public.list_items (list_id, created_at);

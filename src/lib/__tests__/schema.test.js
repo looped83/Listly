@@ -235,13 +235,20 @@ describe('sanitizeItems', () => {
     expect(item.category).toBeNull();
   });
 
-  it('normalisiert quantity/unit/note und schreibt sie nur, wenn belegt (omit-empty)', () => {
+  it('normalisiert quantity/unit und schreibt sie nur, wenn belegt (omit-empty)', () => {
     const [item] = sanitizeItems([
-      { id: 'a', name: 'Hafermilch', quantity: '2', unit: '  l  ', note: '  ungesüßt  ' },
+      { id: 'a', name: 'Hafermilch', quantity: '2', unit: '  l  ' },
     ]);
     expect(item.quantity).toBe(2); // aus String koerziert
     expect(item.unit).toBe('l'); // getrimmt
-    expect(item.note).toBe('ungesüßt'); // getrimmt
+  });
+
+  it('entfernt ein evtl. noch gespeichertes note-Feld (Feature entfernt)', () => {
+    const [item] = sanitizeItems([
+      { id: 'a', name: 'Hafermilch', quantity: 2, note: 'ungesüßt' },
+    ]);
+    expect('note' in item).toBe(false);
+    expect(item.quantity).toBe(2); // andere Felder bleiben unberührt
   });
 
   it('lässt Altartikel ohne die neuen Felder unverändert (keine leeren Platzhalter)', () => {
@@ -261,17 +268,14 @@ describe('sanitizeItems', () => {
     expect('quantity' in c).toBe(false);
   });
 
-  it('begrenzt zu lange Einheiten und Notizen', () => {
-    const [item] = sanitizeItems([
-      { id: 'a', name: 'X', unit: 'x'.repeat(50), note: 'y'.repeat(500) },
-    ]);
+  it('begrenzt zu lange Einheiten', () => {
+    const [item] = sanitizeItems([{ id: 'a', name: 'X', unit: 'x'.repeat(50) }]);
     expect(item.unit).toHaveLength(16);
-    expect(item.note).toHaveLength(200);
   });
 });
 
-describe('runMigrations – v2 (Menge/Einheit/Notiz)', () => {
-  it('koerziert vorhandene Rohwerte beim Hochmigrieren auf v2', () => {
+describe('runMigrations – v2 (Menge/Einheit)', () => {
+  it('koerziert vorhandene Rohwerte und entfernt ein evtl. gespeichertes note-Feld', () => {
     const storage = seed({
       items: [{ id: 'a', name: 'Hafermilch', quantity: '1,5', unit: ' l ', note: ' bio ' }],
     });
@@ -279,13 +283,14 @@ describe('runMigrations – v2 (Menge/Einheit/Notiz)', () => {
     const result = runMigrations(storage);
 
     expect(result.applied).toEqual([1, 2]);
-    expect(read(storage, 'items')[0]).toMatchObject({
+    const item = read(storage, 'items')[0];
+    expect(item).toMatchObject({
       id: 'a',
       name: 'Hafermilch',
       quantity: 1.5, // „1,5" → 1.5
       unit: 'l',
-      note: 'bio',
     });
+    expect('note' in item).toBe(false); // note wird still verworfen
     expect(read(storage, 'schemaVersion')).toBe(SCHEMA_VERSION);
   });
 });

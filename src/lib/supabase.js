@@ -1,5 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, LIST_ID } from './supabaseConfig';
-import { coerceQuantity, coerceUnit, coerceNote } from './itemFields';
+import { coerceQuantity, coerceUnit } from './itemFields';
 
 // Cloud-Sync ist nur aktiv, wenn URL und Key konfiguriert sind. Andernfalls
 // bleibt Listly im lokalen Modus (localStorage) voll funktionsfähig.
@@ -29,9 +29,10 @@ export function getSupabase() {
 }
 
 /**
- * DB-Zeile → App-Artikel. Die optionalen Spalten quantity/unit/note werden
- * defensiv gelesen: fehlen sie (ältere DB ohne die Spalten), greifen die
- * Standardwerte, sodass Cloud-Sync auch ohne Schema-Update funktioniert.
+ * DB-Zeile → App-Artikel. Die optionalen Spalten quantity/unit werden defensiv
+ * gelesen: fehlen sie (ältere DB ohne die Spalten), greifen die Standardwerte,
+ * sodass Cloud-Sync auch ohne Schema-Update funktioniert. Eine evtl. noch
+ * vorhandene note-Spalte wird bewusst ignoriert (Feature entfernt).
  */
 export function rowToItem(row) {
   const item = {
@@ -45,14 +46,12 @@ export function rowToItem(row) {
   if (quantity !== null) item.quantity = quantity;
   const unit = coerceUnit(row.unit);
   if (unit) item.unit = unit;
-  const note = coerceNote(row.note);
-  if (note) item.note = note;
   return item;
 }
 
 /**
  * App-Artikel → DB-Zeile (Gegenstück zu rowToItem), z. B. beim Anlegen und bei
- * der Undo-Wiederherstellung. Die optionalen Felder quantity/unit/note werden
+ * der Undo-Wiederherstellung. Die optionalen Felder quantity/unit werden
  * omit-empty übernommen – eine Wiederherstellung bleibt dadurch verlustfrei,
  * ohne leere Werte zu materialisieren.
  */
@@ -69,7 +68,5 @@ export function itemToRow(item) {
   if (quantity !== null) row.quantity = quantity;
   const unit = coerceUnit(item.unit);
   if (unit) row.unit = unit;
-  const note = coerceNote(item.note);
-  if (note) row.note = note;
   return row;
 }

@@ -36,11 +36,10 @@ function ListItem({
     openThreshold: OPEN_THRESHOLD,
   });
 
-  const { quantity, unit, note } = readItemExtras(item);
+  const { quantity, unit } = readItemExtras(item);
   const qtyLabel = formatQuantity(quantity, unit);
-  // Sprechende Bezeichnung inkl. Menge (+ Notiz) für die Aktions-Labels.
+  // Sprechende Bezeichnung inkl. Menge für die Aktions-Labels.
   const descriptor = itemLabel(item);
-  const noteSuffix = note ? `, Notiz: ${note}` : '';
 
   // Aufgeklappte Kachel: Bearbeitungsfelder inline statt Overlay.
   if (isEditing) {
@@ -117,8 +116,8 @@ function ListItem({
           aria-pressed={item.checked}
           aria-label={
             item.checked
-              ? `${descriptor}${noteSuffix} als offen markieren`
-              : `${descriptor}${noteSuffix} als erledigt markieren`
+              ? `${descriptor} als offen markieren`
+              : `${descriptor} als erledigt markieren`
           }
         >
           <span className="list-item__check" data-checked={item.checked} aria-hidden="true">
@@ -134,7 +133,6 @@ function ListItem({
               )}
               {item.name}
             </span>
-            {note && <span className="list-item__note">{note}</span>}
           </span>
         </button>
       </div>

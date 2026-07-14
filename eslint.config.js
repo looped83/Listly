@@ -24,7 +24,9 @@ export default [
       // JSX-Bezüge zählen als Verwendung (sonst false positives bei Imports).
       'react/jsx-uses-vars': 'error',
       'react/jsx-uses-react': 'off', // automatic runtime – kein React-Import nötig
-      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // ignoreRestSiblings: ein Feld per Destructuring + Rest bewusst weglassen
+      // (z. B. `const { note, ...rest } = item`) gilt nicht als „ungenutzt“.
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', ignoreRestSiblings: true }],
     },
   },
   {
