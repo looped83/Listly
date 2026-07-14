@@ -54,6 +54,27 @@ describe('AddItemSheet – Vorschlagsauswahl', () => {
     expect(search).toHaveFocus();
   });
 
+  it('zeigt das ausgewählte Produkt inkl. Emoji unter dem Suchfeld', async () => {
+    const user = userEvent.setup();
+    renderSheet();
+
+    const search = screen.getByRole('combobox', { name: 'Produkt suchen oder hinzufügen' });
+    await user.type(search, 'apfel');
+    await user.click(screen.getAllByRole('option')[0]);
+
+    const selected = document.querySelector('.add-sheet__selected');
+    expect(selected).toBeInTheDocument();
+    expect(selected).toHaveTextContent('Apfel');
+    // Emoji-Icon (ProductIcon) ist vorhanden und nicht leer.
+    const icon = selected.querySelector('[role="img"]');
+    expect(icon).not.toBeNull();
+    expect(icon.textContent.trim().length).toBeGreaterThan(0);
+
+    // Beim Weitertippen verschwindet die Bestätigung wieder.
+    await user.type(search, '{Backspace}');
+    expect(document.querySelector('.add-sheet__selected')).toBeNull();
+  });
+
   it('schließt die Vorschlagsliste nach der Auswahl (öffnet beim Weitertippen erneut)', async () => {
     const user = userEvent.setup();
     renderSheet();

@@ -318,7 +318,10 @@ deployen.
   **Menge** ist ein **Stepper** (`QuantityStepper`, −/+, Standard/Minimum 1). Ein
   **Chip** fügt sofort hinzu, ein **Vorschlag** übernimmt Name + Kategorie ins
   Formular (zum Ergänzen der Menge), **„Hinzufügen"** übernimmt Name + Menge.
-  Die Vorschlagsauswahl greift auf **`pointerdown`** (nicht `click`) mit
+  Nach dem Übernehmen eines Vorschlags erscheint an Stelle der Liste eine
+  **Bestätigung des gewählten Produkts inkl. Emoji** (`.add-sheet__selected`,
+  Zustand `selected`); beim Weitertippen verschwindet sie und die Liste kommt
+  zurück. Die Vorschlagsauswahl greift auf **`pointerdown`** (nicht `click`) mit
   `preventDefault`: so wird schon das **erste** Antippen zuverlässig übernommen,
   bevor Fokuswechsel/Tastatur einen Layoutsprung auslösen. Das Übernehmen eines
   hervorgehobenen Vorschlags per **Enter** passiert nur im Suchfeld – der

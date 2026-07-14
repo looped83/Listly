@@ -1052,6 +1052,41 @@ textarea {
   background: transparent;
 }
 
+/* Bestätigung des ausgewählten Produkts (inkl. Emoji) unter dem Suchfeld. */
+.add-sheet__selected {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.add-sheet__selected-icon {
+  flex-shrink: 0;
+  width: 1.5rem;
+  text-align: center;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.add-sheet__selected-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.add-sheet__selected-check {
+  flex-shrink: 0;
+  color: var(--accent-text);
+}
+
 /* ---------- Toasts / Snackbars ---------- */
 /*
  * Zentrale Feedback-Schicht: schwebt über dem Inhalt, in beiden Themes über
