@@ -22,7 +22,7 @@ body {
   /* Kein Scrollen/Wippen der Gesamtseite – nur die Liste scrollt intern. */
   overflow: hidden;
   overscroll-behavior: none;
-  /* Doppeltipp-Zoom verhindern. */
+  /* Doppeltipp-Zoom verhindern – Pinch-Zoom bleibt erlaubt (WCAG 1.4.4). */
   touch-action: manipulation;
   background-color: var(--bg);
   color: var(--text);

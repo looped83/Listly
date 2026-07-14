@@ -8,22 +8,6 @@ import './styles/index.css';
 // die App-Daten erstmals lesen. Idempotent und defensiv – wirft nie.
 runMigrations();
 
-// Zoom unterbinden (iOS beachtet user-scalable im Viewport nicht zuverlässig):
-// Pinch-Gesten und Doppeltipp-Zoom abfangen.
-['gesturestart', 'gesturechange', 'gestureend'].forEach((event) =>
-  document.addEventListener(event, (e) => e.preventDefault(), { passive: false }),
-);
-let lastTouchEnd = 0;
-document.addEventListener(
-  'touchend',
-  (e) => {
-    const now = Date.now();
-    if (now - lastTouchEnd <= 300) e.preventDefault();
-    lastTouchEnd = now;
-  },
-  { passive: false },
-);
-
 /**
  * Fängt Render-Fehler ab und zeigt sie an, statt einen weißen Bildschirm zu
  * hinterlassen – erleichtert die Diagnose beim lokalen Start.

@@ -272,8 +272,9 @@ deployen.
 - **Layout:** Gesamtseite nicht scrollbar/wippend (`body { overflow:hidden;
   overscroll-behavior:none }`), nur der Listenbereich scrollt. Es gibt **keine
   feste Eingabeleiste** mehr; Hinzufügen läuft über einen **schwebenden
-  Plus-Button (FAB)** unten rechts (`.fab`). **Zoom deaktiviert** (Viewport
-  `user-scalable=no` + Abfangen von Pinch-Gesten/Doppeltipp in `main.jsx`).
+  Plus-Button (FAB)** unten rechts (`.fab`). **Pinch-Zoom bleibt erlaubt**
+  (WCAG 1.4.4 – keine `user-scalable=no`-Sperre); nur der versehentliche
+  **Doppeltipp-Zoom** ist per CSS `touch-action: manipulation` unterbunden.
 - **Einheitlicher Einkaufs-Look (kein Modus-Umschalter):** die App hat **eine**
   Standardansicht – große, leicht treffbare Zeilen, erledigte Artikel
   standardmäßig eingeklappt. (Der frühere Plan/Shop-Umschalter und das
