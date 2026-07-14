@@ -1,6 +1,6 @@
 # Listly – Handover
 
-Stand: Juli 2026 (aktueller Branch-Tip, `claude/feedback-undo-infrastructure-3aebrv`).
+Stand: Juli 2026 (aktueller Branch-Tip, `claude/production-quality-refactor-y49t67`).
 Diese Datei fasst Architektur, Betrieb und Besonderheiten zusammen, damit jemand
 die Weiter­ent­wicklung ohne Vorwissen übernehmen kann.
 
@@ -20,7 +20,7 @@ gemeinsam in Echtzeit genutzt.
 - **Live-URL:** https://looped83.github.io/Listly/ (GitHub Pages)
 - **Repo:** `looped83/Listly` (öffentlich)
 - **Default-Branch:** `main` (Deploy-Quelle) · **Arbeitsbranch:**
-  `claude/feedback-undo-infrastructure-3aebrv`
+  `claude/production-quality-refactor-y49t67`
 - **Geteilte Liste:** in Echtzeit über Supabase synchronisiert
 - **Kundenkarten:** Lidl/Payback/dm/REWE mit QR/Barcode, rein lokal gespeichert
 - **Bedienung:** einheitlicher, einkaufsorientierter Look; Hinzufügen über einen
@@ -46,6 +46,8 @@ gemeinsam in Echtzeit genutzt.
 - **qrcode** + **jsbarcode** – Code-Erzeugung für Kundenkarten (Client-seitig)
 - **vite-plugin-pwa** – Manifest + Service Worker
 - Fonts (Fraunces, Inter, IBM Plex Mono) sind **lokal** eingebunden (kein CDN).
+- **ESLint** (Flat Config, `eslint.config.js`): @eslint/js recommended +
+  react-hooks-Regeln; läuft lokal (`npm run lint`) und im Deploy-Workflow.
 - **Code-Splitting:** `@supabase/supabase-js` (nur im Cloud-Modus) und das
   Kundenkarten-Modul mit `qrcode`/`jsbarcode` (nur beim Öffnen der Karten) werden
   **lazy** als eigene Chunks geladen – das initiale JS bleibt schlank.
@@ -70,7 +72,7 @@ npm run preview    # gebautes Bundle lokal servieren
 ```
 src/
 ├── App.jsx                 # Orchestrierung: State, Header, Liste, FAB, Overlays/Dialoge
-├── main.jsx                # Einstieg, ErrorBoundary, Zoom-Sperre (Gesten)
+├── main.jsx                # Einstieg, ErrorBoundary, localStorage-Migrationen
 ├── components/
 │   ├── AddItemSheet.jsx    #   Hinzufügen-Bottom-Sheet: Suche + Chips + Detailfelder (über FAB)
 │   ├── FrequentChips.jsx   #   „Häufig gekauft“-Chips (im Hinzufügen-Sheet)
@@ -109,7 +111,7 @@ src/
 │   └── index.css           #   Base + alle Komponenten-Styles
 └── assets/fonts/           # lokal gehostete woff2 + fonts.css (OFL)
 
-.github/workflows/deploy.yml # Test + Build + offizielle GitHub-Pages-Actions-Pipeline
+.github/workflows/deploy.yml # Lint + Test + Build + offizielle GitHub-Pages-Actions-Pipeline
 supabase/schema.sql          # Tabelle + Spalten + RLS + Realtime für die geteilte Liste
 ```
 
@@ -199,10 +201,11 @@ on:
 ```
 
 1. `npm ci`
-2. **`npm test`** – schlägt ein Test fehl, bricht der Workflow ab und es wird
+2. **`npm run lint`** – Linting-Fehler brechen den Workflow ab.
+3. **`npm test`** – schlägt ein Test fehl, bricht der Workflow ab und es wird
    **nicht** deployt.
-3. `npm run build` → `dist/`
-4. `dist/` als Pages-Artefakt hochladen (`upload-pages-artifact`) und über
+4. `npm run build` → `dist/`
+5. `dist/` als Pages-Artefakt hochladen (`upload-pages-artifact`) und über
    `deploy-pages` veröffentlichen.
 
 **Einmalige Repo-Einstellung:** Settings → Pages → Build and deployment →
@@ -417,10 +420,12 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **dm-Kartentoken** ist evtl. dynamisch (siehe §7).
 - **Kundenkarten sind gerätelokal** – kein Sync (bewusst, Datenschutz). Sync
   wäre nur mit echtem Login sinnvoll.
-- **`npm audit`** meldet eine Dev-Server-Warnung (esbuild, transitiv über Vite 5).
-  Betrifft nur den lokalen Dev-Server, nicht das ausgelieferte Bundle.
-- **Tests:** Vitest + React Testing Library, `npm test` (254 Tests, 15 Dateien).
-  Läuft auch als Teil der Deploy-Pipeline (§6) – ein Testfehler verhindert das
+- **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
+  Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
+  ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (225 Tests,
+  16 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
+  Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
 
