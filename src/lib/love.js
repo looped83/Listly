@@ -17,7 +17,7 @@ export const CHECKOUT_MESSAGES = [
 /** Kurze Liebesbotschaften für das Herz beim Abhaken und das Logo-Geheimnis. */
 export const LOVE_MESSAGES = [
   'Ich liebe dich 💚',
-  'Ich hab dich lieb 💚',
+  'Ich liebe dich mein Schatz 💚',
   'Du bist der Beste 💚',
   'Danke, dass es dich gibt 💚',
   'Mein Herz gehört dir 💚',
