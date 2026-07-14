@@ -7,6 +7,7 @@ vi.mock('../../lib/supabase', () => ({
   isCloudEnabled: false,
   getSupabase: () => Promise.resolve(null),
   rowToItem: (row) => row,
+  itemToRow: (item) => item,
   TABLE: 'list_items',
   LIST_ID: 'test-list',
 }));

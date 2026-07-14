@@ -54,8 +54,12 @@ function ItemEditInline({ item, findConflict, onSave, onCancel }) {
     nameRef.current?.select();
   }, []);
 
+  // Fokus folgt der Ansicht: in der Zusammenführungs-Abfrage auf „Zusammenführen“,
+  // nach „Zurück“ wieder auf das Namensfeld (der Zurück-Button verschwindet –
+  // ohne Nachführen fiele der Fokus auf body und Escape griffe nicht mehr).
   useEffect(() => {
     if (pendingMerge) mergeRef.current?.focus();
+    else nameRef.current?.focus();
   }, [pendingMerge]);
 
   const validate = useCallback(() => {

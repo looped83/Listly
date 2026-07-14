@@ -28,7 +28,7 @@
 //    3. Schritt idempotent/defensiv halten (nicht auf perfekte Eingaben
 //       verlassen – ein beschädigter Versions-Key kann eine erneute Anwendung
 //       auslösen).
-//    4. Falls nötig einen Sanitizer für neue/​geänderte Felder anpassen.
+//    4. Falls nötig einen Sanitizer für neue/geänderte Felder anpassen.
 //    5. Test in `__tests__/schema.test.js` ergänzen (siehe vorhandene Fälle).
 
 import { STORAGE_KEYS } from './storage';
@@ -129,7 +129,7 @@ export function sanitizeTheme(value) {
 // ── Domänen des Schemas ──────────────────────────────────────────────────────
 // name  – Schlüssel im Snapshot-Objekt der Migrationen
 // key   – localStorage-Key
-// empty – Standardwert bei fehlendem/​defektem Wert (undefined = Key entfernen)
+// empty – Standardwert bei fehlendem/defektem Wert (undefined = Key entfernen)
 const DOMAINS = [
   { name: 'items', key: STORAGE_KEYS.items, sanitize: sanitizeItems, empty: () => [] },
   { name: 'favorites', key: STORAGE_KEYS.favorites, sanitize: sanitizeFavorites, empty: () => [] },

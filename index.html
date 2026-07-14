@@ -4,10 +4,9 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-    />
+    <!-- Zoom bleibt erlaubt (WCAG 1.4.4); Doppeltipp-Zoom unterbindet
+         touch-action: manipulation im CSS, ohne Pinch-Zoom zu blockieren. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <!-- theme-color wird zur Laufzeit an den aktiven Modus angepasst (siehe useTheme) -->
     <meta name="theme-color" content="#faf6ee" />
     <meta name="description" content="Listly – vegane Einkaufsliste mit Kaufverlauf, offline nutzbar." />
@@ -17,8 +16,10 @@
     <div id="root">
       <!-- Bleibt sichtbar, falls das JavaScript nicht geladen/ausgeführt wird
            (z. B. beim direkten Öffnen per file:// ). React ersetzt diesen Inhalt
-           beim erfolgreichen Start. -->
-      <div id="boot-fallback" style="font-family: system-ui, sans-serif; max-width: 32rem; margin: 15vh auto; padding: 0 1.5rem; color: #292420; line-height: 1.5;">
+           beim erfolgreichen Start. position:fixed hält ihn aus dem Layoutfluss,
+           damit das Ersetzen keinen Layout-Shift (CLS) verursacht. -->
+      <div id="boot-fallback" style="position: fixed; inset: 0; overflow: auto; font-family: system-ui, sans-serif; padding: 15vh 1.5rem 1.5rem; color: #292420; line-height: 1.5;">
+        <div style="max-width: 32rem; margin: 0 auto;">
         <h1 style="font-size: 1.3rem;">Listly wird geladen …</h1>
         <p>Bleibt dauerhaft nur dieser Text stehen, wird die App nicht ausgeführt.
            Häufigste Ursache: Die Seite wurde als Datei geöffnet
@@ -26,6 +27,7 @@
         <p><strong>Lösung:</strong> Im Projektordner <code>npm install</code> und
            <code>npm run dev</code> ausführen und die angezeigte
            <code>http://localhost:…</code>-Adresse öffnen.</p>
+        </div>
       </div>
     </div>
     <noscript style="display:block; padding:1.5rem; font-family: system-ui, sans-serif;">

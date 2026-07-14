@@ -2,108 +2,60 @@
 
 Eine schlanke, **vegane Einkaufslisten-PWA** – gebaut mit **Vite + React**, ohne
 unnötige Abhängigkeiten. Läuft lokal im Browser und lässt sich als App aufs Handy
-installieren (offline-fähig).
+installieren (offline-fähig). Optional wird die Liste über Supabase in Echtzeit
+zwischen mehreren Geräten geteilt.
 
 ## Features
 
-- **Artikel verwalten** – hinzufügen, abhaken, favorisieren; entfernen per
-  ×-Button **oder Wischen nach links** (Swipe-to-delete).
-- **Schnelleingabe** – beim manuellen Hinzufügen erkennt Listly konservativ eine
-  führende Menge/Einheit und eine optionale Notiz (siehe unten). Im Zweifel bleibt
-  die Eingabe unverändert der Artikelname; ausgewählte Vorschläge werden nie zerlegt.
-- **Einkaufsmodus** – ein klar getrennter Modus fürs Einkaufen im Laden: große,
-  leicht treffbare Zeilen, Fortschritt „x von y erledigt“, standardmäßig
-  eingeklappte erledigte Artikel, zurückgenommene Sekundäraktionen (Mehr-Menü),
-  optional einklappbares Eingabedock und – wo unterstützt – ein wachbleibender
-  Bildschirm (Screen Wake Lock). Umschaltbar über den Kopf­leisten-Button.
-- **Kaufverlauf** – abgehakte und „verbuchte“ Artikel merken sich ihre
-  Kaufhäufigkeit. Häufig gekaufte Artikel erscheinen als horizontal scrollbare
+- **Artikel verwalten** – hinzufügen über einen schwebenden Plus-Button (öffnet
+  ein oben angedocktes Sheet mit Produktsuche und Detailfeldern für Menge,
+  Einheit, Kategorie und Notiz); abhaken durch Antippen der ganzen Zeile.
+- **Swipe-Aktionen** – Wischen nach links deckt hinter jeder Zeile die Aktionen
+  **Favorit / Bearbeiten / Löschen** auf. Dieselben Aktionen sind ohne Geste per
+  Tastatur und Screenreader erreichbar (die Leiste klappt bei Fokus automatisch auf).
+- **Inline-Bearbeitung** – „Bearbeiten“ klappt die Kachel direkt an Ort und
+  Stelle auf (kein Overlay); beim Umbenennen auf einen vorhandenen Artikel gibt
+  es eine bewusste Zusammenführungs-Abfrage statt stiller Dubletten.
+- **Einkauf abschließen** – ein Bottom-Sheet verbucht abgehakte (optional alle)
+  Artikel in den Kaufverlauf und entfernt sie von der Liste – mit **Undo** über
+  die zentrale Toast-Infrastruktur.
+- **Kaufverlauf** – verbuchte Artikel merken sich ihre Kaufhäufigkeit. Häufig
+  gekaufte Artikel erscheinen im Hinzufügen-Sheet als horizontal scrollbare
   Schnellauswahl-Chips (einzeln über ihr ×-Symbol aus den Vorschlägen entfernbar).
-  Der Verlauf bleibt dauerhaft erhalten – auch nachdem ein Artikel aus der
-  aktuellen Liste gelöscht wurde und über App-Neustarts hinweg.
-- **Autovervollständigung** – Vorschläge beim Tippen, priorisiert nach
-  **Kaufverlauf → Favoriten → veganer Basisliste**, jeweils mit passendem Icon.
+- **Autovervollständigung** – deterministisches, nachvollziehbares Trefferscoring
+  (exakt › Synonym › Präfix › Token-Präfix › Teilstring › Singular/Plural ›
+  Tippfehler), priorisiert nach **Kaufverlauf → Favoriten → veganer Basisliste**.
+- **Geteilte Liste (optional)** – in Echtzeit über Supabase synchronisiert
+  (Status-Anzeige oben rechts); ohne Konfiguration arbeitet Listly rein lokal.
+- **Kundenkarten** – Lidl/Payback/dm/REWE u. a. als QR-/Barcode direkt in der App,
+  **rein lokal** auf dem Gerät gespeichert.
 - **Vegane Produktdaten** – Kategorien und Produkte (Hafermilch, Tofu,
   Hefeflocken, veganer Käse …) liegen in [`src/data/products.json`](src/data/products.json)
-  und sind leicht erweiterbar.
-- **Passende Icons** – jedes Produkt / jede Kategorie bekommt ein
-  [lucide-react](https://lucide.dev)-Icon, mit Fallback für unbekannte Artikel.
+  und sind leicht erweiterbar. Produkt-Symbole sind Emoji (kein Icon-Font nötig);
+  UI-Symbole kommen aus [lucide-react](https://lucide.dev).
 - **Automatischer Dark Mode** – vollständiges zweites Farbschema über CSS-Tokens
   (keine hartcodierten Farben in den Komponenten). Folgt automatisch der
   Systemeinstellung (`prefers-color-scheme`), ohne manuellen Umschalter.
+- **Barrierefrei** – vollständige Tastaturbedienung, Fokusmanagement in allen
+  Dialogen/Sheets, aria-live-Statusmeldungen, sichtbare Fokusindikatoren,
+  `prefers-reduced-motion` wird respektiert.
 - **PWA** – installierbar, Standalone-Modus, Offline-Support via Service Worker.
 - **Lokale Fonts** – Fraunces, Inter & IBM Plex Mono sind selbst gehostet
   (kein CDN), für schnelle Ladezeiten und Offline-Fähigkeit.
 
-## Schnelleingabe (Menge / Einheit / Notiz)
+## Datenmodell
 
-Beim **manuellen** Absenden im Eingabefeld erkennt Listly konservativ ein
-eindeutiges Präfix für Menge/Einheit sowie eine mit `#` eingeleitete Notiz. Die
-Zerlegung passiert **nur bei frei getipptem Text** – wählst du einen Vorschlag
-aus, wird er unverändert übernommen.
+Die geteilte Liste lebt in Supabase (Tabelle `list_items`), sobald Zugangsdaten
+konfiguriert sind – sonst in `localStorage`. Alle übrigen Daten bleiben bewusst
+lokal pro Gerät:
 
-| Eingabe               | Menge | Einheit | Name       | Notiz        |
-| --------------------- | ----- | ------- | ---------- | ------------ |
-| `2x Hafermilch`       | 2     | –       | Hafermilch | –            |
-| `2 × Hafermilch`      | 2     | –       | Hafermilch | –            |
-| `500 g Tofu`          | 500   | g       | Tofu       | –            |
-| `1,5 l Wasser`        | 1,5   | l       | Wasser     | –            |
-| `3 Bananen #reif`     | 3     | –       | Bananen    | reif         |
-| `Tofu #geräuchert`    | –     | –       | Tofu       | geräuchert   |
-
-**Regeln (bewusst konservativ):**
-
-- **Reihenfolge:** `#` trennt zuerst die Notiz ab; davor wird ein Mengen-Präfix
-  gesucht. Greift kein Muster, ist die komplette Eingabe der Name.
-- **Muster:** Multiplikator (`2x`, `2 ×`), Menge + bekannte Einheit (`500 g`),
-  oder reine **Ganzzahl** als Anzahl (`3 Bananen`).
-- **Dezimaltrenner:** Komma **und** Punkt (`1,5` = `1.5`).
-- **Erlaubte Einheiten** (werden normalisiert): `g` (`gr`, `gramm`), `kg` (`kilo`,
-  `kilogramm`), `mg`, `l` (`ltr`, `liter`), `ml` (`milliliter`), `cl`, `dl`.
-  Andere Wörter zählen nicht als Einheit.
-- **Fehlinterpretationsschutz:** Produktnamen mit Zahlen bleiben unangetastet –
-  z. B. `0% Joghurt`, `7Up`, `3-Minuten-Terrine` oder `2xHafermilch` (ohne
-  Leerzeichen) werden **nicht** zerlegt.
-- **Dublettenerkennung** läuft weiterhin über den reinen Namen – `2 × Hafermilch`
-  gilt als „Hafermilch".
-
-Die Logik steckt als reine Funktion in
-[`src/lib/quickInput.js`](src/lib/quickInput.js) (`parseQuickInput`); die
-Einheiten-Liste (`QUICK_UNIT_ALIASES`) ist dort leicht erweiterbar.
-
-## Einkaufsmodus
-
-Über den Button **„Einkaufen"** in der Kopfzeile wechselt Listly vom
-**Planungsmodus** (hinzufügen/bearbeiten/favorisieren/löschen wie gewohnt) in
-einen fokussierten **Einkaufsmodus**:
-
-- **Große Zeilen** – die gesamte Zeile schaltet „erledigt" um (leicht treffbar).
-- **Fortschritt** – „x von y erledigt" als Balken (`role="progressbar"`).
-- **Erledigte eingeklappt** – standardmäßig zusammengeklappt, per Klick ausklappbar.
-- **Zurückgenommene Aktionen** – Favorisieren/Bearbeiten/Löschen liegen in einem
-  per-Zeile **„Mehr"-Menü** (⋯), damit die Hauptaktion dominiert.
-- **Einklappbares Dock** – die Eingabe lässt sich einklappen (mehr Platz), bleibt
-  aber über „Artikel hinzufügen" jederzeit erreichbar.
-- **Bildschirm wach halten** – wo unterstützt, wird per **Screen Wake Lock API**
-  (progressive Enhancement) verhindert, dass sich der Bildschirm beim Einkaufen
-  abschaltet. Der Lock wird erst beim bewussten Wechsel in den Einkaufsmodus
-  angefordert und beim Verlassen/Verbergen der Seite wieder freigegeben; fehlt die
-  API (z. B. ältere Geräte), passiert lautlos nichts.
-
-Der Modus wird **nur sitzungsbezogen** gespeichert (überlebt einen Reload im
-selben Tab, aber nicht dauerhaft). Alles bleibt per Tastatur und Screenreader
-bedienbar. Es gibt **keinen** automatischen Moduswechsel.
-
-## Datenmodell (localStorage)
-
-Alle Daten liegen lokal im Browser unter folgenden Schlüsseln:
-
-| Schlüssel          | Inhalt                                                                    |
-| ------------------ | ------------------------------------------------------------------------- |
-| `listly.items`     | Aktuelle Liste: `[{ id, name, category, checked }]`                        |
-| `listly.favorites` | Favoriten: `["Hafermilch", …]`                                            |
-| `listly.history`   | Kaufverlauf: `{ [name]: { name, category, count, lastPurchased } }`        |
-| `listly.theme`     | Farbschema: `"light" \| "dark" \| "system"`                               |
+| Schlüssel              | Inhalt                                                                    |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `listly.items`         | Liste (nur im lokalen Modus): `[{ id, name, category, checked, createdAt, quantity?, unit?, note? }]` |
+| `listly.favorites`     | Favoriten: `["Hafermilch", …]`                                            |
+| `listly.history`       | Kaufverlauf: `{ [name]: { name, category, count, lastPurchased } }`        |
+| `listly.cards`         | Kundenkarten: `[{ id, retailer, name, code, codeType }]`                   |
+| `listly.schemaVersion` | Version des localStorage-Schemas (Migrationen in `src/lib/schema.js`)      |
 
 ## Setup
 
@@ -121,11 +73,13 @@ npm run dev      # Dev-Server starten (http://localhost:5173)
 > oder `npm run preview` (gebautes Bundle) und öffne die angezeigte
 > `http://localhost:…`-Adresse.
 
-## Build & Vorschau
+## Build, Test & Vorschau
 
 ```bash
 npm run build    # Produktions-Build nach dist/
 npm run preview  # gebautes Bundle lokal servieren
+npm test         # Vitest (Unit-/Komponententests)
+npm run lint     # ESLint
 ```
 
 ## Als PWA aufs Handy installieren
@@ -140,11 +94,11 @@ npm run preview  # gebautes Bundle lokal servieren
 ## Deployment auf GitHub Pages
 
 Der Workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) baut,
-**testet** und veröffentlicht die App bei jedem Push auf `main` automatisch über
-die offizielle GitHub-Actions-Pages-Pipeline. Es wird ausschließlich der frisch
-gebaute `dist/`-Ordner als Pages-Artefakt hochgeladen – es gibt keinen
-`gh-pages`-Branch und kein committetes Build-Artefakt mehr. So entspricht der
-veröffentlichte Stand reproduzierbar dem Quellcode auf `main`.
+**lintet, testet** und veröffentlicht die App bei jedem Push auf `main`
+automatisch über die offizielle GitHub-Actions-Pages-Pipeline. Es wird
+ausschließlich der frisch gebaute `dist/`-Ordner als Pages-Artefakt hochgeladen –
+es gibt keinen `gh-pages`-Branch und kein committetes Build-Artefakt. So
+entspricht der veröffentlichte Stand reproduzierbar dem Quellcode auf `main`.
 
 **Einmalige Einstellung** in **Settings → Pages → „Build and deployment”**:
 
@@ -162,7 +116,8 @@ unter diesem Unterpfad als auch am Server-Root.
 Standardmäßig speichert Listly alles **lokal** (localStorage). Damit sich mehrere
 Personen/Geräte **dieselbe Liste in Echtzeit** teilen, kann eine kostenlose
 [Supabase](https://supabase.com)-Datenbank angebunden werden. Nur die aktuelle
-**Liste** wird geteilt; Favoriten und Kaufverlauf bleiben pro Gerät lokal.
+**Liste** wird geteilt; Favoriten, Kaufverlauf und Kundenkarten bleiben pro
+Gerät lokal.
 
 **Einrichtung (einmalig, ~10 Min):**
 
@@ -200,48 +155,57 @@ Die PWA-Icons unter [`public/icons/`](public/icons) sind Platzhalter
 In [`src/data/products.json`](src/data/products.json) einen Eintrag ergänzen:
 
 ```json
-{ "name": "Sojaschnetzel", "category": "proteine", "icon": "Bean" }
+{ "name": "Sojaschnetzel", "category": "proteine", "emoji": "🌱" }
 ```
 
-`category` referenziert eine `id` aus dem `categories`-Array, `icon` (optional)
-den Namen eines lucide-react-Icons (siehe [`src/lib/icons.js`](src/lib/icons.js)).
-Ohne `icon` wird automatisch das Kategorie-Icon bzw. der Fallback genutzt.
+`category` referenziert eine `id` aus dem `categories`-Array, `emoji` ist
+optional – ohne wird automatisch das Emoji der Kategorie genutzt (Auflösung in
+[`src/lib/icons.js`](src/lib/icons.js)).
 
 ## Projektstruktur
 
 ```
 src/
-├── App.jsx                 # State-Orchestrierung (items, favorites, history, theme)
-├── main.jsx                # Einstiegspunkt
-├── components/             # UI-Komponenten (memoisiert)
-│   ├── AddItemForm.jsx     #   Eingabe + Autovervollständigung
+├── App.jsx                 # Orchestrierung: State, Header, Liste, FAB, Dialoge
+├── main.jsx                # Einstieg, ErrorBoundary, localStorage-Migrationen
+├── components/
+│   ├── AddItemSheet.jsx    #   Hinzufügen-Sheet: Suche + Chips + Detailfelder
 │   ├── FrequentChips.jsx   #   Schnellauswahl häufig gekaufter Artikel
-│   ├── ShoppingList.jsx    #   Liste (offen / erledigt)
-│   └── ListItem.jsx        #   Einzelzeile (Swipe-to-delete)
+│   ├── ShoppingList.jsx    #   Liste, nach Kategorie gruppiert, Fortschritt
+│   ├── ListItem.jsx        #   Einzelzeile: Umschalt-Button + Swipe-Aktionen
+│   ├── ItemEditInline.jsx  #   Inline-Bearbeitung in der aufgeklappten Kachel
+│   ├── ProductIcon.jsx     #   Emoji-Symbol eines Artikels
+│   ├── SyncStatus.jsx      #   Live/Verbinde/Offline-Anzeige
+│   ├── Toast.jsx           #   Snackbars + aria-live-Regionen
+│   ├── CheckoutDialog.jsx  #   „Einkauf abschließen“-Bottom-Sheet
+│   ├── CardsSheet.jsx      #   Kundenkarten-Overlay (lazy geladen)
+│   └── CodeImage.jsx       #   QR-/Barcode-Rendering (qrcode / jsbarcode)
 ├── hooks/
 │   ├── useLocalStorage.js  #   State ↔ localStorage
 │   ├── useShoppingItems.js #   Liste: geteilt (Supabase) oder lokal
+│   ├── useToast.jsx        #   zentrale Statusmeldungen + Undo
+│   ├── useDialogFocus.js   #   Fokusfalle/Escape/Fokusrückgabe für Dialoge
+│   ├── useSwipeReveal.js   #   Wisch-Geste „Aktionen aufdecken“
 │   └── useTheme.js         #   automatischer Dark Mode (prefers-color-scheme)
-├── lib/
-│   ├── storage.js          #   localStorage-Zugriff (Keys, read/write)
-│   ├── supabase.js         #   Supabase-Client (nur bei Konfiguration aktiv)
-│   ├── supabaseConfig.js   #   ← hier Zugangsdaten eintragen
-│   ├── history.js          #   Kaufverlauf (Häufigkeit verbuchen)
-│   ├── suggestions.js      #   Autocomplete- & Chip-Logik
-│   └── icons.js            #   Icon-Auflösung Produkt → Kategorie → Fallback
-├── data/products.json      # Vegane Kategorien & Produkte
+├── lib/                    # reine Helfer (Storage, Sync, Suche, Migrationen …)
+├── data/products.json      # Vegane Kategorien & Produkte (Emoji je Produkt)
 ├── styles/
 │   ├── tokens.css          #   Design-Tokens (Light/Dark)
 │   └── index.css           #   Base + Komponenten-Styles
 └── assets/fonts/           # Lokal gehostete Fonts (woff2)
 ```
 
+Details zu Architektur, Datenfluss und Betrieb: siehe [`handover.md`](handover.md).
+
 ## Tech-Stack
 
 - [Vite 5](https://vitejs.dev) + [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react)
 - [React 18](https://react.dev)
-- [lucide-react](https://lucide.dev) (Icons)
+- [@supabase/supabase-js](https://supabase.com/docs/reference/javascript) – Echtzeit-Sync (lazy geladen)
+- [lucide-react](https://lucide.dev) (UI-Icons)
+- [qrcode](https://github.com/soldair/node-qrcode) + [jsbarcode](https://github.com/lindell/JsBarcode) – Kundenkarten-Codes (lazy geladen)
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app) (Manifest + Service Worker)
+- [Vitest](https://vitest.dev) + [Testing Library](https://testing-library.com) (Tests), [ESLint](https://eslint.org) (Linting)
 
 > Hinweis: `npm audit` meldet ggf. eine Dev-Server-Warnung zu esbuild (transitiv
 > über Vite 5). Sie betrifft ausschließlich den lokalen Entwicklungsserver, nicht

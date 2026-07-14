@@ -22,7 +22,7 @@ body {
   /* Kein Scrollen/Wippen der Gesamtseite – nur die Liste scrollt intern. */
   overflow: hidden;
   overscroll-behavior: none;
-  /* Doppeltipp-Zoom verhindern. */
+  /* Doppeltipp-Zoom verhindern – Pinch-Zoom bleibt erlaubt (WCAG 1.4.4). */
   touch-action: manipulation;
   background-color: var(--bg);
   color: var(--text);
@@ -144,56 +144,6 @@ input {
   background: var(--danger-soft);
 }
 
-/* ---------- Add form ---------- */
-.add-form {
-  position: relative;
-}
-
-.add-form__row {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.add-form__input {
-  flex: 1;
-  min-width: 0;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius);
-  border: 1px solid var(--border-strong);
-  background: var(--bg-elevated);
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
-  transition: border-color 0.2s ease;
-}
-
-.add-form__input::placeholder {
-  color: var(--text-subtle);
-}
-
-.add-form__input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.add-form__submit {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--on-accent);
-  box-shadow: var(--shadow-sm);
-  transition: background 0.2s ease, transform 0.05s ease;
-}
-
-.add-form__submit:hover {
-  background: var(--accent-hover);
-}
-
-.add-form__submit:active {
-  transform: scale(0.96);
-}
-
 /* ---------- Suggestions dropdown ---------- */
 .suggestions {
   position: absolute;
@@ -250,7 +200,7 @@ input {
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-subtle);
+  color: var(--text-muted);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   background: var(--surface-sunken);
@@ -275,7 +225,8 @@ input {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-subtle);
+  /* text-muted statt text-subtle: kleine Schrift braucht ≥ 4,5:1 (WCAG AA). */
+  color: var(--text-muted);
 }
 
 .chips__list {
@@ -327,7 +278,7 @@ input {
 .chip__count {
   font-family: var(--font-mono);
   font-size: 0.7rem;
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .chip__remove {
@@ -345,14 +296,6 @@ input {
 }
 
 /* ---------- List ---------- */
-.list-section__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-
 .list-section__title {
   margin: 0;
   font-family: var(--font-display);
@@ -595,6 +538,11 @@ input {
 .empty__text {
   margin: 0;
   font-size: 0.9rem;
+}
+
+/* Variante im Listenfluss (z. B. „Alles erledigt!“ über der Erledigt-Sektion). */
+.empty__text--inline {
+  padding-left: var(--space-1);
 }
 
 /* ---------- Section divider ---------- */
@@ -927,11 +875,8 @@ input {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-subtle);
-}
-
-.list-group__emoji {
-  font-size: 0.95rem;
+  /* text-muted statt text-subtle: kleine Schrift braucht ≥ 4,5:1 (WCAG AA). */
+  color: var(--text-muted);
 }
 
 /* Anzahl direkt hinter dem Kategorienamen (mit dezentem Mittelpunkt-Trenner). */
@@ -998,7 +943,6 @@ input {
   transform: rotate(180deg);
 }
 
-/* ---------- Dock: optional einklappen (Einkaufsmodus) ---------- */
 /* ---------- Schwebender Hinzufügen-Button (FAB) ---------- */
 .fab {
   position: fixed;
@@ -1029,6 +973,12 @@ input {
   display: flex;
   flex-direction: column;
   max-height: 92vh;
+}
+
+/* Formular ohne eigene Box: die Kinder (Kopf/Body/Aktionen) nehmen direkt am
+   Flex-Layout des Panels teil; role="dialog" bleibt auf dem Panel-Div. */
+.dialog__form {
+  display: contents;
 }
 
 .add-sheet .dialog__body {

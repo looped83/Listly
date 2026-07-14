@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isCloudEnabled, getSupabase, rowToItem, TABLE, LIST_ID } from '../lib/supabase';
+import { isCloudEnabled, getSupabase, rowToItem, itemToRow, TABLE, LIST_ID } from '../lib/supabase';
 import { readStorage, writeStorage, STORAGE_KEYS } from '../lib/storage';
 import { cleanName, normalizeName } from '../lib/history';
 import { getKnownCategory } from '../lib/icons';
@@ -29,8 +29,11 @@ export function useShoppingItems({ onPurchase } = {}) {
 
   // Aktuelle Liste als Ref, damit asynchrone Callbacks (DB, Realtime) stets den
   // neuesten Stand lesen können, ohne von veralteten Closures abzuhängen.
+  // Aktualisierung im Effekt (nach dem Commit), nicht während des Renderns.
   const itemsRef = useRef(items);
-  itemsRef.current = items;
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   // Setzt Items. Reiner State-Update ohne Seiteneffekt – so bleibt der Updater
   // unter React StrictMode gefahrlos doppelt aufrufbar.
@@ -45,80 +48,111 @@ export function useShoppingItems({ onPurchase } = {}) {
   // ── Cloud: Initialladen + Realtime-Abo ──────────────────────────────────────
   const refetch = useCallback(async () => {
     if (!isCloudEnabled) return;
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('*')
-      .eq('list_id', LIST_ID)
-      .order('created_at', { ascending: true });
-    if (error) {
+    try {
+      const supabase = await getSupabase();
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select('*')
+        .eq('list_id', LIST_ID)
+        .order('created_at', { ascending: true });
+      if (error) {
+        setStatus('error');
+        return;
+      }
+      setItems(data.map(rowToItem));
+      setStatus('live');
+    } catch {
+      // Import-/Netzwerkfehler (z. B. offline beim ersten Laden) → Offline-
+      // Status statt unbehandelter Promise-Rejection.
       setStatus('error');
-      return;
     }
-    setItems(data.map(rowToItem));
-    setStatus('live');
   }, []);
+
+  /**
+   * Führt eine Schreiboperation im Hintergrund gegen die Cloud aus (no-op im
+   * lokalen Modus). Meldet die DB einen Fehler, wird der Zustand per Refetch
+   * neu vom Server geladen; Import-/Netzwerkfehler enden im Offline-Status
+   * statt in einer unbehandelten Promise-Rejection.
+   */
+  const runCloudWrite = useCallback(
+    (operation) => {
+      if (!isCloudEnabled) return;
+      (async () => {
+        const supabase = await getSupabase();
+        const { error } = await operation(supabase);
+        if (error) await refetch();
+      })().catch(() => setStatus('error'));
+    },
+    [refetch],
+  );
 
   useEffect(() => {
     if (!isCloudEnabled) return undefined;
 
     let active = true;
     let channel = null;
+    // Initiales Laden vom Server: asynchroner Roundtrip, setState erst nach
+    // der Antwort – kein synchroner Kaskaden-Render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refetch();
 
     // Client wird lazy geladen; Abo erst aufbauen, wenn er bereit ist.
-    getSupabase().then((supabase) => {
-      if (!active || !supabase) return;
-      channel = supabase
-        .channel(`list_items:${LIST_ID}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: TABLE, filter: `list_id=eq.${LIST_ID}` },
-          (payload) => {
+    getSupabase()
+      .then((supabase) => {
+        if (!active || !supabase) return;
+        channel = supabase
+          .channel(`list_items:${LIST_ID}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: TABLE, filter: `list_id=eq.${LIST_ID}` },
+            (payload) => {
+              if (!active) return;
+              setItems((prev) => {
+                if (payload.eventType === 'DELETE') {
+                  return prev.filter((it) => it.id !== payload.old.id);
+                }
+                const item = rowToItem(payload.new);
+                const exists = prev.some((it) => it.id === item.id);
+                const next = exists
+                  ? prev.map((it) => (it.id === item.id ? item : it))
+                  : [...prev, item];
+                return next.sort(byCreatedAt);
+              });
+            },
+          )
+          .subscribe((state) => {
             if (!active) return;
-            setItems((prev) => {
-              if (payload.eventType === 'DELETE') {
-                return prev.filter((it) => it.id !== payload.old.id);
-              }
-              const item = rowToItem(payload.new);
-              const exists = prev.some((it) => it.id === item.id);
-              const next = exists
-                ? prev.map((it) => (it.id === item.id ? item : it))
-                : [...prev, item];
-              return next.sort(byCreatedAt);
-            });
-          },
-        )
-        .subscribe((state) => {
-          if (!active) return;
-          if (state === 'SUBSCRIBED') setStatus('live');
-          else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT') setStatus('error');
-        });
-    });
+            if (state === 'SUBSCRIBED') setStatus('live');
+            else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT') setStatus('error');
+          });
+      })
+      .catch(() => {
+        if (active) setStatus('error');
+      });
 
     return () => {
       active = false;
       // Abräumen, sobald der Client verfügbar ist (gecacht, kein erneuter Import).
-      if (channel) getSupabase().then((supabase) => supabase?.removeChannel(channel));
+      if (channel) {
+        getSupabase()
+          .then((supabase) => supabase?.removeChannel(channel))
+          .catch(() => {});
+      }
     };
   }, [refetch]);
 
   // ── Operationen ─────────────────────────────────────────────────────────────
   const toggleItem = useCallback(
-    async (id, forcedValue) => {
+    (id, forcedValue) => {
       const current = itemsRef.current.find((it) => it.id === id);
       if (!current) return;
       const checked = typeof forcedValue === 'boolean' ? forcedValue : !current.checked;
 
       applyItems((prev) => prev.map((it) => (it.id === id ? { ...it, checked } : it)));
 
-      if (isCloudEnabled) {
-        const supabase = await getSupabase();
-        const { error } = await supabase.from(TABLE).update({ checked }).eq('id', id);
-        if (error) refetch();
-      }
+      runCloudWrite((supabase) => supabase.from(TABLE).update({ checked }).eq('id', id));
     },
-    [applyItems, refetch],
+    [applyItems, runCloudWrite],
   );
 
   /**
@@ -177,27 +211,11 @@ export function useShoppingItems({ onPurchase } = {}) {
 
       applyItems((prev) => [...prev, item]); // optimistisch
 
-      if (isCloudEnabled) {
-        (async () => {
-          const supabase = await getSupabase();
-          const row = {
-            id: item.id,
-            list_id: LIST_ID,
-            name: item.name,
-            category: item.category,
-            checked: false,
-          };
-          if (quantity !== null) row.quantity = quantity;
-          if (unit) row.unit = unit;
-          if (note) row.note = note;
-          const { error } = await supabase.from(TABLE).insert(row);
-          if (error) refetch();
-        })();
-      }
+      runCloudWrite((supabase) => supabase.from(TABLE).insert(itemToRow(item)));
 
       return { status: 'added', item };
     },
-    [applyItems, refetch, toggleItem],
+    [applyItems, runCloudWrite, toggleItem],
   );
 
   // Aktualisiert Felder eines Artikels (Name, Kategorie, Menge, Einheit, Notiz).
@@ -206,21 +224,17 @@ export function useShoppingItems({ onPurchase } = {}) {
     (id, patch) => {
       applyItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
 
-      if (isCloudEnabled) {
-        (async () => {
-          const supabase = await getSupabase();
-          const dbPatch = {};
-          if ('name' in patch) dbPatch.name = patch.name;
-          if ('category' in patch) dbPatch.category = patch.category;
-          if ('quantity' in patch) dbPatch.quantity = patch.quantity;
-          if ('unit' in patch) dbPatch.unit = patch.unit || null;
-          if ('note' in patch) dbPatch.note = patch.note || null;
-          const { error } = await supabase.from(TABLE).update(dbPatch).eq('id', id);
-          if (error) refetch();
-        })();
-      }
+      runCloudWrite((supabase) => {
+        const dbPatch = {};
+        if ('name' in patch) dbPatch.name = patch.name;
+        if ('category' in patch) dbPatch.category = patch.category;
+        if ('quantity' in patch) dbPatch.quantity = patch.quantity;
+        if ('unit' in patch) dbPatch.unit = patch.unit || null;
+        if ('note' in patch) dbPatch.note = patch.note || null;
+        return supabase.from(TABLE).update(dbPatch).eq('id', id);
+      });
     },
-    [applyItems, refetch],
+    [applyItems, runCloudWrite],
   );
 
   // Entfernt einen Artikel und liefert die entfernte Kopie zurück – so kann der
@@ -232,16 +246,11 @@ export function useShoppingItems({ onPurchase } = {}) {
 
       applyItems((prev) => prev.filter((it) => it.id !== id));
 
-      if (isCloudEnabled) {
-        (async () => {
-          const supabase = await getSupabase();
-          const { error } = await supabase.from(TABLE).delete().eq('id', id);
-          if (error) refetch();
-        })();
-      }
+      runCloudWrite((supabase) => supabase.from(TABLE).delete().eq('id', id));
+
       return removed;
     },
-    [applyItems, refetch],
+    [applyItems, runCloudWrite],
   );
 
   // Stellt zuvor entfernte/archivierte Artikel vollständig wieder her (inkl.
@@ -256,23 +265,11 @@ export function useShoppingItems({ onPurchase } = {}) {
         return merged.sort(byCreatedAt);
       });
 
-      if (isCloudEnabled) {
-        (async () => {
-          const supabase = await getSupabase();
-          const rows = restored.map((it) => ({
-            id: it.id,
-            list_id: LIST_ID,
-            name: it.name,
-            category: it.category,
-            checked: it.checked,
-            created_at: it.createdAt,
-          }));
-          const { error } = await supabase.from(TABLE).insert(rows);
-          if (error) refetch();
-        })();
-      }
+      // itemToRow überträgt auch quantity/unit/note – die Wiederherstellung
+      // bleibt dadurch geräteübergreifend verlustfrei.
+      runCloudWrite((supabase) => supabase.from(TABLE).insert(restored.map(itemToRow)));
     },
-    [applyItems, refetch],
+    [applyItems, runCloudWrite],
   );
 
   // Schließt den Einkauf ab: verbucht die betroffenen Artikel im Kaufverlauf und
@@ -290,16 +287,11 @@ export function useShoppingItems({ onPurchase } = {}) {
       const completedIds = new Set(completed.map((it) => it.id));
       applyItems((prev) => prev.filter((it) => !completedIds.has(it.id)));
 
-      if (isCloudEnabled) {
-        (async () => {
-          const supabase = await getSupabase();
-          const { error } = await supabase.from(TABLE).delete().in('id', [...completedIds]);
-          if (error) refetch();
-        })();
-      }
+      runCloudWrite((supabase) => supabase.from(TABLE).delete().in('id', [...completedIds]));
+
       return completed;
     },
-    [applyItems, onPurchase, refetch],
+    [applyItems, onPurchase, runCloudWrite],
   );
 
   return {

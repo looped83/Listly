@@ -1,6 +1,6 @@
 # Listly – Handover
 
-Stand: Juli 2026 (aktueller Branch-Tip, `claude/feedback-undo-infrastructure-3aebrv`).
+Stand: Juli 2026 (aktueller Branch-Tip, `claude/production-quality-refactor-y49t67`).
 Diese Datei fasst Architektur, Betrieb und Besonderheiten zusammen, damit jemand
 die Weiter­ent­wicklung ohne Vorwissen übernehmen kann.
 
@@ -20,7 +20,7 @@ gemeinsam in Echtzeit genutzt.
 - **Live-URL:** https://looped83.github.io/Listly/ (GitHub Pages)
 - **Repo:** `looped83/Listly` (öffentlich)
 - **Default-Branch:** `main` (Deploy-Quelle) · **Arbeitsbranch:**
-  `claude/feedback-undo-infrastructure-3aebrv`
+  `claude/production-quality-refactor-y49t67`
 - **Geteilte Liste:** in Echtzeit über Supabase synchronisiert
 - **Kundenkarten:** Lidl/Payback/dm/REWE mit QR/Barcode, rein lokal gespeichert
 - **Bedienung:** einheitlicher, einkaufsorientierter Look; Hinzufügen über einen
@@ -46,6 +46,8 @@ gemeinsam in Echtzeit genutzt.
 - **qrcode** + **jsbarcode** – Code-Erzeugung für Kundenkarten (Client-seitig)
 - **vite-plugin-pwa** – Manifest + Service Worker
 - Fonts (Fraunces, Inter, IBM Plex Mono) sind **lokal** eingebunden (kein CDN).
+- **ESLint** (Flat Config, `eslint.config.js`): @eslint/js recommended +
+  react-hooks-Regeln; läuft lokal (`npm run lint`) und im Deploy-Workflow.
 - **Code-Splitting:** `@supabase/supabase-js` (nur im Cloud-Modus) und das
   Kundenkarten-Modul mit `qrcode`/`jsbarcode` (nur beim Öffnen der Karten) werden
   **lazy** als eigene Chunks geladen – das initiale JS bleibt schlank.
@@ -70,7 +72,7 @@ npm run preview    # gebautes Bundle lokal servieren
 ```
 src/
 ├── App.jsx                 # Orchestrierung: State, Header, Liste, FAB, Overlays/Dialoge
-├── main.jsx                # Einstieg, ErrorBoundary, Zoom-Sperre (Gesten)
+├── main.jsx                # Einstieg, ErrorBoundary, localStorage-Migrationen
 ├── components/
 │   ├── AddItemSheet.jsx    #   Hinzufügen-Bottom-Sheet: Suche + Chips + Detailfelder (über FAB)
 │   ├── FrequentChips.jsx   #   „Häufig gekauft“-Chips (im Hinzufügen-Sheet)
@@ -101,7 +103,6 @@ src/
 │   ├── cards.js            #   Händler-Metadaten, Barcode-Format, Code-Inhalt
 │   ├── checkout.js         #   reine Helfer: Zusammenfassung/Auswahl beim Einkaufsabschluss
 │   ├── itemFields.js       #   reine Helfer: Menge/Einheit/Notiz (Coerce/Parse/Format)
-│   ├── quickInput.js       #   reiner Parser für Schnelleingabe (aktuell NICHT verdrahtet, s. §10)
 │   ├── groupItems.js       #   reine Helfer: Artikel nach Kategorie gruppieren (Sonstiges zuletzt)
 │   └── schema.js           #   localStorage-Migrationen + Sanitizer (siehe §12)
 ├── data/products.json      # 356 Produkte / 16 Kategorien (Emoji je Produkt)
@@ -110,7 +111,7 @@ src/
 │   └── index.css           #   Base + alle Komponenten-Styles
 └── assets/fonts/           # lokal gehostete woff2 + fonts.css (OFL)
 
-.github/workflows/deploy.yml # Test + Build + offizielle GitHub-Pages-Actions-Pipeline
+.github/workflows/deploy.yml # Lint + Test + Build + offizielle GitHub-Pages-Actions-Pipeline
 supabase/schema.sql          # Tabelle + Spalten + RLS + Realtime für die geteilte Liste
 ```
 
@@ -200,10 +201,11 @@ on:
 ```
 
 1. `npm ci`
-2. **`npm test`** – schlägt ein Test fehl, bricht der Workflow ab und es wird
+2. **`npm run lint`** – Linting-Fehler brechen den Workflow ab.
+3. **`npm test`** – schlägt ein Test fehl, bricht der Workflow ab und es wird
    **nicht** deployt.
-3. `npm run build` → `dist/`
-4. `dist/` als Pages-Artefakt hochladen (`upload-pages-artifact`) und über
+4. `npm run build` → `dist/`
+5. `dist/` als Pages-Artefakt hochladen (`upload-pages-artifact`) und über
    `deploy-pages` veröffentlichen.
 
 **Einmalige Repo-Einstellung:** Settings → Pages → Build and deployment →
@@ -273,8 +275,9 @@ deployen.
 - **Layout:** Gesamtseite nicht scrollbar/wippend (`body { overflow:hidden;
   overscroll-behavior:none }`), nur der Listenbereich scrollt. Es gibt **keine
   feste Eingabeleiste** mehr; Hinzufügen läuft über einen **schwebenden
-  Plus-Button (FAB)** unten rechts (`.fab`). **Zoom deaktiviert** (Viewport
-  `user-scalable=no` + Abfangen von Pinch-Gesten/Doppeltipp in `main.jsx`).
+  Plus-Button (FAB)** unten rechts (`.fab`). **Pinch-Zoom bleibt erlaubt**
+  (WCAG 1.4.4 – keine `user-scalable=no`-Sperre); nur der versehentliche
+  **Doppeltipp-Zoom** ist per CSS `touch-action: manipulation` unterbunden.
 - **Einheitlicher Einkaufs-Look (kein Modus-Umschalter):** die App hat **eine**
   Standardansicht – große, leicht treffbare Zeilen, erledigte Artikel
   standardmäßig eingeklappt. (Der frühere Plan/Shop-Umschalter und das
@@ -404,11 +407,10 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
   **keine** vollständige natürlichsprachliche Eingabe (z. B. „2 Äpfel und Milch“
   in einem Feld); Menge/Einheit werden im Hinzufügen-Sheet über eigene Felder
   erfasst, nicht aus dem Suchtext geparst.
-- **`lib/quickInput.js` ist aktuell nicht verdrahtet (loses Ende):** der Parser
+- **`lib/quickInput.js` wurde entfernt (war nicht mehr verdrahtet):** der Parser
   („2 hafermilch" → `{ name, quantity, … }`) wurde von der früheren, entfernten
-  `AddItemForm` genutzt. Das Hinzufügen-Sheet verwendet stattdessen explizite
-  Detailfelder. Modul + Tests bleiben bestehen; entweder ins Sheet-Suchfeld
-  integrieren oder bei Gelegenheit (mit Test) entfernen.
+  `AddItemForm` genutzt; das Hinzufügen-Sheet verwendet explizite Detailfelder.
+  Modul + Tests liegen bei Bedarf in der Git-Historie.
 - **Bildschirm-wachhalten entfernt:** mit dem Wegfall des Einkaufsmodus gibt es
   kein Screen-Wake-Lock mehr. Bei Bedarf als kleine, bewusste Einstellung
   wieder aufnehmbar (früherer `useWakeLock`-Hook ist in der Git-Historie).
@@ -418,10 +420,12 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **dm-Kartentoken** ist evtl. dynamisch (siehe §7).
 - **Kundenkarten sind gerätelokal** – kein Sync (bewusst, Datenschutz). Sync
   wäre nur mit echtem Login sinnvoll.
-- **`npm audit`** meldet eine Dev-Server-Warnung (esbuild, transitiv über Vite 5).
-  Betrifft nur den lokalen Dev-Server, nicht das ausgelieferte Bundle.
-- **Tests:** Vitest + React Testing Library, `npm test` (254 Tests, 15 Dateien).
-  Läuft auch als Teil der Deploy-Pipeline (§6) – ein Testfehler verhindert das
+- **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
+  Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
+  ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (225 Tests,
+  16 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
+  Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
 

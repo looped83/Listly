@@ -11,7 +11,9 @@ export const getFocusable = (root) =>
  * Barrierefreiheit für modale Dialoge/Bottom-Sheets:
  *  - initialer Fokus (auf `initialFocusRef` oder dem ersten fokussierbaren Element),
  *  - Fokusfalle: Tab/Shift+Tab zirkulieren im Panel,
- *  - Escape schließt (ruft `onClose`),
+ *  - Escape schließt (ruft `onClose`) – auf Dokumentebene, damit es auch greift,
+ *    wenn der Fokus das Panel verloren hat (z. B. weil das fokussierte Element
+ *    nach einer Aktion aus dem DOM entfernt wurde),
  *  - Rückgabe des Fokus an das auslösende Element beim Schließen.
  *
  * @param {{ onClose?: () => void, initialFocusRef?: import('react').RefObject<HTMLElement> }} options
@@ -36,13 +38,22 @@ export function useDialogFocus({ onClose, initialFocusRef } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onKeyDown = useCallback(
-    (e) => {
+  // Escape auf Dokumentebene: schließt zuverlässig, auch wenn der Fokus gerade
+  // nicht im Panel liegt. Handler, die Escape selbst verarbeiten (z. B. der
+  // Inline-Editor), stoppen die Propagation und bleiben unberührt.
+  useEffect(() => {
+    const onDocumentKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         onClose?.();
-        return;
       }
+    };
+    document.addEventListener('keydown', onDocumentKeyDown);
+    return () => document.removeEventListener('keydown', onDocumentKeyDown);
+  }, [onClose]);
+
+  const onKeyDown = useCallback(
+    (e) => {
       if (e.key !== 'Tab') return;
 
       const focusable = getFocusable(panelRef.current);
@@ -58,7 +69,7 @@ export function useDialogFocus({ onClose, initialFocusRef } = {}) {
         first.focus();
       }
     },
-    [onClose],
+    [],
   );
 
   return { panelRef, onKeyDown };
