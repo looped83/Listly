@@ -202,7 +202,11 @@ function TileItem({
             }
           >
             <ProductIcon name={item.name} category={item.category} className="list-item__icon" />
-            <span className="list-item__name tile__name">{item.name}</span>
+            {/* Der Name bleibt der visuelle Anker in der Kachelmitte, unabhängig
+                davon, wie viel Platz Icon/Menge oben bzw. unten einnehmen. */}
+            <span className="tile__name-slot">
+              <span className="list-item__name tile__name">{item.name}</span>
+            </span>
             {qtyLabel && (
               <span className="list-item__qty tile__qty" aria-hidden="true">
                 {qtyLabel}
