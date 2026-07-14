@@ -295,15 +295,23 @@ deployen.
   `App.jsx` und wird nur an `ShoppingList` durchgereicht – **keine eigene
   Geschäftslogik** in der Kachelansicht: `TileItem` nutzt dieselben Handler,
   denselben `itemFields`-Helfer und dieselbe Kategorie-Gruppierung wie
-  `ListItem`. Einziger bewusster Unterschied: Favorit/Bearbeiten/Löschen
-  liegen in der Karte **dauerhaft sichtbar** unter dem Umschalt-Button statt
-  hinter der Wisch-Geste – eine horizontale Swipe-Geste passt nicht in ein
-  zweidimensionales Kachel-Grid. Das Grid (`.tile-grid`) nutzt
-  `repeat(auto-fill, minmax(140px, 1fr))` statt fester Breakpoints; die
-  Bearbeiten-Kachel (`.tile--editing`) spannt beim Aufklappen über die volle
-  Grid-Breite, damit `ItemEditInline` wie in der Listenansicht Platz hat. Der
-  Wechsel selbst blendet kurz ein (`.view-transition`, respektiert
-  `prefers-reduced-motion`).
+  `ListItem`. Die Kachel selbst ist bewusst **kompakt** (Emoji + Name, kein
+  Checkbox-Symbol – der Erledigt-Status zeigt sich über Durchstreichen/
+  Dimmen wie in der Liste); Ziel sind **drei Kacheln nebeneinander** auf
+  einem Smartphone (`.tile-grid`: `repeat(auto-fill, minmax(102px, 1fr))`
+  statt fester Breakpoints). Favorit/Bearbeiten/Löschen sind **nicht**
+  dauerhaft sichtbar und liegen auch nicht hinter einer Wisch-Geste (die in
+  einem zweidimensionalen Grid nicht funktioniert), sondern hinter einem
+  **langen Druck**: ein `contextmenu`-Listener auf der Kachel (mit
+  `preventDefault`) ersetzt deren Inhalt durch ein zentriertes
+  Aktionen-Panel. Das native `contextmenu`-Ereignis deckt Touch (langer
+  Druck), Maus (Rechtsklick) **und** Tastatur (Kontextmenü-/Shift+F10-Taste)
+  mit einem einzigen Listener ab – keine eigene Gesten-Zeiterfassung nötig.
+  Schließen: Klick außerhalb, Escape, oder (bei Bearbeiten/Löschen)
+  automatisch nach der Aktion. Die Bearbeiten-Kachel (`.tile--editing`)
+  spannt beim Aufklappen über die volle Grid-Breite, damit `ItemEditInline`
+  wie in der Listenansicht Platz hat. Der Ansicht-Wechsel selbst blendet kurz
+  ein (`.view-transition`, respektiert `prefers-reduced-motion`).
 - **Liste:** offene und erledigte Artikel **nach Kategorie gruppiert**
   (Überschriften ohne Emoji, in Kategorie-Reihenfolge aus `products.json`).
   Gruppierung in `lib/groupItems.js` (`groupByCategory`, pure Funktion): leere
@@ -458,7 +466,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (260 Tests,
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (264 Tests,
   20 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.

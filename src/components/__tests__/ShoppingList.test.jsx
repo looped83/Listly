@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ShoppingList from '../ShoppingList';
 
@@ -172,12 +172,17 @@ describe('ShoppingList – Kachelansicht (viewMode)', () => {
     await user.click(screen.getByRole('button', { name: 'Apfel als erledigt markieren' }));
     expect(onToggle).toHaveBeenCalledWith('Apfel');
 
+    // Favorit/Bearbeiten/Löschen liegen in der Kachelansicht hinter einem
+    // langen Druck/Kontextmenü (contextmenu-Ereignis deckt Touch/Maus/Tastatur ab).
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Apfel als erledigt markieren' }));
+
     await user.click(screen.getByRole('button', { name: 'Apfel zu Favoriten hinzufügen' }));
     expect(onToggleFavorite).toHaveBeenCalledWith('Apfel');
 
     await user.click(screen.getByRole('button', { name: 'Apfel bearbeiten' }));
     expect(onEdit).toHaveBeenCalledWith('Apfel');
 
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Apfel als erledigt markieren' }));
     await user.click(screen.getByRole('button', { name: 'Apfel entfernen' }));
     expect(onRemove).toHaveBeenCalledWith('Apfel');
   });

@@ -929,11 +929,12 @@ textarea {
 
 /* ---------- Kachelansicht (Grid) ---------- */
 /* auto-fill/minmax statt fester Breakpoints: die Spaltenzahl ergibt sich aus
-   der (auf --content-width begrenzten) verfügbaren Breite – vom Smartphone
-   (1–3 Karten) bis zur vollen Inhaltsbreite (bis zu 5 Karten). */
+   der (auf --content-width begrenzten) verfügbaren Breite. Ziel sind drei
+   Kacheln nebeneinander auf einem Smartphone; auf breiteren Bildschirmen
+   passen entsprechend mehr in eine Reihe. */
 .tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(102px, 1fr));
   gap: var(--space-3);
   list-style: none;
   margin: 0;
@@ -941,10 +942,10 @@ textarea {
 }
 
 .tile {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
+  padding: var(--space-2);
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
@@ -969,20 +970,24 @@ textarea {
   color: var(--text-muted);
 }
 
-/* Umschalt-Button: dieselben Bausteine wie in der Listenansicht
-   (list-item__check/__icon/__name/__qty), nur senkrecht statt in einer Reihe
-   angeordnet und mittig ausgerichtet. */
+/* Umschalt-Button: bewusst kompakt (kein eigenes Checkbox-Symbol – Icon +
+   Name genügen, der Erledigt-Status zeigt sich über Durchstreichen/Dimmen). */
 .tile__toggle {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   width: 100%;
   min-height: 44px;
-  padding: var(--space-2);
+  padding: var(--space-1);
   border-radius: var(--radius-sm);
   text-align: center;
   transition: background 0.15s ease;
+  /* Langes Drücken soll nichts markieren/selektieren, nur das Kontextmenü
+     (→ Aktionen-Panel) auslösen. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .tile__toggle:hover {
@@ -990,7 +995,7 @@ textarea {
 }
 
 .tile .list-item__icon {
-  font-size: 1.75rem;
+  font-size: 1.6rem;
 }
 
 .tile .list-item__name {
@@ -999,18 +1004,41 @@ textarea {
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: normal;
-  font-size: 0.92rem;
+  font-size: 0.85rem;
 }
 
-/* Favorit/Bearbeiten/Löschen: in der Kachel dauerhaft sichtbar statt hinter
-   einer Wisch-Geste (die in einem zweidimensionalen Grid nicht funktioniert). */
+/*
+ * Aktionen-Panel: ersetzt bei langem Druck (Touch), Rechtsklick (Maus) oder
+ * Kontextmenü-Taste (Tastatur) den Karteninhalt – Favorit/Bearbeiten/Löschen
+ * zentriert statt dauerhaft sichtbar oder hinter einer Wisch-Geste (die in
+ * einem zweidimensionalen Grid nicht funktioniert).
+ */
 .tile__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-1) 0;
+}
+
+.tile__actions-label {
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.tile__actions-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-1);
-  border-top: 1px solid var(--border);
-  padding-top: var(--space-2);
+  gap: var(--space-2);
 }
 
 /* Inline-Bearbeitung braucht mehr Platz als eine einzelne Kachel – über alle
