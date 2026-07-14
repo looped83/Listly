@@ -144,9 +144,13 @@ describe('ListItem – Menge', () => {
     expect(screen.getByText('12 ×')).toHaveClass('list-item__qty');
   });
 
-  it('zeigt die Standardmenge 1 nicht an (kein Präfix)', () => {
-    renderItem({ item: { ...item, quantity: 1 } });
-    expect(document.querySelector('.list-item__qty')).toBeNull();
+  it('zeigt die Standardmenge (keine gespeicherte Menge) als „1 ×“', () => {
+    renderItem();
+    expect(screen.getByText('1 ×')).toHaveClass('list-item__qty');
+    // Das aria-Label bleibt ohne „1 ×“ (die Standardmenge bleibt dort implizit).
+    expect(
+      screen.getByRole('button', { name: 'Hafermilch als erledigt markieren' }),
+    ).toBeInTheDocument();
   });
 
   it('ruft onEdit mit der Artikel-id auf', async () => {

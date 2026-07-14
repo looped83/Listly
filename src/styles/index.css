@@ -42,7 +42,11 @@ button {
   background: none;
 }
 
-input {
+input,
+select,
+textarea {
+  /* Auch select/textarea erben Schriftart und -größe (16px), damit z. B. das
+     Kategorie-Dropdown dieselbe Schriftgröße wie die übrigen Felder hat. */
   font: inherit;
 }
 

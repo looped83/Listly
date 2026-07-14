@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   coerceQuantity,
   formatQuantity,
+  formatQuantityBadge,
   itemLabel,
   readItemExtras,
 } from '../itemFields';
@@ -34,7 +35,7 @@ describe('coerceQuantity', () => {
   });
 });
 
-describe('formatQuantity', () => {
+describe('formatQuantity (Text-/aria-Kontext)', () => {
   it('zeigt die Menge ab 2 als „N ×“', () => {
     expect(formatQuantity(2)).toBe('2 ×');
     expect(formatQuantity(12)).toBe('12 ×');
@@ -44,6 +45,18 @@ describe('formatQuantity', () => {
     expect(formatQuantity(1)).toBe('');
     expect(formatQuantity(null)).toBe('');
     expect(formatQuantity(undefined)).toBe('');
+  });
+});
+
+describe('formatQuantityBadge (sichtbares Listen-Badge)', () => {
+  it('zeigt IMMER eine Menge – Standard „1 ×“', () => {
+    expect(formatQuantityBadge(null)).toBe('1 ×');
+    expect(formatQuantityBadge(undefined)).toBe('1 ×');
+  });
+
+  it('zeigt größere Mengen als „N ×“', () => {
+    expect(formatQuantityBadge(2)).toBe('2 ×');
+    expect(formatQuantityBadge(12)).toBe('12 ×');
   });
 });
 

@@ -42,6 +42,10 @@ function AddItemSheet({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [quantity, setQuantity] = useState(MIN_QUANTITY);
   const [category, setCategory] = useState('');
+  // Nach dem Übernehmen eines Vorschlags die Liste schließen, obwohl der
+  // übernommene Name selbst noch zu Vorschlägen passt. Beim nächsten Tippen
+  // (onChange) wird sie wieder eingeblendet.
+  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
 
   const searchRef = useRef(null);
   const { panelRef, onKeyDown } = useDialogFocus({ onClose, initialFocusRef: searchRef });
@@ -53,7 +57,14 @@ function AddItemSheet({
     () => buildSuggestions(name, { history, favorites, excludeNames: existingNames }),
     [name, history, favorites, existingNames],
   );
-  const showSuggestions = name.trim() !== '' && suggestions.length > 0;
+  const showSuggestions = name.trim() !== '' && suggestions.length > 0 && !suggestionsDismissed;
+
+  // Suchfeld-Eingabe: Name setzen und die Vorschlagsliste wieder aktivieren.
+  const onSearchChange = useCallback((value) => {
+    setName(value);
+    setActiveIndex(-1);
+    setSuggestionsDismissed(false);
+  }, []);
 
   // Chip: sofort hinzufügen und Sheet schließen.
   const quickAdd = useCallback(
@@ -64,11 +75,13 @@ function AddItemSheet({
     [onAdd, onClose],
   );
 
-  // Vorschlag: Name + Kategorie übernehmen, damit Details ergänzt werden können.
+  // Vorschlag übernehmen: Name + Kategorie ins Formular, Liste schließen, Fokus
+  // zurück ins Suchfeld (Menge lässt sich danach noch am Stepper anpassen).
   const pickSuggestion = useCallback((s) => {
     setName(s.name);
     setCategory(s.category ?? '');
     setActiveIndex(-1);
+    setSuggestionsDismissed(true);
     searchRef.current?.focus();
   }, []);
 
@@ -141,10 +154,7 @@ function AddItemSheet({
                 ref={searchRef}
                 type="text"
                 value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setActiveIndex(-1);
-                }}
+                onChange={(e) => onSearchChange(e.target.value)}
                 onKeyDown={onSearchKeyDown}
                 placeholder="Produkt suchen oder eingeben …"
                 autoComplete="off"

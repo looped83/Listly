@@ -26,12 +26,22 @@ export function coerceQuantity(value) {
 }
 
 /**
- * Anzeigepräfix für die Menge: „2 ×“ ab einer Menge von 2, sonst leer – die
- * Standardmenge 1 wird bewusst nicht angezeigt. Erwartet eine bereits über
- * coerceQuantity normalisierte Menge (ganze Zahl ≥ 2 oder null).
+ * Anzeigepräfix für die Menge in Text-/aria-Kontexten (Aktions-Labels, Toast):
+ * „2 ×“ ab einer Menge von 2, sonst leer – hier bleibt die Standardmenge 1
+ * implizit. Erwartet eine bereits über coerceQuantity normalisierte Menge
+ * (ganze Zahl ≥ 2 oder null).
  */
 export function formatQuantity(quantity) {
   return quantity != null && quantity >= 2 ? `${quantity} ×` : '';
+}
+
+/**
+ * Sichtbares Mengen-Badge in der Liste: zeigt IMMER eine Menge – die
+ * Standardmenge 1 als „1 ×“, größere Mengen als „N ×“. Erwartet eine bereits
+ * über coerceQuantity normalisierte Menge (ganze Zahl ≥ 2 oder null → 1).
+ */
+export function formatQuantityBadge(quantity) {
+  return `${quantity ?? 1} ×`;
 }
 
 /** Normalisierte optionale Felder eines Artikels (Defaults für fehlende). */
