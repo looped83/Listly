@@ -304,15 +304,16 @@ deployen.
   Bearbeiten/Löschen sind **nicht** dauerhaft sichtbar und liegen auch nicht
   hinter einer Wisch-Geste (die in einem zweidimensionalen Grid nicht
   funktioniert), sondern hinter einem **langen Druck**, der den Karteninhalt
-  durch ein zentriertes Aktionen-Panel ersetzt – **ohne Größenänderung** der
-  Kachel (bleibt exakt quadratisch) und **grün eingefärbt**
+  durch ein Aktionen-Panel ersetzt – **ohne Größenänderung** der Kachel
+  (bleibt exakt quadratisch) und **grün eingefärbt**
   (`.tile[data-revealed='true']`, Akzentfarbe wie `.swipe__actions` der
-  Listenansicht, überschreibt dabei auch den „erledigt“-Sunken-Ton). Der
-  Artikelname wird im Panel bewusst **nicht** wiederholt (Farbe/Position der
-  Kachel identifizieren sie ausreichend) – dadurch bleibt Platz, die drei
-  Aktionen großzügig zu verteilen; sie brechen bei Bedarf automatisch in eine
-  zweite Zeile um (`flex-wrap`), statt gequetscht in einer Reihe zu kleben.
-  Zwei Auslöser ergänzen sich: eine selbst erfasste Pointer-Haltedauer
+  Listenansicht, überschreibt dabei auch den „erledigt“-Sunken-Ton). Layout
+  im Panel: Favorit sitzt **oben rechts** (`.tile__actions-fav`, absolut
+  positioniert), Bearbeiten/Löschen liegen **zentriert nebeneinander**
+  (`.tile__actions-main`) in der Mitte. Der Artikelname wird im Panel bewusst
+  **nicht** wiederholt (Farbe/Position der Kachel identifizieren sie
+  ausreichend). Zwei Auslöser ergänzen sich: eine selbst erfasste
+  Pointer-Haltedauer
   (`onPointerDown`/`onPointerMove` mit ~500 ms-Timer + Bewegungstoleranz –
   der zuverlässige Weg für Touch, da iOS Safari das native
   `contextmenu`-Ereignis bei langem Druck auf generische Elemente wie einen
