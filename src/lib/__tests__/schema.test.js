@@ -235,18 +235,16 @@ describe('sanitizeItems', () => {
     expect(item.category).toBeNull();
   });
 
-  it('normalisiert quantity/unit und schreibt sie nur, wenn belegt (omit-empty)', () => {
-    const [item] = sanitizeItems([
-      { id: 'a', name: 'Hafermilch', quantity: '2', unit: '  l  ' },
-    ]);
-    expect(item.quantity).toBe(2); // aus String koerziert
-    expect(item.unit).toBe('l'); // getrimmt
+  it('normalisiert die Menge (ganze Zahl ≥ 2) und schreibt sie nur, wenn belegt', () => {
+    const [item] = sanitizeItems([{ id: 'a', name: 'Hafermilch', quantity: '3' }]);
+    expect(item.quantity).toBe(3); // aus String koerziert
   });
 
-  it('entfernt ein evtl. noch gespeichertes note-Feld (Feature entfernt)', () => {
+  it('entfernt evtl. noch gespeicherte unit-/note-Felder (Felder entfernt)', () => {
     const [item] = sanitizeItems([
-      { id: 'a', name: 'Hafermilch', quantity: 2, note: 'ungesüßt' },
+      { id: 'a', name: 'Hafermilch', quantity: 2, unit: 'l', note: 'ungesüßt' },
     ]);
+    expect('unit' in item).toBe(false);
     expect('note' in item).toBe(false);
     expect(item.quantity).toBe(2); // andere Felder bleiben unberührt
   });
@@ -255,41 +253,32 @@ describe('sanitizeItems', () => {
     const [item] = sanitizeItems([{ id: 'a', name: 'Apfel', category: 'obst', checked: false }]);
     expect(item).toEqual({ id: 'a', name: 'Apfel', category: 'obst', checked: false });
     expect('quantity' in item).toBe(false);
-    expect('unit' in item).toBe(false);
-    expect('note' in item).toBe(false);
   });
 
-  it('verwirft ungültige oder nicht positive Mengen still (→ kein quantity-Feld)', () => {
+  it('verwirft ungültige, nicht positive oder Standard-Mengen (1) still', () => {
     const [a] = sanitizeItems([{ id: 'a', name: 'X', quantity: 0 }]);
     const [b] = sanitizeItems([{ id: 'b', name: 'Y', quantity: -3 }]);
     const [c] = sanitizeItems([{ id: 'c', name: 'Z', quantity: 'abc' }]);
+    const [d] = sanitizeItems([{ id: 'd', name: 'W', quantity: 1 }]); // Standardmenge
     expect('quantity' in a).toBe(false);
     expect('quantity' in b).toBe(false);
     expect('quantity' in c).toBe(false);
-  });
-
-  it('begrenzt zu lange Einheiten', () => {
-    const [item] = sanitizeItems([{ id: 'a', name: 'X', unit: 'x'.repeat(50) }]);
-    expect(item.unit).toHaveLength(16);
+    expect('quantity' in d).toBe(false);
   });
 });
 
-describe('runMigrations – v2 (Menge/Einheit)', () => {
-  it('koerziert vorhandene Rohwerte und entfernt ein evtl. gespeichertes note-Feld', () => {
+describe('runMigrations – v2 (Menge)', () => {
+  it('koerziert die Menge und entfernt evtl. gespeicherte unit-/note-Felder', () => {
     const storage = seed({
-      items: [{ id: 'a', name: 'Hafermilch', quantity: '1,5', unit: ' l ', note: ' bio ' }],
+      items: [{ id: 'a', name: 'Hafermilch', quantity: '3', unit: ' l ', note: ' bio ' }],
     });
 
     const result = runMigrations(storage);
 
     expect(result.applied).toEqual([1, 2]);
     const item = read(storage, 'items')[0];
-    expect(item).toMatchObject({
-      id: 'a',
-      name: 'Hafermilch',
-      quantity: 1.5, // „1,5" → 1.5
-      unit: 'l',
-    });
+    expect(item).toMatchObject({ id: 'a', name: 'Hafermilch', quantity: 3 });
+    expect('unit' in item).toBe(false); // unit wird still verworfen
     expect('note' in item).toBe(false); // note wird still verworfen
     expect(read(storage, 'schemaVersion')).toBe(SCHEMA_VERSION);
   });

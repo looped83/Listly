@@ -7,7 +7,7 @@ import { LIST_ID } from '../../lib/supabase';
  * Cloud-Modus mit gemocktem Supabase-Client: prüft, welche Zeilen die
  * Hintergrund-Schreiboperationen tatsächlich an die Datenbank senden –
  * insbesondere, dass die Undo-Wiederherstellung (restoreItems) die optionalen
- * Felder quantity/unit NICHT verliert.
+ * Feld quantity NICHT verliert.
  */
 const mocks = vi.hoisted(() => {
   const calls = { inserts: [], updates: [], deletes: [] };
@@ -68,12 +68,12 @@ beforeEach(() => {
 });
 
 describe('useShoppingItems – Cloud-Schreiboperationen', () => {
-  it('sendet beim Anlegen alle gesetzten Felder (inkl. quantity/unit)', async () => {
+  it('sendet beim Anlegen alle gesetzten Felder (inkl. quantity)', async () => {
     const { result } = renderHook(() => useShoppingItems());
     await waitFor(() => expect(result.current.status).toBe('live'));
 
     act(() => {
-      result.current.addItem('Tofu', 'proteine', { quantity: 500, unit: 'g' });
+      result.current.addItem('Tofu', 'proteine', { quantity: 3 });
     });
 
     await waitFor(() => expect(mocks.calls.inserts).toHaveLength(1));
@@ -82,14 +82,14 @@ describe('useShoppingItems – Cloud-Schreiboperationen', () => {
       name: 'Tofu',
       category: 'proteine',
       checked: false,
-      quantity: 500,
-      unit: 'g',
+      quantity: 3,
     });
+    expect('unit' in mocks.calls.inserts[0]).toBe(false);
     expect('note' in mocks.calls.inserts[0]).toBe(false);
     expect(mocks.calls.inserts[0].created_at).toBeTruthy();
   });
 
-  it('stellt bei restoreItems (Undo) quantity/unit und checked verlustfrei wieder her', async () => {
+  it('stellt bei restoreItems (Undo) die Menge und checked verlustfrei wieder her', async () => {
     const { result } = renderHook(() => useShoppingItems());
     await waitFor(() => expect(result.current.status).toBe('live'));
 
@@ -100,7 +100,6 @@ describe('useShoppingItems – Cloud-Schreiboperationen', () => {
       checked: true,
       createdAt: '2026-07-01T10:00:00.000Z',
       quantity: 2,
-      unit: 'l',
     };
     act(() => {
       result.current.restoreItems([removedItem]);
@@ -116,11 +115,10 @@ describe('useShoppingItems – Cloud-Schreiboperationen', () => {
         checked: true,
         created_at: '2026-07-01T10:00:00.000Z',
         quantity: 2,
-        unit: 'l',
       },
     ]);
     // Auch lokal vollständig wiederhergestellt.
-    expect(result.current.items[0]).toMatchObject({ quantity: 2, unit: 'l' });
+    expect(result.current.items[0]).toMatchObject({ quantity: 2 });
   });
 
   it('löscht beim Einkaufsabschluss genau die verbuchten Artikel in der Cloud', async () => {

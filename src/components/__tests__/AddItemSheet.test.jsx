@@ -54,3 +54,64 @@ describe('AddItemSheet – Vorschlagsauswahl', () => {
     expect(search).toHaveFocus();
   });
 });
+
+describe('AddItemSheet – Hinzufügen schließt das Sheet', () => {
+  it('fügt hinzu und schließt das Sheet (Standardmenge 1)', async () => {
+    const user = userEvent.setup();
+    const { onAdd, onClose } = renderSheet();
+
+    await user.type(
+      screen.getByRole('combobox', { name: 'Produkt suchen oder hinzufügen' }),
+      'Hafermilch',
+    );
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd.mock.calls[0][0]).toBe('Hafermilch');
+    expect(onAdd.mock.calls[0][2]).toEqual({ quantity: 1 });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('ein Chip fügt hinzu und schließt das Sheet', async () => {
+    const user = userEvent.setup();
+    const { onAdd, onClose } = renderSheet({
+      frequentItems: [{ name: 'Bananen', category: 'obst-gemuese', count: 3 }],
+    });
+
+    // Der Chip-Add-Button trägt Name + Anzahl („Bananen×3“); der ×-Button zum
+    // Entfernen heißt anders und wird so nicht getroffen.
+    await user.click(screen.getByRole('button', { name: 'Bananen×3' }));
+
+    expect(onAdd).toHaveBeenCalledWith('Bananen', 'obst-gemuese');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('AddItemSheet – Mengen-Stepper', () => {
+  it('startet bei 1 und erhöht die Menge über „+“', async () => {
+    const user = userEvent.setup();
+    const { onAdd } = renderSheet();
+
+    const stepper = screen.getByRole('spinbutton', { name: 'Menge' });
+    expect(stepper).toHaveValue('1');
+
+    await user.click(screen.getByRole('button', { name: 'Menge erhöhen' }));
+    await user.click(screen.getByRole('button', { name: 'Menge erhöhen' }));
+    expect(stepper).toHaveValue('3');
+
+    await user.type(
+      screen.getByRole('combobox', { name: 'Produkt suchen oder hinzufügen' }),
+      'Tofu',
+    );
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+
+    expect(onAdd.mock.calls[0][2]).toEqual({ quantity: 3 });
+  });
+
+  it('lässt sich nicht unter die Mindestmenge 1 verringern', () => {
+    renderSheet();
+
+    expect(screen.getByRole('button', { name: 'Menge verringern' })).toBeDisabled();
+    expect(screen.getByRole('spinbutton', { name: 'Menge' })).toHaveValue('1');
+  });
+});

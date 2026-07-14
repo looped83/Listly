@@ -26,13 +26,12 @@ function renderList(items) {
 }
 
 describe('ShoppingList – Kategorie-Gruppierung', () => {
-  it('zeigt je Kategorie eine zugängliche Überschrift mit Anzahl', () => {
+  it('zeigt je Kategorie eine Überschrift mit dem Kategorienamen (ohne Anzahl)', () => {
     renderList([item('Apfel', 'obst-gemuese'), item('Banane', 'obst-gemuese')]);
 
-    // aria-label liefert den vollständigen, für Screenreader verständlichen Namen.
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Obst & Gemüse, 2 Artikel' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Obst & Gemüse' })).toBeInTheDocument();
+    // Keine Artikel-Anzahl mehr in der Überschrift.
+    expect(screen.queryByRole('heading', { name: /Artikel/ })).toBeNull();
   });
 
   it('rendert keine Überschrift für Kategorien ohne Artikel', () => {
@@ -44,9 +43,7 @@ describe('ShoppingList – Kategorie-Gruppierung', () => {
   it('fasst unbekannte/fehlende Kategorien in einer „Sonstiges“-Überschrift zusammen', () => {
     renderList([item('X', 'nicht-existent'), item('Y', null)]);
 
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Sonstiges, 2 Artikel' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Sonstiges' })).toBeInTheDocument();
   });
 
   it('hält offene und erledigte Artikel in getrennten Abschnitten, je eigenständig gruppiert', async () => {
@@ -59,11 +56,11 @@ describe('ShoppingList – Kategorie-Gruppierung', () => {
     expect(screen.getByRole('region', { name: 'Offene Artikel' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Erledigte Artikel' })).toBeInTheDocument();
     // Offen: eine sichtbare Überschrift; die Erledigt-Gruppe ist eingeklappt.
-    expect(screen.getAllByRole('heading', { name: 'Obst & Gemüse, 1 Artikel' })).toHaveLength(1);
+    expect(screen.getAllByRole('heading', { name: 'Obst & Gemüse' })).toHaveLength(1);
 
     // Nach dem Aufklappen erscheint die zweite (erledigte) Gruppe.
     await user.click(screen.getByRole('button', { name: /Erledigt/ }));
-    expect(screen.getAllByRole('heading', { name: 'Obst & Gemüse, 1 Artikel' })).toHaveLength(2);
+    expect(screen.getAllByRole('heading', { name: 'Obst & Gemüse' })).toHaveLength(2);
   });
 
   it('zeigt bei leerer Liste den Leerzustand statt Gruppen', () => {

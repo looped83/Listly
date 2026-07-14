@@ -52,8 +52,8 @@ describe('App (smoke test, local mode)', () => {
     await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
 
     expect(await screen.findByText('Testartikel')).toBeInTheDocument();
-    // Suchfeld wird nach dem Hinzufügen geleert (Sheet bleibt für Folge-Adds offen).
-    expect(input).toHaveValue('');
+    // Das Sheet schließt sich nach dem Hinzufügen.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('persists an added item to (mocked) localStorage in local mode', async () => {
@@ -238,7 +238,7 @@ describe('Dubletten-Feedback beim Hinzufügen (local mode)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('');
   });
 
-  it('behält den Fokus im Suchfeld nach dem Hinzufügen (Sheet bleibt offen)', async () => {
+  it('schließt das Sheet nach dem Hinzufügen und gibt den Fokus an den FAB zurück', async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -247,9 +247,9 @@ describe('Dubletten-Feedback beim Hinzufügen (local mode)', () => {
     await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
 
     await screen.findByRole('status');
-    // Nach dem Hinzufügen ist das Suchfeld geleert und wieder fokussiert.
-    expect(input).toHaveValue('');
-    expect(input).toHaveFocus();
+    // Sheet geschlossen; der Fokus liegt wieder auf dem auslösenden FAB.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Artikel hinzufügen' })).toHaveFocus();
   });
 
   it('fügt über einen Häufig-gekauft-Chip im Sheet mit derselben Meldung hinzu', async () => {
@@ -264,14 +264,14 @@ describe('Dubletten-Feedback beim Hinzufügen (local mode)', () => {
     await waitFor(() => expect(readHistory()).toHaveProperty('kichererbsen'));
 
     // Chip liegt jetzt im Hinzufügen-Sheet.
-    const input = await openAddSheet(user);
+    await openAddSheet(user);
     const chipAdd = await screen.findByRole('button', { name: 'Kichererbsen×1' });
     await user.click(chipAdd);
 
     expect(await screen.findByRole('status')).toHaveTextContent('„Kichererbsen“ hinzugefügt');
     expect(screen.getByRole('button', { name: 'Kichererbsen als erledigt markieren' })).toBeInTheDocument();
-    // Sheet bleibt offen, Suchfeld fokussiert für die nächste Eingabe.
-    expect(input).toHaveFocus();
+    // Ein Chip fügt hinzu und schließt das Sheet.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
 
@@ -424,20 +424,24 @@ describe('Artikel bearbeiten (local mode)', () => {
     return screen.findByRole('form', { name: /bearbeiten/ });
   }
 
-  it('ergänzt Menge und Einheit und zeigt sie kompakt an', async () => {
+  it('erhöht die Menge über den Stepper und zeigt sie kompakt an', async () => {
     const user = userEvent.setup();
     render(<App />);
     await addItem(user, 'Hafermilch');
 
     const form = await openEdit(user, 'Hafermilch');
-    // Kein Notiz-Feld mehr im Bearbeiten-Formular.
+    // Weder Einheit- noch Notiz-Feld mehr im Bearbeiten-Formular.
+    expect(within(form).queryByLabelText('Einheit')).not.toBeInTheDocument();
     expect(within(form).queryByLabelText('Notiz')).not.toBeInTheDocument();
-    await user.type(within(form).getByLabelText('Menge'), '2');
-    await user.type(within(form).getByLabelText('Einheit'), 'l');
+
+    // Stepper startet bei 1; zweimal „+“ → 3.
+    expect(within(form).getByRole('spinbutton', { name: 'Menge' })).toHaveValue('1');
+    await user.click(within(form).getByRole('button', { name: 'Menge erhöhen' }));
+    await user.click(within(form).getByRole('button', { name: 'Menge erhöhen' }));
     await user.click(within(form).getByRole('button', { name: 'Speichern' }));
 
-    // Kompaktdarstellung „2 l".
-    expect(await screen.findByText('2 l')).toHaveClass('list-item__qty');
+    // Kompaktdarstellung „3 ×“.
+    expect(await screen.findByText('3 ×')).toHaveClass('list-item__qty');
     // Bestätigungsmeldung.
     expect(screen.getByRole('status')).toHaveTextContent('„Hafermilch“ aktualisiert');
   });

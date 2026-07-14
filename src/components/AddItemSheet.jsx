@@ -3,22 +3,22 @@ import { Plus, Search, X } from 'lucide-react';
 import { buildSuggestions } from '../lib/suggestions';
 import { normalizeName } from '../lib/history';
 import { CATEGORY_OPTIONS } from '../lib/icons';
-import { MAX_UNIT_LENGTH, coerceUnit, parseQuantityInput } from '../lib/itemFields';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import FrequentChips from './FrequentChips';
 import ProductIcon from './ProductIcon';
+import QuantityStepper, { MIN_QUANTITY } from './QuantityStepper';
 
 const SOURCE_LABEL = { history: 'Verlauf', favorite: 'Favorit' };
 
 /**
  * Bottom-Sheet zum Hinzufügen eines Artikels: Produktsuche mit
  * Autovervollständigung, Häufig-gekauft-Chips und den Detailfeldern
- * (Menge, Einheit, Kategorie) in einem Schritt.
+ * (Menge, Kategorie) in einem Schritt.
  *
  * Interaktionsmodell:
- *  - Chip antippen  → sofort hinzufügen (schneller Mehrfach-Zugriff), Sheet bleibt offen.
+ *  - Chip antippen  → sofort hinzufügen und Sheet schließen.
  *  - Vorschlag wählen → Name (+ Kategorie) ins Formular übernehmen, um Details zu ergänzen.
- *  - „Hinzufügen“  → Name + Details übernehmen und Sheet schließen.
+ *  - „Hinzufügen“  → Name + Menge/Kategorie übernehmen und Sheet schließen.
  *
  * Barrierefreiheit via useDialogFocus (Fokusfalle, Escape, initialer Fokus auf
  * dem Suchfeld, Fokusrückgabe an den auslösenden Button).
@@ -40,17 +40,14 @@ function AddItemSheet({
 }) {
   const [name, setName] = useState('');
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [quantity, setQuantity] = useState('');
-  const [unit, setUnit] = useState('');
+  const [quantity, setQuantity] = useState(MIN_QUANTITY);
   const [category, setCategory] = useState('');
-  const [errors, setErrors] = useState({});
 
   const searchRef = useRef(null);
   const { panelRef, onKeyDown } = useDialogFocus({ onClose, initialFocusRef: searchRef });
 
   const titleId = useId();
   const listId = useId();
-  const qtyErrId = useId();
 
   const suggestions = useMemo(
     () => buildSuggestions(name, { history, favorites, excludeNames: existingNames }),
@@ -58,23 +55,13 @@ function AddItemSheet({
   );
   const showSuggestions = name.trim() !== '' && suggestions.length > 0;
 
-  const resetForm = useCallback(() => {
-    setName('');
-    setQuantity('');
-    setUnit('');
-    setCategory('');
-    setActiveIndex(-1);
-    setErrors({});
-  }, []);
-
-  // Chip: sofort hinzufügen, Sheet offen lassen (schnelle Folge-Adds).
+  // Chip: sofort hinzufügen und Sheet schließen.
   const quickAdd = useCallback(
     (rawName, cat) => {
       onAdd(rawName, cat);
-      resetForm();
-      searchRef.current?.focus();
+      onClose();
     },
-    [onAdd, resetForm],
+    [onAdd, onClose],
   );
 
   // Vorschlag: Name + Kategorie übernehmen, damit Details ergänzt werden können.
@@ -85,35 +72,25 @@ function AddItemSheet({
     searchRef.current?.focus();
   }, []);
 
+  // „Hinzufügen“ fügt IMMER den eingegebenen Namen hinzu und schließt das Sheet.
+  // Das Übernehmen eines hervorgehobenen Vorschlags passiert bewusst nur per
+  // Enter im Suchfeld (onSearchKeyDown), damit ein Button-Klick, bei dem die
+  // Maus zufällig einen Vorschlag streift, nicht ungewollt „übernehmen“ auslöst.
   const submit = useCallback(
     (e) => {
       e.preventDefault();
-      // Enter auf einem hervorgehobenen Vorschlag = übernehmen (nicht abschicken).
-      if (activeIndex >= 0 && suggestions[activeIndex]) {
-        pickSuggestion(suggestions[activeIndex]);
-        return;
-      }
-
       const trimmed = name.trim();
-      const parsed = parseQuantityInput(quantity);
-      const nextErrors = {};
-      if (!trimmed) nextErrors.name = true; // Suchfeld leer → nichts hinzuzufügen
-      if (!parsed.ok) nextErrors.quantity = 'Bitte eine positive Zahl eingeben.';
-      setErrors(nextErrors);
-      if (Object.keys(nextErrors).length > 0) {
-        if (nextErrors.name) searchRef.current?.focus();
+      if (!trimmed) {
+        searchRef.current?.focus(); // Suchfeld leer → nichts hinzuzufügen
         return;
       }
 
-      onAdd(trimmed, category || undefined, {
-        quantity: parsed.value,
-        unit: coerceUnit(unit),
-      });
-      // Sheet offen lassen für schnelle Folge-Adds; Felder leeren, Suche fokussieren.
-      resetForm();
-      searchRef.current?.focus();
+      // quantity ist über den Stepper stets eine gültige ganze Zahl ≥ 1; die
+      // Standardmenge 1 wird in addItem nicht materialisiert (omit-empty).
+      onAdd(trimmed, category || undefined, { quantity });
+      onClose();
     },
-    [activeIndex, suggestions, pickSuggestion, name, quantity, category, unit, onAdd, resetForm],
+    [name, category, quantity, onAdd, onClose],
   );
 
   const onSearchKeyDown = useCallback(
@@ -125,9 +102,13 @@ function AddItemSheet({
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+      } else if (e.key === 'Enter' && activeIndex >= 0 && suggestions[activeIndex]) {
+        // Enter auf einem hervorgehobenen Vorschlag = übernehmen (nicht abschicken).
+        e.preventDefault();
+        pickSuggestion(suggestions[activeIndex]);
       }
     },
-    [showSuggestions, suggestions.length],
+    [showSuggestions, suggestions, activeIndex, pickSuggestion],
   );
 
   return (
@@ -221,56 +202,30 @@ function AddItemSheet({
                 <label className="field__label" htmlFor={`${titleId}-qty`}>
                   Menge
                 </label>
-                <input
-                  id={`${titleId}-qty`}
-                  className="field__input"
+                <QuantityStepper
                   value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  inputMode="decimal"
-                  autoComplete="off"
-                  placeholder="z. B. 2"
-                  aria-invalid={errors.quantity ? 'true' : undefined}
-                  aria-describedby={errors.quantity ? qtyErrId : undefined}
+                  onChange={setQuantity}
+                  inputId={`${titleId}-qty`}
                 />
               </div>
-              <div className="field field--unit">
-                <label className="field__label" htmlFor={`${titleId}-unit`}>
-                  Einheit
+              <div className="field field--cat">
+                <label className="field__label" htmlFor={`${titleId}-cat`}>
+                  Kategorie
                 </label>
-                <input
-                  id={`${titleId}-unit`}
+                <select
+                  id={`${titleId}-cat`}
                   className="field__input"
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
-                  maxLength={MAX_UNIT_LENGTH}
-                  autoComplete="off"
-                  placeholder="z. B. g, Dose"
-                />
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  <option value="">Automatisch</option>
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </div>
-            {errors.quantity && (
-              <p className="field__error" id={qtyErrId}>
-                {errors.quantity}
-              </p>
-            )}
-
-            <div className="field">
-              <label className="field__label" htmlFor={`${titleId}-cat`}>
-                Kategorie
-              </label>
-              <select
-                id={`${titleId}-cat`}
-                className="field__input"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="">Automatisch</option>
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
 

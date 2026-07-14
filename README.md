@@ -8,8 +8,9 @@ zwischen mehreren Geräten geteilt.
 ## Features
 
 - **Artikel verwalten** – hinzufügen über einen schwebenden Plus-Button (öffnet
-  ein oben angedocktes Sheet mit Produktsuche und Detailfeldern für Menge,
-  Einheit und Kategorie); abhaken durch Antippen der ganzen Zeile.
+  ein oben angedocktes Sheet mit Produktsuche, einem Mengen-Stepper und einer
+  Kategorie-Auswahl); nach dem Hinzufügen schließt sich das Sheet. Abhaken durch
+  Antippen der ganzen Zeile.
 - **Swipe-Aktionen** – Wischen nach links deckt hinter jeder Zeile die Aktionen
   **Favorit / Bearbeiten / Löschen** auf. Dieselben Aktionen sind ohne Geste per
   Tastatur und Screenreader erreichbar (die Leiste klappt bei Fokus automatisch auf).
@@ -51,7 +52,7 @@ lokal pro Gerät:
 
 | Schlüssel              | Inhalt                                                                    |
 | ---------------------- | ------------------------------------------------------------------------- |
-| `listly.items`         | Liste (nur im lokalen Modus): `[{ id, name, category, checked, createdAt, quantity?, unit? }]` |
+| `listly.items`         | Liste (nur im lokalen Modus): `[{ id, name, category, checked, createdAt, quantity? }]` |
 | `listly.favorites`     | Favoriten: `["Hafermilch", …]`                                            |
 | `listly.history`       | Kaufverlauf: `{ [name]: { name, category, count, lastPurchased } }`        |
 | `listly.cards`         | Kundenkarten: `[{ id, retailer, name, code, codeType }]`                   |
