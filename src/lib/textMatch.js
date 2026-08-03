@@ -77,6 +77,22 @@ const SYNONYM_SOURCE = {
   tomato: 'Tomaten',
   courgette: 'Zucchini',
   aubergine: 'Aubergine',
+  'brussels sprouts': 'Rosenkohl',
+  'brussel sprouts': 'Rosenkohl',
+  cauliflower: 'Blumenkohl',
+  cabbage: 'Weißkohl',
+  'red cabbage': 'Rotkohl',
+  'pak choy': 'Pak Choi',
+  'bok choy': 'Pak Choi',
+  asparagus: 'Grüner Spargel',
+  mushrooms: 'Champignons',
+  mushroom: 'Champignons',
+  pumpkin: 'Kürbis',
+  spinach: 'Spinat',
+  'passion fruit': 'Maracuja',
+  'sweet potato': 'Süßkartoffel',
+  parsnips: 'Pastinaken',
+  parsnip: 'Pastinaken',
 };
 
 const SYNONYMS = new Map(

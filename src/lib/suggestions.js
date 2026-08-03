@@ -13,7 +13,7 @@ import {
 } from './textMatch';
 
 // Basisliste einmalig vorbereiten: Name + Metadaten + vorberechnete
-// Vergleichsform. Spart die (nicht ganz billige) Normalisierung von 356
+// Vergleichsform. Spart die (nicht ganz billige) Normalisierung von 438
 // Artikeln bei jedem Tastendruck.
 const BASE_PRODUCTS = products.products.map((p) => ({
   name: p.name,

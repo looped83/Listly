@@ -108,7 +108,7 @@ src/
 │   ├── itemFields.js       #   reine Helfer: Menge (coerce/format; ganze Zahl ≥ 2)
 │   ├── groupItems.js       #   reine Helfer: Artikel nach Kategorie gruppieren (Sonstiges zuletzt)
 │   └── schema.js           #   localStorage-Migrationen + Sanitizer (siehe §12)
-├── data/products.json      # 356 Produkte / 16 Kategorien (Emoji je Produkt)
+├── data/products.json      # 438 Produkte / 16 Kategorien (Emoji je Produkt)
 ├── styles/
 │   ├── tokens.css          #   Design-Tokens Light + Dark (true black)
 │   └── index.css           #   Base + alle Komponenten-Styles
