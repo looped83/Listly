@@ -51,6 +51,12 @@ export function useShoppingItems({ onPurchase } = {}) {
     itemsRef.current = items;
   }, [items]);
 
+  // Stabiler Lesezugriff auf den aktuellen Stand für Event-Handler der
+  // Aufrufer (z. B. „Wird dieser Artikel gerade abgehakt?“) – ohne dass deren
+  // Callbacks von `items` abhängen und damit bei jeder Änderung neu entstehen
+  // (was die memoisierten Zeilen/Kacheln sonst allesamt neu rendern ließe).
+  const findItem = useCallback((predicate) => itemsRef.current.find(predicate) ?? null, []);
+
   // Setzt Items. Reiner State-Update ohne Seiteneffekt – so bleibt der Updater
   // unter React StrictMode gefahrlos doppelt aufrufbar.
   const applyItems = useCallback((updater) => setItems(updater), []);
@@ -193,7 +199,7 @@ export function useShoppingItems({ onPurchase } = {}) {
   // ── Operationen ─────────────────────────────────────────────────────────────
   const toggleItem = useCallback(
     (id, forcedValue) => {
-      const current = itemsRef.current.find((it) => it.id === id);
+      const current = findItem((it) => it.id === id);
       if (!current) return;
       const checked = typeof forcedValue === 'boolean' ? forcedValue : !current.checked;
 
@@ -201,7 +207,7 @@ export function useShoppingItems({ onPurchase } = {}) {
 
       runCloudWrite((supabase) => supabase.from(TABLE).update({ checked }).eq('id', id));
     },
-    [applyItems, runCloudWrite],
+    [applyItems, findItem, runCloudWrite],
   );
 
   /**
@@ -231,7 +237,7 @@ export function useShoppingItems({ onPurchase } = {}) {
       const key = normalizeName(name);
       if (!key) return { status: 'invalid' };
 
-      const existing = itemsRef.current.find((it) => normalizeName(it.name) === key);
+      const existing = findItem((it) => normalizeName(it.name) === key);
       if (existing) {
         if (existing.checked) {
           toggleItem(existing.id, false); // optimistisch synchron; Cloud-Sync im Hintergrund
@@ -260,7 +266,7 @@ export function useShoppingItems({ onPurchase } = {}) {
 
       return { status: 'added', item };
     },
-    [applyItems, runCloudWrite, toggleItem],
+    [applyItems, findItem, runCloudWrite, toggleItem],
   );
 
   // Aktualisiert Felder eines Artikels (Name, Kategorie, Menge).
@@ -284,7 +290,7 @@ export function useShoppingItems({ onPurchase } = {}) {
   // Aufrufer eine Undo-Aktion anbieten. Die Cloud-Löschung läuft im Hintergrund.
   const removeItem = useCallback(
     (id) => {
-      const removed = itemsRef.current.find((it) => it.id === id);
+      const removed = findItem((it) => it.id === id);
       if (!removed) return null;
 
       applyItems((prev) => prev.filter((it) => it.id !== id));
@@ -293,7 +299,7 @@ export function useShoppingItems({ onPurchase } = {}) {
 
       return removed;
     },
-    [applyItems, runCloudWrite],
+    [applyItems, findItem, runCloudWrite],
   );
 
   // Stellt zuvor entfernte/archivierte Artikel vollständig wieder her (inkl.
@@ -341,6 +347,7 @@ export function useShoppingItems({ onPurchase } = {}) {
     items,
     status,
     loadState,
+    findItem,
     addItem,
     toggleItem,
     updateItem,

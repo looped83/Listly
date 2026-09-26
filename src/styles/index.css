@@ -69,6 +69,53 @@ textarea {
   border-radius: var(--radius-sm);
 }
 
+/* ---------- Start-Platzhalter (index.html, bis React übernimmt) ---------- */
+.boot {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+}
+
+/* Entspricht dem Header-Logo – der Start wirkt dadurch wie ein Teil der App. */
+.boot__logo {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-lg);
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-md);
+}
+
+/* Nur falls die App nach einigen Sekunden noch immer nicht läuft (z. B. per
+   file:// geöffnet oder Skript blockiert) – im Normalfall nie sichtbar. */
+.boot__hint {
+  position: absolute;
+  bottom: max(env(safe-area-inset-bottom), var(--space-6));
+  max-width: 32rem;
+  margin: 0;
+  padding: 0 var(--space-5);
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  opacity: 0;
+  animation: boot-hint 0.3s ease 6s forwards;
+}
+
+.boot__hint small {
+  display: block;
+  margin-top: var(--space-2);
+}
+
+@keyframes boot-hint {
+  to {
+    opacity: 1;
+  }
+}
+
 /* ---------- Layout ---------- */
 .app {
   max-width: var(--content-width);
@@ -263,6 +310,7 @@ textarea {
   display: inline-flex;
   align-items: stretch;
   flex-shrink: 0;
+  min-height: 40px;
   scroll-snap-align: start;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
@@ -300,7 +348,7 @@ textarea {
 .chip__remove {
   display: inline-flex;
   align-items: center;
-  padding: 0 var(--space-2);
+  padding: 0 var(--space-3);
   color: var(--text-subtle);
   border-left: 1px solid var(--border);
   transition: background 0.2s ease, color 0.2s ease;
@@ -650,6 +698,40 @@ textarea {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/*
+ * Größere Trefferfläche für kleine Bedienelemente (≥ 44 px hoch, Apple HIG /
+ * WCAG 2.5.5), ohne die Optik zu ändern: ein unsichtbares Pseudo-Element
+ * erweitert die Tap-Fläche. Seitlich nur so weit, dass sich benachbarte
+ * Flächen nicht überlappen (sonst gewänne der Nachbar den Tipp).
+ */
+.view-toggle__button,
+.tile__actions-main .icon-button,
+.toast__action,
+.toast__dismiss {
+  position: relative; /* Favorit im Kachel-Panel ist bereits absolut positioniert */
+}
+
+.view-toggle__button::after,
+.tile__actions .icon-button::after,
+.toast__action::after,
+.toast__dismiss::after {
+  content: '';
+  position: absolute;
+  inset: -5px 0; /* Ansicht-Umschalter: 34 → 44 px, Buttons liegen direkt nebeneinander */
+}
+
+.tile__actions .icon-button::after {
+  inset: -7px -3px; /* 30 → 44 px hoch; Abstand der Buttons: 8 px */
+}
+
+.toast__action::after {
+  inset: -7px 0;
+}
+
+.toast__dismiss::after {
+  inset: -6px; /* 32 → 44 px */
 }
 
 /* ---------- Header actions & Kundenkarten-Button ---------- */
@@ -1631,7 +1713,8 @@ textarea {
 }
 
 /* Ausreichend große Trefferfläche für die Schließen-Schaltfläche. */
-.dialog__head .icon-button {
+.dialog__head .icon-button,
+.sheet__bar .icon-button {
   width: 44px;
   height: 44px;
   margin-right: calc(-1 * var(--space-2));

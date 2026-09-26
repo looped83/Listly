@@ -44,7 +44,11 @@ gemeinsam in Echtzeit genutzt.
   dagegen **Emoji** (keine Icon-Lib nötig).
 - **@supabase/supabase-js** – Echtzeit-Sync der Liste
 - **qrcode** + **jsbarcode** – Code-Erzeugung für Kundenkarten (Client-seitig)
-- **vite-plugin-pwa** – Manifest + Service Worker
+- **vite-plugin-pwa** – Manifest + Service Worker (Registrierung inline im
+  `<head>`, keine eigene `registerSW.js`). Der Precache lässt die
+  latin-ext-Schriftschnitte bewusst aus (werden bei deutschem Text praktisch
+  nie gebraucht, ~170 KB); falls doch, cacht `runtimeCaching` Fonts nach dem
+  ersten Laden (`listly-fonts`, CacheFirst).
 - Fonts (Fraunces, Inter, IBM Plex Mono) sind **lokal** eingebunden (kein CDN).
 - **ESLint** (Flat Config, `eslint.config.js`): @eslint/js recommended +
   react-hooks-Regeln; läuft lokal (`npm run lint`) und im Deploy-Workflow.
@@ -165,7 +169,11 @@ Platzhalter). Normalisierung: `lib/itemFields.js` (siehe §8, §12).
   (`postgres_changes` gefiltert auf `list_id`), optimistische Updates, sowie
   `addItem`, `toggleItem`, `updateItem`, `removeItem`, `restoreItems` (Undo) und
   `completeCheckout` (Einkaufsabschluss, s. §8). Bei Fehlern wird neu geladen
-  (`refetch`).
+  (`refetch`). `findItem(predicate)` liefert stabil den aktuellen Stand für
+  Event-Handler – die Callbacks in `App.jsx` hängen dadurch nicht an `items`
+  und bleiben über Listenänderungen stabil, sodass die memoisierten
+  Zeilen/Kacheln beim Abhaken nur den betroffenen Artikel neu rendern
+  (abgesichert durch `src/__tests__/App.rerender.test.jsx`).
 - **Offline-Start & Abgleich (stale-while-revalidate):** Jeder vom Server
   geladene Stand wird unter `listly.cloudItems` (mit `LIST_ID`, ein Cache einer
   anderen Liste wird ignoriert) gespiegelt und beim nächsten Start **sofort**
@@ -302,6 +310,17 @@ deployen.
 - **Dark Mode:** echtes Schwarz, folgt automatisch `prefers-color-scheme`
   (kein Umschalter). Farben ausschließlich über CSS-Tokens (`tokens.css`);
   `useTheme.js` setzt `data-theme` am `<html>` und die `theme-color`-Meta.
+  Den **Startwert** setzt schon ein Inline-Skript im `<head>` von `index.html`
+  (vor dem ersten Paint) – sonst zeigte der Dark Mode beim Start kurz den
+  hellen Look und blendete sichtbar um.
+- **Start-Platzhalter:** bis React übernimmt, zeigt `index.html` nur das Logo
+  auf Hintergrundfarbe (`.boot`, Tokens → passt zu Hell/Dunkel). Ein Hinweis
+  („Listly startet nicht? …“ inkl. Entwickler-Tipp zu `file://`) blendet sich
+  erst ein, wenn die App nach 6 s noch immer nicht läuft.
+- **Trefferflächen:** kleine Icon-Buttons (Ansicht-Umschalter, Kachel-Aktionen,
+  Toast) bekommen per unsichtbarem `::after` eine ≥ 44 px hohe Tap-Fläche,
+  ohne die Optik zu ändern (seitlich nur so weit, dass Nachbarn sich nicht
+  überlappen). Schließen-Buttons in Dialogen/Sheets sind 44 × 44 px.
 - **Layout:** Gesamtseite nicht scrollbar/wippend (`body { overflow:hidden;
   overscroll-behavior:none }`), nur der Listenbereich scrollt. Es gibt **keine
   feste Eingabeleiste** mehr; Hinzufügen läuft über einen **schwebenden
@@ -536,8 +555,8 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (296 Tests,
-  22 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (298 Tests,
+  23 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
