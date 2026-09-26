@@ -12,7 +12,7 @@ const DELETE_ANIMATION_MS = 200;
  * Ein weiterer, entschlossener Wisch über die Aktionsleiste hinaus (bis nahe an
  * die volle Zeilenbreite, `deleteThresholdRatio`) entfernt den Artikel direkt –
  * der freigelegte Hintergrund färbt sich dabei stufenlos von Grün nach Rot
- * (`progress`, als CSS-Property `--swipe-progress` auf `backdropProps`), als
+ * (CSS-Property `--swipe-progress` am Element mit `backdropProps`), als
  * Vorschau, ob Loslassen jetzt löschen würde.
  *
  * Die Geste ist bewusst **nicht** die einzige Bedienung: erhält ein Element in
@@ -23,7 +23,9 @@ const DELETE_ANIMATION_MS = 200;
  *
  * Kapselt den kompletten Gesten-Zustand (Ausschlag, aufgedeckt, Animation) samt
  * Touch-Handlern und liefert fertige Prop-Bündel für die beteiligten Elemente
- * zurück, damit die Zeilen-Komponente rein präsentational bleibt.
+ * zurück, damit die Zeilen-Komponente rein präsentational bleibt. Ausschlag,
+ * Fortschritt und Animation werden direkt am DOM gesetzt (über die Refs in den
+ * Bündeln) – React rendert nur, wenn sich „aufgedeckt“ ändert.
  *
  * @param {{
  *   revealWidth: number,
@@ -56,51 +58,50 @@ export function useSwipeReveal({
   const dxRef = useRef(0); // aktueller Ausschlag – unabhängig vom Render-Timing
   const rowWidthRef = useRef(0);
   const deleteTimerRef = useRef(null);
-  const [dx, setDx] = useState(0);
-  const [progress, setProgress] = useState(0); // 0..1, Fortschritt Richtung Löschen
-  const [animating, setAnimating] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const rowRef = useRef(null);
   const actionsRef = useRef(null);
+  const backdropRef = useRef(null);
 
-  const setOffset = useCallback((value) => {
-    dxRef.current = value;
-    setDx(value);
-  }, []);
-
-  // Grün→Rot-Fortschritt: bleibt bis `revealWidth` bei 0 (normales Aufdecken
-  // sieht unverändert grün aus) und wächst erst danach Richtung Lösch-Schwelle.
-  const updateProgress = useCallback(
+  // Ausschlag und Grün→Rot-Fortschritt direkt am DOM setzen statt über React-
+  // State: während der Geste passiert das bei jeder Fingerbewegung – so löst
+  // Wischen keinen Re-Render pro Frame aus (flüssiger auf schwachen Geräten).
+  // Der Fortschritt folgt aus dem Ausschlag: bis `revealWidth` bleibt er 0
+  // (normales Aufdecken sieht unverändert grün aus), danach wächst er linear
+  // bis zur Lösch-Schwelle.
+  const applyOffset = useCallback(
     (value) => {
-      const deleteThreshold = rowWidthRef.current * deleteThresholdRatio;
-      const span = deleteThreshold - revealWidth;
-      if (span <= 0) {
-        setProgress(0);
-        return;
-      }
+      dxRef.current = value;
+      if (rowRef.current) rowRef.current.style.transform = value ? `translateX(${value}px)` : '';
+      const span = rowWidthRef.current * deleteThresholdRatio - revealWidth;
       const past = Math.abs(value) - revealWidth;
-      setProgress(Math.min(1, Math.max(0, past / span)));
+      const progress = span > 0 ? Math.min(1, Math.max(0, past / span)) : 0;
+      backdropRef.current?.style.setProperty('--swipe-progress', String(progress));
     },
     [revealWidth, deleteThresholdRatio],
   );
 
+  // Übergangs-Animation an/aus (CSS: `.list-item[data-animating='true']`) –
+  // aus demselben Grund direkt am DOM: beim Anfassen aus, beim Loslassen an.
+  const setAnimating = useCallback((on) => {
+    if (rowRef.current) rowRef.current.dataset.animating = String(on);
+  }, []);
+
   const close = useCallback(() => {
     setRevealed(false);
-    setOffset(0);
-    setProgress(0);
-  }, [setOffset]);
+    applyOffset(0);
+  }, [applyOffset]);
 
   const open = useCallback(() => {
     setRevealed(true);
-    setOffset(-revealWidth);
-    setProgress(0);
-  }, [setOffset, revealWidth]);
+    applyOffset(-revealWidth);
+  }, [applyOffset, revealWidth]);
 
   // Sanft (animiert) schließen – nach Aktion, Klick außerhalb oder Fokusverlust.
   const animateClose = useCallback(() => {
     setAnimating(true);
     close();
-  }, [close]);
+  }, [close, setAnimating]);
 
   // Klick außerhalb schließt die aufgedeckte Aktionsleiste wieder.
   useEffect(() => {
@@ -134,7 +135,7 @@ export function useSwipeReveal({
       // Beim erneuten Anfassen vom aktuellen (ggf. aufgedeckten) Offset ausgehen.
       dxRef.current = revealed ? -revealWidth : 0;
     },
-    [revealed, revealWidth],
+    [revealed, revealWidth, setAnimating],
   );
 
   const onTouchMove = useCallback(
@@ -152,39 +153,35 @@ export function useSwipeReveal({
       const base = revealed ? -revealWidth : 0;
       // Maximaler Ausschlag: die volle Zeilenbreite (kompletter Wisch möglich).
       const maxDrag = Math.max(revealWidth, rowWidthRef.current);
-      const next = Math.min(0, Math.max(base + dX, -maxDrag));
-      setOffset(next);
-      updateProgress(next);
+      applyOffset(Math.min(0, Math.max(base + dX, -maxDrag)));
     },
-    [revealed, revealWidth, setOffset, updateProgress],
+    [revealed, revealWidth, applyOffset],
   );
 
   const onTouchEnd = useCallback(() => {
     if (!dragging.current && !horizontal.current) return;
     dragging.current = false;
     horizontal.current = false;
+    setAnimating(true);
 
     const deleteThreshold = rowWidthRef.current * deleteThresholdRatio;
     // Entschlossen genug gewischt → Artikel direkt entfernen (Zeile gleitet
     // vollständig hinaus, danach erst der eigentliche Entfernen-Callback).
     if (deleteThreshold > 0 && Math.abs(dxRef.current) >= deleteThreshold) {
-      setAnimating(true);
-      setOffset(-rowWidthRef.current);
-      setProgress(1);
+      applyOffset(-rowWidthRef.current);
       deleteTimerRef.current = setTimeout(() => onDelete?.(), DELETE_ANIMATION_MS);
       return;
     }
 
-    setAnimating(true);
     // Weit genug aufgedeckt → einrasten, sonst zurückgleiten.
     if (dxRef.current <= -openThreshold) open();
     else close();
-  }, [deleteThresholdRatio, openThreshold, open, close, onDelete, setOffset]);
+  }, [deleteThresholdRatio, openThreshold, open, close, onDelete, applyOffset, setAnimating]);
 
   const onActionsFocus = useCallback(() => {
     setAnimating(true);
     open();
-  }, [open]);
+  }, [open, setAnimating]);
 
   const onActionsBlur = useCallback(
     (e) => {
@@ -198,9 +195,7 @@ export function useSwipeReveal({
     revealed,
     rowProps: {
       ref: rowRef,
-      style: { transform: `translateX(${dx}px)` },
       'data-revealed': revealed,
-      'data-animating': animating,
       onTouchStart,
       onTouchMove,
       onTouchEnd,
@@ -211,7 +206,7 @@ export function useSwipeReveal({
       onBlur: onActionsBlur,
     },
     backdropProps: {
-      style: { '--swipe-progress': progress },
+      ref: backdropRef,
     },
     closeAfterAction: animateClose,
   };

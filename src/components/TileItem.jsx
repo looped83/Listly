@@ -1,7 +1,7 @@
 import { memo, useEffect, useId, useRef, useState } from 'react';
-import { Pencil, Star, X } from 'lucide-react';
 import ProductIcon from './ProductIcon';
 import ItemEditInline from './ItemEditInline';
+import { EditButton, FavoriteButton, RemoveButton } from './ItemActionButtons';
 import { formatQuantityBadge, itemLabel, readItemExtras } from '../lib/itemFields';
 
 // Dauer bis ein gehaltener Druck als „lang“ zählt, und wie viel Bewegung dabei
@@ -148,20 +148,13 @@ function TileItem({
           ref={actionsRef}
           tabIndex={-1}
         >
-          <button
-            type="button"
-            className="icon-button icon-button--fav tile__actions-fav"
-            data-active={isFavorite}
-            onClick={() => onToggleFavorite(item.name)}
-            aria-pressed={isFavorite}
-            aria-label={
-              isFavorite
-                ? `${item.name} aus Favoriten entfernen`
-                : `${item.name} zu Favoriten hinzufügen`
-            }
-          >
-            <Star size={16} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
-          </button>
+          <FavoriteButton
+            name={item.name}
+            isFavorite={isFavorite}
+            onToggle={onToggleFavorite}
+            iconSize={16}
+            className="tile__actions-fav"
+          />
 
           {/* Rein visuell (die Gruppe trägt den Namen schon über aria-label) –
               absolut positioniert, damit sie unabhängig von der Höhe der
@@ -171,29 +164,22 @@ function TileItem({
           </p>
 
           <div className="tile__actions-main">
-            <button
-              type="button"
-              className="icon-button"
+            <EditButton
+              descriptor={descriptor}
+              iconSize={16}
               onClick={() => {
                 closeActions();
                 onEdit(item.id);
               }}
-              aria-label={`${descriptor} bearbeiten`}
-            >
-              <Pencil size={16} aria-hidden="true" />
-            </button>
-
-            <button
-              type="button"
-              className="icon-button icon-button--danger"
+            />
+            <RemoveButton
+              descriptor={descriptor}
+              iconSize={16}
               onClick={() => {
                 closeActions();
                 onRemove(item.id);
               }}
-              aria-label={`${descriptor} entfernen`}
-            >
-              <X size={16} aria-hidden="true" />
-            </button>
+            />
           </div>
         </div>
       ) : (

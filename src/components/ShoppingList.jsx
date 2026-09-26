@@ -1,5 +1,5 @@
 import { memo, useId, useMemo, useState } from 'react';
-import { ChevronDown, ClipboardList, ShoppingBag } from 'lucide-react';
+import { ChevronDown, ClipboardList, CloudOff, ShoppingBag } from 'lucide-react';
 import ListItem from './ListItem';
 import TileItem from './TileItem';
 import { normalizeName } from '../lib/history';
@@ -28,14 +28,46 @@ function ShopProgress({ done, total }) {
   );
 }
 
+// Anzahl der Platzhalterzeilen beim ersten Laden – grob eine Bildschirmhöhe.
+const SKELETON_ROWS = 5;
+
+/**
+ * Leere Liste, deren Stand noch nicht bekannt ist (Cloud-Modus, erster Start
+ * ohne Cache): Platzhalterzeilen beim Laden bzw. ein Offline-Hinweis – statt
+ * eines irreführenden „Deine Liste ist leer“.
+ */
+function UnknownListState({ offline }) {
+  if (offline) {
+    return (
+      <div className="empty">
+        <CloudOff size={40} className="empty__icon" aria-hidden="true" />
+        <p className="empty__title">Keine Verbindung</p>
+        <p className="empty__text">Die Liste erscheint, sobald du wieder online bist.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="skeleton" aria-busy="true">
+      <span className="visually-hidden">Liste wird geladen …</span>
+      {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+        <div key={i} className="skeleton__row" aria-hidden="true" />
+      ))}
+    </div>
+  );
+}
+
 /**
  * Rendert die aktuelle Liste: offene und erledigte Artikel je nach Kategorie
  * gruppiert. Einkaufsorientierter Standard-Look: große Zeilen, Fortschritts-
  * anzeige ab dem ersten abgehakten Artikel und standardmäßig eingeklappte
  * erledigte Artikel.
+ *
+ * `loadState` unterscheidet bei leerer Liste „wirklich leer“ (`ready`) von
+ * „noch nicht geladen“ (`loading`) und „nicht ladbar, offline“ (`offline`).
  */
 function ShoppingList({
   items,
+  loadState = 'ready',
   favoriteSet,
   editingId,
   viewMode = 'list',
@@ -63,6 +95,7 @@ function ShoppingList({
   const doneGroups = useMemo(() => groupByCategory(done), [done]);
 
   if (items.length === 0) {
+    if (loadState !== 'ready') return <UnknownListState offline={loadState === 'offline'} />;
     return (
       <div className="empty">
         <ClipboardList size={40} className="empty__icon" aria-hidden="true" />

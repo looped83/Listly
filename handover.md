@@ -37,18 +37,36 @@ gemeinsam in Echtzeit genutzt.
 
 ## 2. Tech-Stack & Voraussetzungen
 
-- **Node.js ≥ 18**
-- **Vite 5** + `@vitejs/plugin-react`
+- **Node.js ≥ 20.19** (empfohlen 22 LTS; Deploy-Workflow nutzt 22)
+- **Vite 8** (Rolldown) + `@vitejs/plugin-react` 5 – Build und Vitest nutzen
+  dieselbe Vite-Version. Browser-Ziel ist Vites Standard „Baseline widely
+  available“ (u. a. Safari/iOS ≥ 16, Chrome ≥ 111); CSS-Fallbacks für ältere
+  Browser (z. B. `100vh` vor `100dvh`) entfernt der Minifier daher bewusst.
+  Hinweis zu `@vitejs/plugin-react` 6: dessen optionale Babel-8-Peers
+  kollidieren in npm mit Babel 7 aus `workbox-build` – daher vorerst die 5er-
+  Linie (unterstützt Vite 8 offiziell). Beim nächsten vite-plugin-pwa-/Workbox-
+  Update erneut prüfen, ohne `--legacy-peer-deps`.
 - **React 18**
 - **lucide-react** – UI-Icons (Häkchen, Stern, Wallet …). Produkt-Symbole sind
   dagegen **Emoji** (keine Icon-Lib nötig).
-- **@supabase/supabase-js** – Echtzeit-Sync der Liste
+- **@supabase/postgrest-js** + **@supabase/realtime-js** – Echtzeit-Sync der
+  Liste. Bewusst die beiden Einzelpakete statt `@supabase/supabase-js`: die App
+  braucht nur Tabellenzugriff + Realtime, das Komplettpaket brächte Auth,
+  Storage und Functions mit (Chunk 55 → 21 KB gzip). Versionen beider Pakete
+  gemeinsam aktualisieren.
 - **qrcode** + **jsbarcode** – Code-Erzeugung für Kundenkarten (Client-seitig)
-- **vite-plugin-pwa** – Manifest + Service Worker
-- Fonts (Fraunces, Inter, IBM Plex Mono) sind **lokal** eingebunden (kein CDN).
+- **vite-plugin-pwa** – Manifest + Service Worker (Registrierung inline im
+  `<head>`, keine eigene `registerSW.js`). Der Precache lässt die
+  latin-ext-Schriftschnitte bewusst aus (werden bei deutschem Text praktisch
+  nie gebraucht, ~145 KB); falls doch, cacht `runtimeCaching` Fonts nach dem
+  ersten Laden (`listly-fonts`, CacheFirst).
+- Fonts (Fraunces, Inter) sind **lokal** eingebunden (kein CDN). Zahlen in der
+  Oberfläche nutzen Inter mit `tabular-nums`; Monospace (Kartennummer,
+  Code-Eingabe) kommt aus der Systemschrift – keine eigene Mono-Schrift.
 - **ESLint** (Flat Config, `eslint.config.js`): @eslint/js recommended +
   react-hooks-Regeln; läuft lokal (`npm run lint`) und im Deploy-Workflow.
-- **Code-Splitting:** `@supabase/supabase-js` (nur im Cloud-Modus) und das
+- **Code-Splitting:** der Supabase-Client (`lib/supabaseClient.js`, nur im
+  Cloud-Modus) und das
   Kundenkarten-Modul mit `qrcode`/`jsbarcode` (nur beim Öffnen der Karten) werden
   **lazy** als eigene Chunks geladen – das initiale JS bleibt schlank.
 
@@ -81,6 +99,8 @@ src/
 │   ├── TileItem.jsx        #   Einzelkarte (Kachelansicht): dieselben Handler/Aktionen wie ListItem, Favorit/Bearbeiten/Löschen hinter langem Druck (grünes Aktionen-Panel)
 │   ├── ViewToggle.jsx      #   Listen-/Kachel-Umschalter im Header (kontrolliert, keine eigene Logik)
 │   ├── ItemEditInline.jsx  #   Artikel INLINE bearbeiten (kein Overlay) – in beiden Ansichten identisch genutzt
+│   ├── ItemDetailFields.jsx #  Menge + Kategorie (gemeinsam für Hinzufügen-Sheet und Inline-Bearbeitung)
+│   ├── ItemActionButtons.jsx # Favorit/Bearbeiten/Löschen-Buttons (gemeinsam für Liste und Kacheln)
 │   ├── ProductIcon.jsx     #   rendert das Emoji eines Artikels
 │   ├── QuantityStepper.jsx #   Mengen-Stepper (−/+, Spinbutton, Standard/Min 1)
 │   ├── SyncStatus.jsx      #   dezenter Sync-Hinweis hinter dem Titel (nur Icon, nur lokal/offline, blitzt kurz auf)
@@ -97,7 +117,10 @@ src/
 │   └── useTheme.js         #   automatischer Dark Mode (prefers-color-scheme)
 ├── lib/
 │   ├── storage.js          #   localStorage-Keys + read/write
-│   ├── supabase.js         #   Supabase-Client, lazy per dynamischem Import (getSupabase)
+│   ├── supabase.js         #   Cloud-Modus, Zeilen-Mapping, lazy Client (getSupabase)
+│   ├── supabaseClient.js   #   schlanker Client: PostgREST + Realtime (eigener Chunk)
+│   ├── syncQueue.js        #   Offline-Warteschlange: idempotente Cloud-Operationen (anwenden/senden)
+│   ├── id.js               #   createId (UUID) – für Artikel, Karten, Sync-Operationen
 │   ├── supabaseConfig.js   #   ← URL, anon-Key, LIST_ID
 │   ├── history.js          #   Kaufverlauf (Häufigkeit verbuchen)
 │   ├── suggestions.js      #   Autocomplete: Kandidaten (Verlauf/Favorit/Basis) + Scoring
@@ -128,6 +151,8 @@ Alle Keys in `src/lib/storage.js` (`STORAGE_KEYS`).
 | -------------- | ------------------ | ------------------------------------------------------------------- |
 | **Supabase**   | Tabelle `list_items` | Geteilte Liste: `{ id, list_id, name, category, checked, created_at, quantity? }` |
 | localStorage   | `listly.items`     | Liste **nur im lokalen Modus** (wenn Supabase nicht konfiguriert)   |
+| localStorage   | `listly.cloudItems` | **Cloud-Modus:** letzter bekannter Server-Stand `{ listId, items }` – Sofortanzeige beim Start und offline (siehe §5) |
+| localStorage   | `listly.pendingOps` | **Cloud-Modus:** noch nicht gesendete Änderungen `{ listId, ops }` (Offline-Warteschlange, siehe §5) |
 | localStorage   | `listly.favorites` | Favoriten `["Hafermilch", …]` (pro Gerät)                           |
 | localStorage   | `listly.history`   | Kaufverlauf `{ [name]: { name, category, count, lastPurchased } }`   |
 | localStorage   | `listly.cards`     | Kundenkarten `[{ id, retailer, name, code, codeType, number? }]` (pro Gerät) |
@@ -157,14 +182,48 @@ Platzhalter). Normalisierung: `lib/itemFields.js` (siehe §8, §12).
   `SUPABASE_ANON_KEY`, `LIST_ID` (aktuell `"rene-und-lutz"`).
 - Sind URL + Key gesetzt → **Cloud-Modus** (`isCloudEnabled` in `lib/supabase.js`).
   Sonst automatischer Fallback auf `localStorage`.
-- **Lazy geladen:** `@supabase/supabase-js` wird erst im Cloud-Modus per
-  dynamischem Import geholt (`getSupabase()`, Ergebnis gecacht) → eigener Chunk,
-  kleiner Initial-Bundle. Alle DB-Zugriffe in `useShoppingItems` sind daher `async`.
+- **Lazy geladen:** `lib/supabaseClient.js` (schlanke Fassade über
+  `PostgrestClient` + `RealtimeClient`, gleich konfiguriert wie `createClient()`
+  von supabase-js für anonymen Zugriff; Oberfläche: `from`, `channel`,
+  `removeChannel`) wird erst im Cloud-Modus per dynamischem Import geholt
+  (`getSupabase()`, Ergebnis gecacht) → eigener Chunk, kleiner Initial-Bundle.
+  Alle DB-Zugriffe in `useShoppingItems` sind daher `async`.
 - **`useShoppingItems.js`** kapselt beides: Initialladen (`select`), Realtime-Abo
   (`postgres_changes` gefiltert auf `list_id`), optimistische Updates, sowie
   `addItem`, `toggleItem`, `updateItem`, `removeItem`, `restoreItems` (Undo) und
   `completeCheckout` (Einkaufsabschluss, s. §8). Bei Fehlern wird neu geladen
-  (`refetch`).
+  (`refetch`). `findItem(predicate)` liefert stabil den aktuellen Stand für
+  Event-Handler – die Callbacks in `App.jsx` hängen dadurch nicht an `items`
+  und bleiben über Listenänderungen stabil, sodass die memoisierten
+  Zeilen/Kacheln beim Abhaken nur den betroffenen Artikel neu rendern
+  (abgesichert durch `src/__tests__/App.rerender.test.jsx`).
+- **Offline-Start & Abgleich (stale-while-revalidate):** Jeder vom Server
+  geladene Stand wird unter `listly.cloudItems` (mit `LIST_ID`, ein Cache einer
+  anderen Liste wird ignoriert) gespiegelt und beim nächsten Start **sofort**
+  angezeigt – auch ohne Netz. Abgeglichen (`refetch`) wird beim Start, nach
+  **jedem (Wieder-)Verbinden** des Realtime-Abos (Realtime liefert nur
+  Änderungen ab dem Abo, keine verpassten), bei **Rückkehr in die App**
+  (`visibilitychange`) und beim **`online`**-Ereignis. Eine laufende Nummer
+  sorgt dafür, dass eine verspätete ältere Antwort nie einen neueren Stand
+  überschreibt. Der Hook liefert dazu `loadState`: `ready` (Stand liegt vor),
+  `loading` (noch keiner, Abfrage läuft → Platzhalterzeilen) oder `offline`
+  (noch keiner, Abfrage gescheitert → „Keine Verbindung“) – so erscheint
+  „Deine Liste ist leer“ nur, wenn die Liste wirklich leer ist. Hinweis:
+  postgrest-js wiederholt gescheiterte GET-Abfragen selbst (1 s/2 s/4 s), der
+  Offline-Hinweis erscheint beim allerersten Start ohne Netz daher nach ~7 s.
+- **Offline-Warteschlange (`lib/syncQueue.js`):** Jede Änderung wird als
+  kleine, serialisierbare Operation (`upsert` / `update` / `delete`) unter
+  `listly.pendingOps` vorgemerkt (übersteht Neustarts) und der Reihe nach
+  gesendet – nie parallel, damit z. B. „anlegen, dann abhaken“ in der
+  richtigen Reihenfolge ankommt. Netzfehler/Timeout (10 s), 5xx, 408, 429 →
+  Operation bleibt stehen und geht beim nächsten Abgleich (Reconnect,
+  App-Rückkehr, `online`) raus; inhaltliche DB-Ablehnung (4xx) → verwerfen
+  und Serverstand laden. Alle Operationen sind **idempotent** (Upsert statt
+  Insert, Update/Delete per id), Wiederholungen sind also gefahrlos. Beim
+  Abgleich wird der Serverstand mit allen noch ausstehenden eigenen
+  Operationen verrechnet (`applyOps`), damit Offline-Häkchen nicht
+  zurückspringen. Konflikte: die zuletzt gesendete Änderung gewinnt
+  (feldweise, da nur geänderte Felder gesendet werden).
 - **Schema:** `supabase/schema.sql` (idempotent). Legt Tabelle + die optionalen
   Spalte `quantity` an (`add column if not exists`), aktiviert
   `REPLICA IDENTITY FULL` (nötig, damit Realtime-DELETE mit `list_id`-Filter
@@ -188,7 +247,10 @@ Titel „Listly“ kurz auf (3 s) und verblasst dann von selbst – bleibt aber 
 Hover/Fokus weiter abrufbar (Tooltip). Jeder Wechsel zwischen `error` und
 `local` lässt es erneut aufblitzen (State-Reset beim Rendern statt im Effekt,
 siehe Kommentar in der Komponente – vermeidet den
-`react-hooks/set-state-in-effect`-Lint-Fehler).
+`react-hooks/set-state-in-effect`-Lint-Fehler). Ausnahme: Solange eigene
+Änderungen ausstehen (`pendingCount` > 0), bleibt ein Upload-Icon (Amber)
+**dauerhaft** sichtbar – mit Anzahl im Tooltip – und verschwindet, sobald
+alles gesendet ist.
 
 ---
 
@@ -285,6 +347,17 @@ deployen.
 - **Dark Mode:** echtes Schwarz, folgt automatisch `prefers-color-scheme`
   (kein Umschalter). Farben ausschließlich über CSS-Tokens (`tokens.css`);
   `useTheme.js` setzt `data-theme` am `<html>` und die `theme-color`-Meta.
+  Den **Startwert** setzt schon ein Inline-Skript im `<head>` von `index.html`
+  (vor dem ersten Paint) – sonst zeigte der Dark Mode beim Start kurz den
+  hellen Look und blendete sichtbar um.
+- **Start-Platzhalter:** bis React übernimmt, zeigt `index.html` nur das Logo
+  auf Hintergrundfarbe (`.boot`, Tokens → passt zu Hell/Dunkel). Ein Hinweis
+  („Listly startet nicht? …“ inkl. Entwickler-Tipp zu `file://`) blendet sich
+  erst ein, wenn die App nach 6 s noch immer nicht läuft.
+- **Trefferflächen:** kleine Icon-Buttons (Ansicht-Umschalter, Kachel-Aktionen,
+  Toast) bekommen per unsichtbarem `::after` eine ≥ 44 px hohe Tap-Fläche,
+  ohne die Optik zu ändern (seitlich nur so weit, dass Nachbarn sich nicht
+  überlappen). Schließen-Buttons in Dialogen/Sheets sind 44 × 44 px.
 - **Layout:** Gesamtseite nicht scrollbar/wippend (`body { overflow:hidden;
   overscroll-behavior:none }`), nur der Listenbereich scrollt. Es gibt **keine
   feste Eingabeleiste** mehr; Hinzufügen läuft über einen **schwebenden
@@ -387,6 +460,9 @@ deployen.
   Die komplette Gesten-/Aufdeck-/Lösch-Logik steckt im Hook
   `useSwipeReveal` – die Zeile selbst bleibt rein präsentational und spreadet
   nur die gelieferten Prop-Bündel (`rowProps`/`actionsProps`/`backdropProps`).
+  Ausschlag (`transform`), `--swipe-progress` und `data-animating` setzt der
+  Hook **direkt am DOM** (über die Refs in den Bündeln) – Wischen löst so
+  keinen React-Render pro Fingerbewegung aus, nur beim Auf-/Zuklappen.
   Bewusst eine reine Touch-Abkürzung: der fokussierbare Löschen-Button bleibt
   unverändert die vollständige, tastatur-/screenreader-taugliche Alternative.
 - **Artikel hinzufügen (`AddItemSheet.jsx`, geöffnet über den FAB):** ein
@@ -466,6 +542,16 @@ deployen.
   aus dem Verlauf.
 - **Icons:** Emoji je Produkt/Kategorie (in `products.json`), Auflösung Produkt →
   Kategorie → Standard `🛒` in `lib/icons.js` (`getItemEmoji`).
+- **Automatische Kategorie (`getKnownCategory`, `lib/icons.js`):** dreistufig –
+  (1) exakter Katalogname, (2) gleiche Schreibweise nach den Regeln der Suche
+  (`textMatch`: Umlaute ä ≡ a ≡ ae, Diakritika, Singular je Wort → „Bananen“ =
+  „Banane“, „Äpfel“ = „Apfel“), (3) **Grundwort** deutscher Komposita („Brot“
+  → Vollkornbrot, Dinkelbrot … → Brot & Backwaren), aber nur bei klarer
+  Mehrheit (≥ 2/3 der Treffer in einer Kategorie, Wort ≥ 3 Zeichen; Ergebnis
+  je Wort gecacht). Mehrdeutiges („Butter“, „Bohnen“) bleibt ohne Kategorie.
+  Greift beim Hinzufügen („Automatisch“) und für das Emoji; eine bewusst
+  gewählte „Keine Kategorie“ wird nicht überschrieben (die Liste gruppiert
+  nach der gespeicherten Kategorie).
 - **Easter Eggs (liebevolle Überraschungen 💚):** kleine, versteckte Grüße beim
   Einkaufen. Texte in `lib/love.js` (`CHECKOUT_MESSAGES`, `LOVE_MESSAGES`),
   Herz-Animation in `components/LoveHearts.jsx`, verdrahtet in `App.jsx`:
@@ -516,11 +602,13 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **dm-Kartentoken** ist evtl. dynamisch (siehe §7).
 - **Kundenkarten sind gerätelokal** – kein Sync (bewusst, Datenschutz). Sync
   wäre nur mit echtem Login sinnvoll.
-- **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
-  Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
-  ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (283 Tests,
-  22 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
+- **`npm audit`**: 0 Meldungen (Stand Vite-8-Upgrade). Falls `npm audit fix`
+  mit „Cannot read properties of null (reading 'edgesOut')“ abbricht: das ist
+  ein npm-10-Bug beim Auflösen optionaler Peers von Vitest – mit
+  `npx npm@11 audit fix` funktioniert es; das Lockfile bleibt mit npm 10
+  (`npm ci` in der CI) kompatibel.
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (342 Tests,
+  25 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).

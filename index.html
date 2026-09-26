@@ -12,25 +12,40 @@
     />
     <!-- theme-color wird zur Laufzeit an den aktiven Modus angepasst (siehe useTheme) -->
     <meta name="theme-color" content="#faf6ee" />
+    <!-- Farbschema VOR dem ersten Paint setzen: sonst zeigt der Dark Mode beim
+         Start kurz den hellen Look (die Tokens hängen an data-theme) und blendet
+         dann sichtbar um. useTheme übernimmt danach und hält es reaktiv;
+         die Farbwerte entsprechen META_THEME_COLOR dort. -->
+    <script>
+      (function () {
+        var dark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        if (dark) document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000000');
+      })();
+    </script>
     <meta name="description" content="Listly – vegane Einkaufsliste mit Kaufverlauf, offline nutzbar." />
     <title>Listly</title>
   </head>
   <body>
     <div id="root">
-      <!-- Bleibt sichtbar, falls das JavaScript nicht geladen/ausgeführt wird
-           (z. B. beim direkten Öffnen per file:// ). React ersetzt diesen Inhalt
-           beim erfolgreichen Start. position:fixed hält ihn aus dem Layoutfluss,
-           damit das Ersetzen keinen Layout-Shift (CLS) verursacht. -->
-      <div id="boot-fallback" style="position: fixed; inset: 0; overflow: auto; font-family: system-ui, sans-serif; padding: 15vh 1.5rem 1.5rem; color: #292420; line-height: 1.5;">
-        <div style="max-width: 32rem; margin: 0 auto;">
-        <h1 style="font-size: 1.3rem;">Listly wird geladen …</h1>
-        <p>Bleibt dauerhaft nur dieser Text stehen, wird die App nicht ausgeführt.
-           Häufigste Ursache: Die Seite wurde als Datei geöffnet
-           (<code>file://…</code>) statt über einen Server.</p>
-        <p><strong>Lösung:</strong> Im Projektordner <code>npm install</code> und
-           <code>npm run dev</code> ausführen und die angezeigte
-           <code>http://localhost:…</code>-Adresse öffnen.</p>
-        </div>
+      <!-- Start-Platzhalter, bis React übernimmt (ersetzt diesen Inhalt beim
+           Start). position:fixed hält ihn aus dem Layoutfluss – kein
+           Layout-Shift (CLS). Der Hinweis erscheint erst, wenn die App nach
+           einigen Sekunden noch immer nicht läuft (siehe .boot__hint). -->
+      <div class="boot">
+        <span class="boot__logo">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m15 11-1 9" /><path d="m19 11-4-7" /><path d="M2 11h20" />
+            <path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4" />
+            <path d="M4.5 15.5h15" /><path d="m5 11 4-7" /><path d="m9 11 1 9" />
+          </svg>
+        </span>
+        <p class="boot__hint">
+          Listly startet nicht? Bitte die Seite neu laden.
+          <small>Entwicklung: die App über einen Server öffnen (<code>npm run dev</code>),
+            nicht per Doppelklick als Datei.</small>
+        </p>
       </div>
     </div>
     <noscript style="display:block; padding:1.5rem; font-family: system-ui, sans-serif;">

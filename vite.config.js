@@ -16,6 +16,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registrierung als Inline-Skript statt eigener registerSW.js-Datei:
+      // eine Anfrage weniger, nichts Blockierendes im <head>.
+      injectRegister: 'inline',
       includeAssets: ['icons/icon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Listly',
@@ -43,6 +46,18 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,woff2,svg,png,ico}'],
+        // latin-ext-Schnitte (Zusatzzeichen wie ő, ł, ş) braucht deutscher Text
+        // praktisch nie – der Browser lädt sie dank unicode-range nur bei
+        // Bedarf. Nicht vorab cachen (spart ~145 KB je Installation); falls
+        // doch gebraucht, hält runtimeCaching sie danach offline vor.
+        globIgnores: ['**/*-latin-ext-*.woff2'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.destination === 'font',
+            handler: 'CacheFirst',
+            options: { cacheName: 'listly-fonts' },
+          },
+        ],
         // Veraltete Precaches entfernen, damit kein alter Stand hängen bleibt.
         cleanupOutdatedCaches: true,
         clientsClaim: true,

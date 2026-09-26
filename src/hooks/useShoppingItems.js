@@ -1,16 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isCloudEnabled, getSupabase, rowToItem, itemToRow, TABLE, LIST_ID } from '../lib/supabase';
+import { isCloudEnabled, getSupabase, rowToItem, TABLE, LIST_ID } from '../lib/supabase';
+import {
+  applyOps,
+  byCreatedAt,
+  isRetryable,
+  mergeOps,
+  runOp,
+  sanitizeOps,
+} from '../lib/syncQueue';
 import { readStorage, writeStorage, STORAGE_KEYS } from '../lib/storage';
 import { cleanName, normalizeName } from '../lib/history';
 import { getKnownCategory } from '../lib/icons';
 import { coerceQuantity } from '../lib/itemFields';
+import { sanitizeItems } from '../lib/schema';
+import { itemsToComplete } from '../lib/checkout';
+import { createId } from '../lib/id';
 
-const createId = () =>
-  typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+/**
+ * Startstand der Liste – oder `null`, wenn noch keiner bekannt ist.
+ * Lokal: die gespeicherte Liste. Cloud: der zuletzt vom Server geladene Stand
+ * (stale-while-revalidate) – so ist die Liste beim Start sofort da, auch ohne
+ * Netz. Ein Cache einer anderen LIST_ID wird ignoriert (frische Liste).
+ */
+function readInitialItems() {
+  if (!isCloudEnabled) return readStorage(STORAGE_KEYS.items, []);
+  const cached = readStorage(STORAGE_KEYS.cloudItems, null);
+  return cached?.listId === LIST_ID ? sanitizeItems(cached.items) : null;
+}
 
-const byCreatedAt = (a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
+/** Noch nicht gesendete Cloud-Änderungen aus dem letzten Lauf (nur diese Liste). */
+function readPendingOps() {
+  if (!isCloudEnabled) return [];
+  const stored = readStorage(STORAGE_KEYS.pendingOps, null);
+  return stored?.listId === LIST_ID ? sanitizeOps(stored.ops) : [];
+}
 
 /**
  * Verwaltet die Einkaufsliste – geräteübergreifend geteilt via Supabase
@@ -19,12 +42,16 @@ const byCreatedAt = (a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '
  * @param {{ onPurchase?: (items: Array) => void }} options
  *        onPurchase wird beim Verbuchen erledigter Artikel aufgerufen (z. B. um
  *        den lokalen Kaufverlauf zu aktualisieren).
- * @returns Liste, Operationen und Sync-Status.
+ * @returns Liste, Operationen, Sync-Status, `pendingCount` (Anzahl noch nicht
+ *          gesendeter Änderungen) und `loadState`: `ready` (ein Stand liegt vor –
+ *          gecacht oder vom Server), `loading` (noch keiner, Abfrage läuft) oder
+ *          `offline` (noch keiner, Abfrage gescheitert). Nur bei `ready`
+ *          bedeutet eine leere Liste wirklich „leer“.
  */
 export function useShoppingItems({ onPurchase } = {}) {
-  const [items, setItems] = useState(() =>
-    isCloudEnabled ? [] : readStorage(STORAGE_KEYS.items, []),
-  );
+  const [initialItems] = useState(readInitialItems);
+  const [items, setItems] = useState(initialItems ?? []);
+  const [loadState, setLoadState] = useState(initialItems !== null ? 'ready' : 'loading');
   const [status, setStatus] = useState(isCloudEnabled ? 'connecting' : 'local');
 
   // Aktuelle Liste als Ref, damit asynchrone Callbacks (DB, Realtime) stets den
@@ -35,55 +62,121 @@ export function useShoppingItems({ onPurchase } = {}) {
     itemsRef.current = items;
   }, [items]);
 
+  // Stabiler Lesezugriff auf den aktuellen Stand für Event-Handler der
+  // Aufrufer (z. B. „Wird dieser Artikel gerade abgehakt?“) – ohne dass deren
+  // Callbacks von `items` abhängen und damit bei jeder Änderung neu entstehen
+  // (was die memoisierten Zeilen/Kacheln sonst allesamt neu rendern ließe).
+  const findItem = useCallback((predicate) => itemsRef.current.find(predicate) ?? null, []);
+
   // Setzt Items. Reiner State-Update ohne Seiteneffekt – so bleibt der Updater
   // unter React StrictMode gefahrlos doppelt aufrufbar.
   const applyItems = useCallback((updater) => setItems(updater), []);
 
   // Persistenz als Effekt (nicht im Updater): läuft nach dem Commit und ist
-  // idempotent, StrictMode-Doppelläufe schaden daher nicht.
+  // idempotent, StrictMode-Doppelläufe schaden daher nicht. Im Cloud-Modus
+  // wird erst gecacht, wenn ein echter Stand vorliegt – sonst würde eine noch
+  // unbekannte Liste beim nächsten Start fälschlich als „leer“ gelten.
   useEffect(() => {
     if (!isCloudEnabled) writeStorage(STORAGE_KEYS.items, items);
-  }, [items]);
+    else if (loadState === 'ready') {
+      writeStorage(STORAGE_KEYS.cloudItems, { listId: LIST_ID, items });
+    }
+  }, [items, loadState]);
 
-  // ── Cloud: Initialladen + Realtime-Abo ──────────────────────────────────────
+  // ── Cloud: Warteschlange ausstehender Änderungen ────────────────────────────
+  // Jede Änderung wird als Operation vorgemerkt (auch über Neustarts hinweg
+  // gespeichert) und der Reihe nach gesendet. Scheitert das am Netz, bleibt
+  // sie stehen und geht beim nächsten Abgleich raus (siehe lib/syncQueue.js).
+  const [initialOps] = useState(readPendingOps);
+  const pendingRef = useRef(initialOps);
+  const [pendingCount, setPendingCount] = useState(initialOps.length);
+
+  const setPending = useCallback((ops) => {
+    pendingRef.current = ops;
+    setPendingCount(ops.length);
+    writeStorage(STORAGE_KEYS.pendingOps, { listId: LIST_ID, ops });
+  }, []);
+
+  /**
+   * Sendet ausstehende Operationen der Reihe nach (nie parallel – so bleibt
+   * z. B. „anlegen, dann abhaken“ in der richtigen Reihenfolge). Bei einem
+   * Netzfehler bricht sie ab und lässt den Rest für später stehen; lehnt die DB
+   * eine Operation inhaltlich ab, wird sie verworfen. Liefert `true`, wenn
+   * etwas verworfen wurde (dann sollte der Serverstand neu geladen werden).
+   */
+  const flushingRef = useRef(false);
+  const flush = useCallback(async () => {
+    if (!isCloudEnabled || flushingRef.current || pendingRef.current.length === 0) return false;
+    flushingRef.current = true;
+    let rejected = false;
+    try {
+      const supabase = await getSupabase();
+      while (pendingRef.current.length > 0) {
+        const op = pendingRef.current[0];
+        const result = await runOp(supabase, op);
+        if (result.error && isRetryable(result)) {
+          setStatus('error');
+          break;
+        }
+        if (result.error) rejected = true;
+        setPending(pendingRef.current.filter((pending) => pending.opId !== op.opId));
+      }
+    } catch {
+      setStatus('error'); // Client nicht ladbar (offline) → beim nächsten Abgleich erneut
+    } finally {
+      flushingRef.current = false;
+    }
+    return rejected;
+  }, [setPending]);
+
+  // ── Cloud: Laden + Realtime-Abo ─────────────────────────────────────────────
+  // Laufende Nummer der Abfragen: überholt eine neuere Abfrage eine ältere
+  // (z. B. App-Rückkehr + Reconnect kurz hintereinander), gewinnt stets die
+  // neueste – eine verspätete ältere Antwort überschreibt nichts.
+  const fetchSeq = useRef(0);
   const refetch = useCallback(async () => {
     if (!isCloudEnabled) return;
+    const seq = ++fetchSeq.current;
     try {
+      // Eigene ausstehende Änderungen zuerst senden, dann den Stand holen.
+      await flush();
+      const opsAtStart = pendingRef.current;
       const supabase = await getSupabase();
       const { data, error } = await supabase
         .from(TABLE)
         .select('*')
         .eq('list_id', LIST_ID)
         .order('created_at', { ascending: true });
-      if (error) {
-        setStatus('error');
-        return;
-      }
-      setItems(data.map(rowToItem));
+      if (seq !== fetchSeq.current) return;
+      if (error) throw error;
+      // Serverstand + alles, was beim Start der Abfrage noch ausstand oder
+      // seither dazukam – so springen eigene, noch nicht (sicher) angekommene
+      // Änderungen nicht zurück. Doppelt Angewandtes schadet nicht (idempotent).
+      const ops = mergeOps(opsAtStart, pendingRef.current);
+      setItems(applyOps(data.map(rowToItem), ops));
+      setLoadState('ready');
       setStatus('live');
     } catch {
-      // Import-/Netzwerkfehler (z. B. offline beim ersten Laden) → Offline-
-      // Status statt unbehandelter Promise-Rejection.
+      // DB-/Import-/Netzwerkfehler (z. B. offline beim ersten Laden) → Offline-
+      // Status statt unbehandelter Promise-Rejection. Ein bereits vorhandener
+      // (gecachter) Stand bleibt stehen.
+      if (seq !== fetchSeq.current) return;
       setStatus('error');
+      setLoadState((prev) => (prev === 'ready' ? prev : 'offline'));
     }
-  }, []);
+  }, [flush]);
 
   /**
-   * Führt eine Schreiboperation im Hintergrund gegen die Cloud aus (no-op im
-   * lokalen Modus). Meldet die DB einen Fehler, wird der Zustand per Refetch
-   * neu vom Server geladen; Import-/Netzwerkfehler enden im Offline-Status
-   * statt in einer unbehandelten Promise-Rejection.
+   * Merkt eine Cloud-Änderung vor und stößt das Senden an (no-op im lokalen
+   * Modus). Hat die DB etwas abgelehnt, wird der Serverstand neu geladen.
    */
-  const runCloudWrite = useCallback(
-    (operation) => {
+  const enqueue = useCallback(
+    (op) => {
       if (!isCloudEnabled) return;
-      (async () => {
-        const supabase = await getSupabase();
-        const { error } = await operation(supabase);
-        if (error) await refetch();
-      })().catch(() => setStatus('error'));
+      setPending([...pendingRef.current, { opId: createId(), ...op }]);
+      flush().then((rejected) => rejected && refetch());
     },
-    [refetch],
+    [setPending, flush, refetch],
   );
 
   useEffect(() => {
@@ -92,7 +185,9 @@ export function useShoppingItems({ onPurchase } = {}) {
     let active = true;
     let channel = null;
     // Initiales Laden vom Server: asynchroner Roundtrip, setState erst nach
-    // der Antwort – kein synchroner Kaskaden-Render.
+    // der Antwort – kein synchroner Kaskaden-Render. Startet bewusst sofort
+    // (schnellster Weg zu frischen Daten); der Abgleich nach dem Abo (s. u.)
+    // schließt die Lücke bis dahin.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refetch();
 
@@ -122,16 +217,35 @@ export function useShoppingItems({ onPurchase } = {}) {
           )
           .subscribe((state) => {
             if (!active) return;
-            if (state === 'SUBSCRIBED') setStatus('live');
-            else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT') setStatus('error');
+            if (state === 'SUBSCRIBED') {
+              setStatus('live');
+              // Realtime liefert nur Änderungen AB dem (erneuten) Abo, keine
+              // verpassten. Daher nach jedem (Wieder-)Verbinden einmal
+              // abgleichen – sonst fehlt z. B. nach Standby oder Funkloch, was
+              // zwischenzeitlich auf dem anderen Gerät geändert wurde.
+              refetch();
+            } else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT') {
+              setStatus('error');
+            }
           });
       })
       .catch(() => {
         if (active) setStatus('error');
       });
 
+    // Zurück in der App (aus dem Hintergrund/Standby) oder wieder online:
+    // sofort abgleichen, statt zu warten, bis Realtime den Verbindungsabbruch
+    // selbst bemerkt (auf Mobilgeräten oft erst nach vielen Sekunden).
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refetch();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', refetch);
+
     return () => {
       active = false;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', refetch);
       // Abräumen, sobald der Client verfügbar ist (gecacht, kein erneuter Import).
       if (channel) {
         getSupabase()
@@ -144,15 +258,15 @@ export function useShoppingItems({ onPurchase } = {}) {
   // ── Operationen ─────────────────────────────────────────────────────────────
   const toggleItem = useCallback(
     (id, forcedValue) => {
-      const current = itemsRef.current.find((it) => it.id === id);
+      const current = findItem((it) => it.id === id);
       if (!current) return;
       const checked = typeof forcedValue === 'boolean' ? forcedValue : !current.checked;
 
       applyItems((prev) => prev.map((it) => (it.id === id ? { ...it, checked } : it)));
 
-      runCloudWrite((supabase) => supabase.from(TABLE).update({ checked }).eq('id', id));
+      enqueue({ type: 'update', itemId: id, patch: { checked } });
     },
-    [applyItems, runCloudWrite],
+    [applyItems, findItem, enqueue],
   );
 
   /**
@@ -182,7 +296,7 @@ export function useShoppingItems({ onPurchase } = {}) {
       const key = normalizeName(name);
       if (!key) return { status: 'invalid' };
 
-      const existing = itemsRef.current.find((it) => normalizeName(it.name) === key);
+      const existing = findItem((it) => normalizeName(it.name) === key);
       if (existing) {
         if (existing.checked) {
           toggleItem(existing.id, false); // optimistisch synchron; Cloud-Sync im Hintergrund
@@ -207,11 +321,11 @@ export function useShoppingItems({ onPurchase } = {}) {
 
       applyItems((prev) => [...prev, item]); // optimistisch
 
-      runCloudWrite((supabase) => supabase.from(TABLE).insert(itemToRow(item)));
+      enqueue({ type: 'upsert', items: [item] });
 
       return { status: 'added', item };
     },
-    [applyItems, runCloudWrite, toggleItem],
+    [applyItems, findItem, enqueue, toggleItem],
   );
 
   // Aktualisiert Felder eines Artikels (Name, Kategorie, Menge).
@@ -220,31 +334,29 @@ export function useShoppingItems({ onPurchase } = {}) {
     (id, patch) => {
       applyItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
 
-      runCloudWrite((supabase) => {
-        const dbPatch = {};
-        if ('name' in patch) dbPatch.name = patch.name;
-        if ('category' in patch) dbPatch.category = patch.category;
-        if ('quantity' in patch) dbPatch.quantity = patch.quantity;
-        return supabase.from(TABLE).update(dbPatch).eq('id', id);
-      });
+      const dbPatch = {};
+      if ('name' in patch) dbPatch.name = patch.name;
+      if ('category' in patch) dbPatch.category = patch.category;
+      if ('quantity' in patch) dbPatch.quantity = patch.quantity;
+      enqueue({ type: 'update', itemId: id, patch: dbPatch });
     },
-    [applyItems, runCloudWrite],
+    [applyItems, enqueue],
   );
 
   // Entfernt einen Artikel und liefert die entfernte Kopie zurück – so kann der
   // Aufrufer eine Undo-Aktion anbieten. Die Cloud-Löschung läuft im Hintergrund.
   const removeItem = useCallback(
     (id) => {
-      const removed = itemsRef.current.find((it) => it.id === id);
+      const removed = findItem((it) => it.id === id);
       if (!removed) return null;
 
       applyItems((prev) => prev.filter((it) => it.id !== id));
 
-      runCloudWrite((supabase) => supabase.from(TABLE).delete().eq('id', id));
+      enqueue({ type: 'delete', itemIds: [id] });
 
       return removed;
     },
-    [applyItems, runCloudWrite],
+    [applyItems, findItem, enqueue],
   );
 
   // Stellt zuvor entfernte/archivierte Artikel vollständig wieder her (inkl.
@@ -259,11 +371,11 @@ export function useShoppingItems({ onPurchase } = {}) {
         return merged.sort(byCreatedAt);
       });
 
-      // itemToRow überträgt auch die Menge – die Wiederherstellung bleibt
-      // dadurch geräteübergreifend verlustfrei.
-      runCloudWrite((supabase) => supabase.from(TABLE).insert(restored.map(itemToRow)));
+      // Beim Senden überträgt itemToRow auch die Menge – die Wiederherstellung
+      // bleibt dadurch geräteübergreifend verlustfrei.
+      enqueue({ type: 'upsert', items: restored });
     },
-    [applyItems, runCloudWrite],
+    [applyItems, enqueue],
   );
 
   // Schließt den Einkauf ab: verbucht die betroffenen Artikel im Kaufverlauf und
@@ -272,7 +384,7 @@ export function useShoppingItems({ onPurchase } = {}) {
   // der Aufrufer eine Undo-Aktion anbieten kann.
   const completeCheckout = useCallback(
     (includeOpen = false) => {
-      const completed = itemsRef.current.filter((it) => includeOpen || it.checked);
+      const completed = itemsToComplete(itemsRef.current, includeOpen);
       if (completed.length === 0) return [];
 
       onPurchase?.(completed); // Kaufverlauf (lokal) aktualisieren – im Event-Handler,
@@ -281,16 +393,19 @@ export function useShoppingItems({ onPurchase } = {}) {
       const completedIds = new Set(completed.map((it) => it.id));
       applyItems((prev) => prev.filter((it) => !completedIds.has(it.id)));
 
-      runCloudWrite((supabase) => supabase.from(TABLE).delete().in('id', [...completedIds]));
+      enqueue({ type: 'delete', itemIds: [...completedIds] });
 
       return completed;
     },
-    [applyItems, onPurchase, runCloudWrite],
+    [applyItems, onPurchase, enqueue],
   );
 
   return {
     items,
     status,
+    pendingCount,
+    loadState,
+    findItem,
     addItem,
     toggleItem,
     updateItem,

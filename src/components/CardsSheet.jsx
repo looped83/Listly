@@ -13,11 +13,7 @@ import {
   sortCards,
 } from '../lib/cards';
 import { QRCode, Barcode } from './CodeImage';
-
-const createId = () =>
-  typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `card-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+import { createId } from '../lib/id';
 
 const emptyForm = { retailer: 'lidl', name: RETAILERS.lidl.label, code: '', codeType: 'qr' };
 

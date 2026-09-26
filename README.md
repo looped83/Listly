@@ -41,7 +41,7 @@ zwischen mehreren Geräten geteilt.
   Dialogen/Sheets, aria-live-Statusmeldungen, sichtbare Fokusindikatoren,
   `prefers-reduced-motion` wird respektiert.
 - **PWA** – installierbar, Standalone-Modus, Offline-Support via Service Worker.
-- **Lokale Fonts** – Fraunces, Inter & IBM Plex Mono sind selbst gehostet
+- **Lokale Fonts** – Fraunces & Inter sind selbst gehostet
   (kein CDN), für schnelle Ladezeiten und Offline-Fähigkeit.
 
 ## Datenmodell
@@ -53,6 +53,8 @@ lokal pro Gerät:
 | Schlüssel              | Inhalt                                                                    |
 | ---------------------- | ------------------------------------------------------------------------- |
 | `listly.items`         | Liste (nur im lokalen Modus): `[{ id, name, category, checked, createdAt, quantity? }]` |
+| `listly.cloudItems`    | Cloud-Modus: letzter Server-Stand `{ listId, items }` (Sofortanzeige beim Start, offline) |
+| `listly.pendingOps`    | Cloud-Modus: noch nicht gesendete Änderungen `{ listId, ops }` (Offline-Warteschlange) |
 | `listly.favorites`     | Favoriten: `["Hafermilch", …]`                                            |
 | `listly.history`       | Kaufverlauf: `{ [name]: { name, category, count, lastPurchased } }`        |
 | `listly.cards`         | Kundenkarten: `[{ id, retailer, name, code, codeType }]`                   |
@@ -60,7 +62,7 @@ lokal pro Gerät:
 
 ## Setup
 
-Voraussetzung: **Node.js ≥ 18**.
+Voraussetzung: **Node.js ≥ 20.19** (empfohlen 22 LTS).
 
 ```bash
 npm install      # Abhängigkeiten installieren
@@ -200,14 +202,11 @@ Details zu Architektur, Datenfluss und Betrieb: siehe [`handover.md`](handover.m
 
 ## Tech-Stack
 
-- [Vite 5](https://vitejs.dev) + [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react)
+- [Vite 8](https://vitejs.dev) + [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react)
 - [React 18](https://react.dev)
-- [@supabase/supabase-js](https://supabase.com/docs/reference/javascript) – Echtzeit-Sync (lazy geladen)
+- [@supabase/postgrest-js](https://github.com/supabase/supabase-js/tree/master/packages/core/postgrest-js) + [@supabase/realtime-js](https://github.com/supabase/supabase-js/tree/master/packages/core/realtime-js) – Echtzeit-Sync (lazy geladen, ohne das komplette supabase-js)
 - [lucide-react](https://lucide.dev) (UI-Icons)
 - [qrcode](https://github.com/soldair/node-qrcode) + [jsbarcode](https://github.com/lindell/JsBarcode) – Kundenkarten-Codes (lazy geladen)
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app) (Manifest + Service Worker)
 - [Vitest](https://vitest.dev) + [Testing Library](https://testing-library.com) (Tests), [ESLint](https://eslint.org) (Linting)
 
-> Hinweis: `npm audit` meldet ggf. eine Dev-Server-Warnung zu esbuild (transitiv
-> über Vite 5). Sie betrifft ausschließlich den lokalen Entwicklungsserver, nicht
-> das ausgelieferte PWA-Bundle.

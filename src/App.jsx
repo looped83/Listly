@@ -60,6 +60,7 @@ function AppContent() {
   useSystemTheme();
 
   const closeCards = useCallback(() => setCardsOpen(false), []);
+  const openCheckout = useCallback(() => setCheckoutOpen(true), []);
   const closeCheckout = useCallback(() => setCheckoutOpen(false), []);
   const closeEdit = useCallback(() => setEditingId(null), []);
   const closeAddSheet = useCallback(() => setAddSheetOpen(false), []);
@@ -102,6 +103,9 @@ function AppContent() {
   const {
     items,
     status,
+    pendingCount,
+    loadState,
+    findItem,
     addItem,
     toggleItem,
     updateItem,
@@ -110,22 +114,22 @@ function AppContent() {
     completeCheckout,
   } = useShoppingItems({ onPurchase: handlePurchase });
 
-  // Abgeleitete Kennzahlen für den Abschluss-Dialog – reine Berechnung.
-  const checkoutSummary = useMemo(() => summarizeCheckout(items), [items]);
+  // Kennzahlen für den Abschluss-Dialog – nur berechnet, solange er offen ist.
+  const checkoutSummary = checkoutOpen ? summarizeCheckout(items) : null;
 
-  const editingItem = useMemo(
-    () => items.find((it) => it.id === editingId) ?? null,
-    [items, editingId],
-  );
+  // Hinweis zu den Callbacks unten: sie lesen den aktuellen Stand über
+  // `findItem` statt über `items` – so bleiben sie über Listenänderungen hinweg
+  // stabil und die memoisierten Zeilen/Kacheln rendern beim Abhaken nur den
+  // betroffenen Artikel neu, nicht die ganze Liste.
 
   // Konflikt beim Umbenennen: ein ANDERER Artikel mit demselben (normalisierten)
   // Namen. Wird vom Edit-Dialog zur Zusammenführungs-Abfrage genutzt.
   const findEditConflict = useCallback(
     (name) => {
       const key = normalizeName(name);
-      return items.find((it) => it.id !== editingId && normalizeName(it.name) === key) ?? null;
+      return findItem((it) => it.id !== editingId && normalizeName(it.name) === key);
     },
-    [items, editingId],
+    [findItem, editingId],
   );
 
   // Favorit einer Umbenennung folgen lassen (konsistenter Favoritenbezug).
@@ -150,6 +154,7 @@ function AppContent() {
   // der andere wird entfernt. Favoriten folgen der Umbenennung.
   const handleSaveEdit = useCallback(
     (patch, mergeTargetId) => {
+      const editingItem = findItem((it) => it.id === editingId);
       if (!editingItem) return;
       const oldName = editingItem.name;
 
@@ -160,7 +165,7 @@ function AppContent() {
       setEditingId(null);
       notify(`„${patch.name}“ aktualisiert`);
     },
-    [editingItem, updateItem, removeItem, renameFavorite, notify],
+    [findItem, editingId, updateItem, removeItem, renameFavorite, notify],
   );
 
   // Zentrale Hinzufügen-Logik für ALLE Eingabequellen (Suche im Hinzufügen-Sheet,
@@ -187,12 +192,12 @@ function AppContent() {
   // selten ein Herz auf (Easter Egg) – nicht beim Wieder-Öffnen.
   const handleToggle = useCallback(
     (id) => {
-      const current = items.find((it) => it.id === id);
+      const current = findItem((it) => it.id === id);
       const willCheck = current ? !current.checked : false;
       toggleItem(id);
       if (willCheck && Math.random() < CHECK_HEART_CHANCE) showLoveHearts(3);
     },
-    [items, toggleItem, showLoveHearts],
+    [findItem, toggleItem, showLoveHearts],
   );
 
   // Einzelnen Artikel löschen – mit Undo (Artikel unverändert wiederherstellen).
@@ -284,7 +289,7 @@ function AppContent() {
             <ShoppingBasket size={24} aria-hidden="true" />
           </span>
           <h1 className="header__title">Listly</h1>
-          <SyncStatus status={status} />
+          <SyncStatus status={status} pending={pendingCount} />
         </div>
         <div className="header__actions">
           <ViewToggle view={viewMode} onChange={setViewMode} />
@@ -303,6 +308,7 @@ function AppContent() {
       <main className="content">
         <ShoppingList
           items={items}
+          loadState={loadState}
           favoriteSet={favoriteSet}
           editingId={editingId}
           viewMode={viewMode}
@@ -313,7 +319,7 @@ function AppContent() {
           onSaveEdit={handleSaveEdit}
           onCancelEdit={closeEdit}
           findEditConflict={findEditConflict}
-          onCheckout={() => setCheckoutOpen(true)}
+          onCheckout={openCheckout}
         />
       </main>
 
@@ -346,7 +352,7 @@ function AppContent() {
         </Suspense>
       )}
 
-      {checkoutOpen && (
+      {checkoutSummary && (
         <CheckoutDialog
           checkedCount={checkoutSummary.checkedCount}
           openCount={checkoutSummary.openCount}

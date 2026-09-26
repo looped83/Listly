@@ -1,8 +1,8 @@
 import { memo, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { cleanName } from '../lib/history';
-import { CATEGORY_OPTIONS } from '../lib/icons';
 import { coerceQuantity, readItemExtras } from '../lib/itemFields';
-import QuantityStepper, { MIN_QUANTITY } from './QuantityStepper';
+import ItemDetailFields from './ItemDetailFields';
+import { MIN_QUANTITY } from './QuantityStepper';
 
 /**
  * Bearbeiten eines Artikels DIREKT in der aufgeklappten Kachel – kein Overlay.
@@ -140,32 +140,14 @@ function ItemEditInline({ item, findConflict, onSave, onCancel }) {
             )}
           </div>
 
-          <div className="field-row">
-            <div className="field field--qty">
-              <label className="field__label" htmlFor={`${baseId}-qty`}>
-                Menge
-              </label>
-              <QuantityStepper value={quantity} onChange={setQuantity} inputId={`${baseId}-qty`} />
-            </div>
-            <div className="field field--cat">
-              <label className="field__label" htmlFor={`${baseId}-cat`}>
-                Kategorie
-              </label>
-              <select
-                id={`${baseId}-cat`}
-                className="field__input"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="">Keine Kategorie</option>
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <ItemDetailFields
+            idPrefix={baseId}
+            quantity={quantity}
+            onQuantityChange={setQuantity}
+            category={category}
+            onCategoryChange={setCategory}
+            emptyCategoryLabel="Keine Kategorie"
+          />
 
           <div className="item-edit__actions">
             <button type="button" className="text-button" onClick={onCancel}>

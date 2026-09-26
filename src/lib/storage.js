@@ -1,6 +1,9 @@
-// Zentrale localStorage-Schicht. Ersetzt das in Claude-Artifacts verfügbare
-// window.storage durch echtes localStorage bei identischer Datenstruktur:
-//   items         – aktuelle Liste:  [{ id, name, category, checked, createdAt }]
+// Zentrale localStorage-Schicht: alle Keys an einer Stelle, Lesen/Schreiben
+// fehlertolerant (JSON, Private Mode, voller Speicher). Gespeichert werden:
+//   items         – aktuelle Liste:  [{ id, name, category, checked, createdAt }] (nur lokaler Modus)
+//   cloudItems    – letzter bekannter Server-Stand der geteilten Liste: { listId, items }
+//                   (nur Cloud-Modus; Sofortanzeige beim Start und offline)
+//   pendingOps    – noch nicht gesendete Cloud-Änderungen: { listId, ops } (siehe lib/syncQueue.js)
 //   favorites     – Favoriten:        [name, ...]
 //   history       – Kaufverlauf:      { [normalizedName]: { name, category, count, lastPurchased } }
 //   theme         – 'light' | 'dark' | 'system' (historisch, aktuell ungenutzt)
@@ -10,6 +13,8 @@
 
 export const STORAGE_KEYS = {
   items: 'listly.items',
+  cloudItems: 'listly.cloudItems',
+  pendingOps: 'listly.pendingOps',
   favorites: 'listly.favorites',
   history: 'listly.history',
   theme: 'listly.theme',
