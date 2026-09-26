@@ -1,5 +1,5 @@
-// Zentrale localStorage-Schicht. Ersetzt das in Claude-Artifacts verfügbare
-// window.storage durch echtes localStorage bei identischer Datenstruktur:
+// Zentrale localStorage-Schicht: alle Keys an einer Stelle, Lesen/Schreiben
+// fehlertolerant (JSON, Private Mode, voller Speicher). Gespeichert werden:
 //   items         – aktuelle Liste:  [{ id, name, category, checked, createdAt }] (nur lokaler Modus)
 //   cloudItems    – letzter bekannter Server-Stand der geteilten Liste: { listId, items }
 //                   (nur Cloud-Modus; Sofortanzeige beim Start und offline)

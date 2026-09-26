@@ -2,11 +2,11 @@ import { memo, useCallback, useId, useMemo, useRef, useState } from 'react';
 import { Check, Plus, Search, X } from 'lucide-react';
 import { buildSuggestions } from '../lib/suggestions';
 import { normalizeName } from '../lib/history';
-import { CATEGORY_OPTIONS } from '../lib/icons';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import FrequentChips from './FrequentChips';
 import ProductIcon from './ProductIcon';
-import QuantityStepper, { MIN_QUANTITY } from './QuantityStepper';
+import ItemDetailFields from './ItemDetailFields';
+import { MIN_QUANTITY } from './QuantityStepper';
 
 const SOURCE_LABEL = { history: 'Verlauf', favorite: 'Favorit' };
 
@@ -172,7 +172,7 @@ function AddItemSheet({
             </div>
 
             {showSuggestions ? (
-              <ul className="suggestions suggestions--sheet" id={listId} role="listbox">
+              <ul className="suggestions" id={listId} role="listbox">
                 {suggestions.map((s, i) => (
                   // role="presentation": unter role="listbox" sind nur option-
                   // Kinder erlaubt – die Option ist der Button selbst.
@@ -221,36 +221,14 @@ function AddItemSheet({
               )
             )}
 
-            <div className="field-row">
-              <div className="field field--qty">
-                <label className="field__label" htmlFor={`${titleId}-qty`}>
-                  Menge
-                </label>
-                <QuantityStepper
-                  value={quantity}
-                  onChange={setQuantity}
-                  inputId={`${titleId}-qty`}
-                />
-              </div>
-              <div className="field field--cat">
-                <label className="field__label" htmlFor={`${titleId}-cat`}>
-                  Kategorie
-                </label>
-                <select
-                  id={`${titleId}-cat`}
-                  className="field__input"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
-                  <option value="">Automatisch</option>
-                  {CATEGORY_OPTIONS.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            <ItemDetailFields
+              idPrefix={titleId}
+              quantity={quantity}
+              onQuantityChange={setQuantity}
+              category={category}
+              onCategoryChange={setCategory}
+              emptyCategoryLabel="Automatisch"
+            />
           </div>
 
           <div className="dialog__actions">

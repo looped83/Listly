@@ -7,6 +7,14 @@
 //  einsetzbar sind.
 
 /**
+ * Schlüssel für die Identität eines Artikels (Dubletten, Favoriten, Verlauf,
+ * Katalog): nur Leerzeichen am Rand und Groß-/Kleinschreibung zählen nicht.
+ * Bewusst schlichter als normalizeText – „Äpfel“ und „Apfel“ bleiben hier
+ * verschiedene Artikel.
+ */
+export const normalizeName = (name) => name.trim().toLowerCase();
+
+/**
  * Kanonische Form eines Textes für den Vergleich. Ziel: unterschiedliche, aber
  * gemeinte-gleiche Schreibweisen kollabieren auf **eine** Form.
  *  1. Kleinschreibung.

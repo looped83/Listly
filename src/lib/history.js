@@ -1,6 +1,8 @@
 import { getKnownCategory } from './icons';
+import { normalizeName } from './textMatch';
 
-export const normalizeName = (name) => name.trim().toLowerCase();
+// Hier weiter angeboten, da die meisten Aufrufer ohnehin aus history importieren.
+export { normalizeName };
 
 /** Anzeigename aufräumen (Whitespace normalisieren, Erstbuchstabe groß). */
 export function cleanName(name) {

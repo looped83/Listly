@@ -92,6 +92,8 @@ src/
 │   ├── TileItem.jsx        #   Einzelkarte (Kachelansicht): dieselben Handler/Aktionen wie ListItem, Favorit/Bearbeiten/Löschen hinter langem Druck (grünes Aktionen-Panel)
 │   ├── ViewToggle.jsx      #   Listen-/Kachel-Umschalter im Header (kontrolliert, keine eigene Logik)
 │   ├── ItemEditInline.jsx  #   Artikel INLINE bearbeiten (kein Overlay) – in beiden Ansichten identisch genutzt
+│   ├── ItemDetailFields.jsx #  Menge + Kategorie (gemeinsam für Hinzufügen-Sheet und Inline-Bearbeitung)
+│   ├── ItemActionButtons.jsx # Favorit/Bearbeiten/Löschen-Buttons (gemeinsam für Liste und Kacheln)
 │   ├── ProductIcon.jsx     #   rendert das Emoji eines Artikels
 │   ├── QuantityStepper.jsx #   Mengen-Stepper (−/+, Spinbutton, Standard/Min 1)
 │   ├── SyncStatus.jsx      #   dezenter Sync-Hinweis hinter dem Titel (nur Icon, nur lokal/offline, blitzt kurz auf)
@@ -111,6 +113,7 @@ src/
 │   ├── supabase.js         #   Cloud-Modus, Zeilen-Mapping, lazy Client (getSupabase)
 │   ├── supabaseClient.js   #   schlanker Client: PostgREST + Realtime (eigener Chunk)
 │   ├── syncQueue.js        #   Offline-Warteschlange: idempotente Cloud-Operationen (anwenden/senden)
+│   ├── id.js               #   createId (UUID) – für Artikel, Karten, Sync-Operationen
 │   ├── supabaseConfig.js   #   ← URL, anon-Key, LIST_ID
 │   ├── history.js          #   Kaufverlauf (Häufigkeit verbuchen)
 │   ├── suggestions.js      #   Autocomplete: Kandidaten (Verlauf/Favorit/Basis) + Scoring

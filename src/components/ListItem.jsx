@@ -1,7 +1,8 @@
 import { memo } from 'react';
-import { Check, Pencil, Star, X } from 'lucide-react';
+import { Check } from 'lucide-react';
 import ProductIcon from './ProductIcon';
 import ItemEditInline from './ItemEditInline';
+import { EditButton, FavoriteButton, RemoveButton } from './ItemActionButtons';
 import { useSwipeReveal } from '../hooks/useSwipeReveal';
 import { formatQuantityBadge, itemLabel, readItemExtras } from '../lib/itemFields';
 
@@ -77,42 +78,28 @@ function ListItem({
         klappt die Leiste automatisch auf; verlässt der Fokus sie, schließt sie.
       */}
       <div className="swipe__actions" {...actionsProps}>
-        <button
-          type="button"
-          className="icon-button icon-button--fav"
-          data-active={isFavorite}
-          onClick={() => onToggleFavorite(item.name)}
-          aria-pressed={isFavorite}
-          aria-label={
-            isFavorite ? `${item.name} aus Favoriten entfernen` : `${item.name} zu Favoriten hinzufügen`
-          }
-        >
-          <Star size={18} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          className="icon-button"
+        <FavoriteButton
+          name={item.name}
+          isFavorite={isFavorite}
+          onToggle={onToggleFavorite}
+          iconSize={18}
+        />
+        <EditButton
+          descriptor={descriptor}
+          iconSize={17}
           onClick={() => {
             closeAfterAction();
             onEdit(item.id);
           }}
-          aria-label={`${descriptor} bearbeiten`}
-        >
-          <Pencil size={17} aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          className="icon-button icon-button--danger"
+        />
+        <RemoveButton
+          descriptor={descriptor}
+          iconSize={18}
           onClick={() => {
             closeAfterAction();
             onRemove(item.id);
           }}
-          aria-label={`${descriptor} entfernen`}
-        >
-          <X size={18} aria-hidden="true" />
-        </button>
+        />
       </div>
 
       <div className="list-item" data-checked={item.checked} {...rowProps}>

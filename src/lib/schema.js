@@ -33,6 +33,7 @@
 
 import { STORAGE_KEYS } from './storage';
 import { coerceQuantity } from './itemFields';
+import { createId } from './id';
 
 // Aktuelle Zielversion des Schemas.
 //   Version 1 = Basis-Datenmodell (items, favorites, history, cards, theme).
@@ -41,11 +42,6 @@ import { coerceQuantity } from './itemFields';
 //   entfernt; evtl. noch gespeicherte Werte werden von sanitizeItems still
 //   verworfen.)
 export const SCHEMA_VERSION = 2;
-
-const createId = () =>
-  typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 

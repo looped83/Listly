@@ -1,5 +1,5 @@
 import products from '../data/products.json';
-import { normalizeText, stemDe, tokenize } from './textMatch';
+import { normalizeName, normalizeText, stemDe, tokenize } from './textMatch';
 
 // Produkt- und Kategorie-Symbole sind Emoji (in products.json gepflegt) – das
 // bietet deutlich mehr Vielfalt als ein monochromer Icon-Satz und kostet nichts
@@ -10,11 +10,9 @@ export const DEFAULT_EMOJI = '🛒';
 // Kategorie-Auswahl für den Bearbeiten-Dialog (id + Anzeigename, in Reihenfolge).
 export const CATEGORY_OPTIONS = products.categories.map((c) => ({ id: c.id, name: c.name }));
 
-const normalize = (name) => name.trim().toLowerCase();
-
 const categoryById = new Map(products.categories.map((c) => [c.id, c]));
 const categoryOrder = new Map(products.categories.map((c, i) => [c.id, i]));
-const productByName = new Map(products.products.map((p) => [normalize(p.name), p]));
+const productByName = new Map(products.products.map((p) => [normalizeName(p.name), p]));
 
 // Vergleichsschlüssel für den Katalog-Abgleich – dieselben Regeln wie die
 // Suche (textMatch): Groß-/Kleinschreibung, Umlaute (ä ≡ a ≡ ae), Diakritika
@@ -34,7 +32,7 @@ const productKeyTokens = products.products.map((p) => ({
 
 /** Katalogprodukt zu einem Namen: exakt, sonst über Schreibweise/Plural (oder null). */
 function findProduct(name) {
-  return productByName.get(normalize(name)) ?? productByKey.get(matchKey(name)) ?? null;
+  return productByName.get(normalizeName(name)) ?? productByKey.get(matchKey(name)) ?? null;
 }
 
 // Kürzere Grundwörter (z. B. „Öl“) stecken am Ende zu vieler Wörter.

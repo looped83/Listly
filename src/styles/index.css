@@ -22,7 +22,7 @@ body {
   /* Kein Scrollen/Wippen der Gesamtseite – nur die Liste scrollt intern. */
   overflow: hidden;
   overscroll-behavior: none;
-  /* Doppeltipp-Zoom verhindern – Pinch-Zoom bleibt erlaubt (WCAG 1.4.4). */
+  /* Doppeltipp-Verzögerung vermeiden (Zoom ist ohnehin per Viewport-Meta aus). */
   touch-action: manipulation;
   background-color: var(--bg);
   color: var(--text);
@@ -216,21 +216,14 @@ textarea {
   }
 }
 
-/* ---------- Suggestions dropdown ---------- */
+/* ---------- Vorschläge (Hinzufügen-Sheet) ---------- */
 .suggestions {
-  position: absolute;
-  z-index: 20;
-  bottom: calc(100% + var(--space-2));
-  top: auto;
-  left: 0;
-  right: 0;
-  max-height: 45vh;
+  max-height: 30vh;
   overflow-y: auto;
   padding: var(--space-1);
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--bg-elevated);
-  box-shadow: var(--shadow-md);
   list-style: none;
   margin: 0;
 }
@@ -277,16 +270,7 @@ textarea {
   background: var(--surface-sunken);
 }
 
-/* ---------- Frequent chips (oben angeheftet, horizontal scrollbar) ---------- */
-.chips {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--bg);
-  margin: 0 calc(-1 * var(--space-4)) var(--space-3);
-  padding: var(--space-2) var(--space-4);
-}
-
+/* ---------- Häufig-gekauft-Chips (Hinzufügen-Sheet, horizontal scrollbar) ---------- */
 .chips__heading {
   display: flex;
   align-items: center;
@@ -1451,21 +1435,6 @@ textarea {
 }
 
 /* Vorschlagsliste im Sheet: statisch (nicht schwebend), scrollbar. */
-.suggestions--sheet {
-  position: static;
-  max-height: 30vh;
-  overflow-y: auto;
-  box-shadow: none;
-}
-
-/* Häufig-gekauft-Chips im Sheet: ohne Sticky/Negativ-Ränder der Hauptansicht. */
-.add-sheet .chips {
-  position: static;
-  margin: 0;
-  padding: 0;
-  background: transparent;
-}
-
 /* Bestätigung des ausgewählten Produkts (inkl. Emoji) unter dem Suchfeld. */
 .add-sheet__selected {
   display: flex;

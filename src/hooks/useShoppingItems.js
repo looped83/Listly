@@ -13,11 +13,8 @@ import { cleanName, normalizeName } from '../lib/history';
 import { getKnownCategory } from '../lib/icons';
 import { coerceQuantity } from '../lib/itemFields';
 import { sanitizeItems } from '../lib/schema';
-
-const createId = () =>
-  typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+import { itemsToComplete } from '../lib/checkout';
+import { createId } from '../lib/id';
 
 /**
  * Startstand der Liste – oder `null`, wenn noch keiner bekannt ist.
@@ -387,7 +384,7 @@ export function useShoppingItems({ onPurchase } = {}) {
   // der Aufrufer eine Undo-Aktion anbieten kann.
   const completeCheckout = useCallback(
     (includeOpen = false) => {
-      const completed = itemsRef.current.filter((it) => includeOpen || it.checked);
+      const completed = itemsToComplete(itemsRef.current, includeOpen);
       if (completed.length === 0) return [];
 
       onPurchase?.(completed); // Kaufverlauf (lokal) aktualisieren – im Event-Handler,

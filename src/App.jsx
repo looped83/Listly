@@ -114,8 +114,8 @@ function AppContent() {
     completeCheckout,
   } = useShoppingItems({ onPurchase: handlePurchase });
 
-  // Abgeleitete Kennzahlen für den Abschluss-Dialog – reine Berechnung.
-  const checkoutSummary = useMemo(() => summarizeCheckout(items), [items]);
+  // Kennzahlen für den Abschluss-Dialog – nur berechnet, solange er offen ist.
+  const checkoutSummary = checkoutOpen ? summarizeCheckout(items) : null;
 
   // Hinweis zu den Callbacks unten: sie lesen den aktuellen Stand über
   // `findItem` statt über `items` – so bleiben sie über Listenänderungen hinweg
@@ -352,7 +352,7 @@ function AppContent() {
         </Suspense>
       )}
 
-      {checkoutOpen && (
+      {checkoutSummary && (
         <CheckoutDialog
           checkedCount={checkoutSummary.checkedCount}
           openCount={checkoutSummary.openCount}
