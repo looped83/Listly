@@ -53,6 +53,7 @@ lokal pro Gerät:
 | Schlüssel              | Inhalt                                                                    |
 | ---------------------- | ------------------------------------------------------------------------- |
 | `listly.items`         | Liste (nur im lokalen Modus): `[{ id, name, category, checked, createdAt, quantity? }]` |
+| `listly.cloudItems`    | Cloud-Modus: letzter Server-Stand `{ listId, items }` (Sofortanzeige beim Start, offline) |
 | `listly.favorites`     | Favoriten: `["Hafermilch", …]`                                            |
 | `listly.history`       | Kaufverlauf: `{ [name]: { name, category, count, lastPurchased } }`        |
 | `listly.cards`         | Kundenkarten: `[{ id, retailer, name, code, codeType }]`                   |

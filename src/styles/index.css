@@ -595,6 +595,46 @@ textarea {
   padding-left: var(--space-1);
 }
 
+/*
+ * Platzhalterzeilen beim ersten Laden (Cloud-Modus ohne Cache). Erscheinen
+ * erst nach kurzer Verzögerung – bei schnellem Netz blitzt so nichts auf –
+ * und pulsieren dann dezent (nur opacity: läuft auf dem Compositor).
+ */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-5);
+}
+
+.skeleton__row {
+  height: 66px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  animation:
+    skeleton-in 0.2s ease 0.3s both,
+    skeleton-pulse 1.4s ease-in-out 0.5s infinite;
+}
+
+@keyframes skeleton-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton__row {
+    animation: none;
+  }
+}
+
 /* ---------- Section divider ---------- */
 .section {
   margin-top: var(--space-5);

@@ -70,6 +70,26 @@ describe('ShoppingList – Kategorie-Gruppierung', () => {
   });
 });
 
+describe('ShoppingList – noch unbekannter Stand (Cloud, erster Start)', () => {
+  it('zeigt beim Laden Platzhalter statt „Deine Liste ist leer“', () => {
+    renderList([], { loadState: 'loading' });
+    expect(screen.getByText('Liste wird geladen …')).toBeInTheDocument();
+    expect(screen.queryByText('Deine Liste ist leer')).toBeNull();
+  });
+
+  it('zeigt offline einen Verbindungshinweis statt „Deine Liste ist leer“', () => {
+    renderList([], { loadState: 'offline' });
+    expect(screen.getByText('Keine Verbindung')).toBeInTheDocument();
+    expect(screen.queryByText('Deine Liste ist leer')).toBeNull();
+  });
+
+  it('zeigt vorhandene Artikel unabhängig vom Ladezustand', () => {
+    renderList([item('Apfel', 'obst-gemuese')], { loadState: 'offline' });
+    expect(screen.getByText('Apfel')).toBeInTheDocument();
+    expect(screen.queryByText('Keine Verbindung')).toBeNull();
+  });
+});
+
 describe('ShoppingList – Fortschritt & Erledigt (Standard)', () => {
   it('zeigt den Fortschritt „x von y erledigt" als progressbar (ab dem ersten Abhaken)', () => {
     renderList([item('Apfel', 'obst-gemuese', true), item('Banane', 'obst-gemuese', false)]);

@@ -128,6 +128,7 @@ Alle Keys in `src/lib/storage.js` (`STORAGE_KEYS`).
 | -------------- | ------------------ | ------------------------------------------------------------------- |
 | **Supabase**   | Tabelle `list_items` | Geteilte Liste: `{ id, list_id, name, category, checked, created_at, quantity? }` |
 | localStorage   | `listly.items`     | Liste **nur im lokalen Modus** (wenn Supabase nicht konfiguriert)   |
+| localStorage   | `listly.cloudItems` | **Cloud-Modus:** letzter bekannter Server-Stand `{ listId, items }` – Sofortanzeige beim Start und offline (siehe §5) |
 | localStorage   | `listly.favorites` | Favoriten `["Hafermilch", …]` (pro Gerät)                           |
 | localStorage   | `listly.history`   | Kaufverlauf `{ [name]: { name, category, count, lastPurchased } }`   |
 | localStorage   | `listly.cards`     | Kundenkarten `[{ id, retailer, name, code, codeType, number? }]` (pro Gerät) |
@@ -165,6 +166,22 @@ Platzhalter). Normalisierung: `lib/itemFields.js` (siehe §8, §12).
   `addItem`, `toggleItem`, `updateItem`, `removeItem`, `restoreItems` (Undo) und
   `completeCheckout` (Einkaufsabschluss, s. §8). Bei Fehlern wird neu geladen
   (`refetch`).
+- **Offline-Start & Abgleich (stale-while-revalidate):** Jeder vom Server
+  geladene Stand wird unter `listly.cloudItems` (mit `LIST_ID`, ein Cache einer
+  anderen Liste wird ignoriert) gespiegelt und beim nächsten Start **sofort**
+  angezeigt – auch ohne Netz. Abgeglichen (`refetch`) wird beim Start, nach
+  **jedem (Wieder-)Verbinden** des Realtime-Abos (Realtime liefert nur
+  Änderungen ab dem Abo, keine verpassten), bei **Rückkehr in die App**
+  (`visibilitychange`) und beim **`online`**-Ereignis. Eine laufende Nummer
+  sorgt dafür, dass eine verspätete ältere Antwort nie einen neueren Stand
+  überschreibt. Der Hook liefert dazu `loadState`: `ready` (Stand liegt vor),
+  `loading` (noch keiner, Abfrage läuft → Platzhalterzeilen) oder `offline`
+  (noch keiner, Abfrage gescheitert → „Keine Verbindung“) – so erscheint
+  „Deine Liste ist leer“ nur, wenn die Liste wirklich leer ist. Hinweis:
+  supabase-js wiederholt gescheiterte GET-Abfragen selbst (1 s/2 s/4 s), der
+  Offline-Hinweis erscheint beim allerersten Start ohne Netz daher nach ~7 s.
+  **Offline-Änderungen** werden (noch) nicht nachgesendet – beim nächsten
+  Abgleich gilt der Server-Stand.
 - **Schema:** `supabase/schema.sql` (idempotent). Legt Tabelle + die optionalen
   Spalte `quantity` an (`add column if not exists`), aktiviert
   `REPLICA IDENTITY FULL` (nötig, damit Realtime-DELETE mit `list_id`-Filter
@@ -519,7 +536,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (283 Tests,
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (296 Tests,
   22 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.

@@ -4,6 +4,7 @@ import { readStorage, writeStorage, STORAGE_KEYS } from '../lib/storage';
 import { cleanName, normalizeName } from '../lib/history';
 import { getKnownCategory } from '../lib/icons';
 import { coerceQuantity } from '../lib/itemFields';
+import { sanitizeItems } from '../lib/schema';
 
 const createId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -13,18 +14,33 @@ const createId = () =>
 const byCreatedAt = (a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
 
 /**
+ * Startstand der Liste – oder `null`, wenn noch keiner bekannt ist.
+ * Lokal: die gespeicherte Liste. Cloud: der zuletzt vom Server geladene Stand
+ * (stale-while-revalidate) – so ist die Liste beim Start sofort da, auch ohne
+ * Netz. Ein Cache einer anderen LIST_ID wird ignoriert (frische Liste).
+ */
+function readInitialItems() {
+  if (!isCloudEnabled) return readStorage(STORAGE_KEYS.items, []);
+  const cached = readStorage(STORAGE_KEYS.cloudItems, null);
+  return cached?.listId === LIST_ID ? sanitizeItems(cached.items) : null;
+}
+
+/**
  * Verwaltet die Einkaufsliste – geräteübergreifend geteilt via Supabase
  * (Echtzeit) oder rein lokal via localStorage, je nach Konfiguration.
  *
  * @param {{ onPurchase?: (items: Array) => void }} options
  *        onPurchase wird beim Verbuchen erledigter Artikel aufgerufen (z. B. um
  *        den lokalen Kaufverlauf zu aktualisieren).
- * @returns Liste, Operationen und Sync-Status.
+ * @returns Liste, Operationen, Sync-Status und `loadState`: `ready` (ein Stand
+ *          liegt vor – gecacht oder vom Server), `loading` (noch keiner, Abfrage
+ *          läuft) oder `offline` (noch keiner, Abfrage gescheitert). Nur bei
+ *          `ready` bedeutet eine leere Liste wirklich „leer“.
  */
 export function useShoppingItems({ onPurchase } = {}) {
-  const [items, setItems] = useState(() =>
-    isCloudEnabled ? [] : readStorage(STORAGE_KEYS.items, []),
-  );
+  const [initialItems] = useState(readInitialItems);
+  const [items, setItems] = useState(initialItems ?? []);
+  const [loadState, setLoadState] = useState(initialItems !== null ? 'ready' : 'loading');
   const [status, setStatus] = useState(isCloudEnabled ? 'connecting' : 'local');
 
   // Aktuelle Liste als Ref, damit asynchrone Callbacks (DB, Realtime) stets den
@@ -40,14 +56,24 @@ export function useShoppingItems({ onPurchase } = {}) {
   const applyItems = useCallback((updater) => setItems(updater), []);
 
   // Persistenz als Effekt (nicht im Updater): läuft nach dem Commit und ist
-  // idempotent, StrictMode-Doppelläufe schaden daher nicht.
+  // idempotent, StrictMode-Doppelläufe schaden daher nicht. Im Cloud-Modus
+  // wird erst gecacht, wenn ein echter Stand vorliegt – sonst würde eine noch
+  // unbekannte Liste beim nächsten Start fälschlich als „leer“ gelten.
   useEffect(() => {
     if (!isCloudEnabled) writeStorage(STORAGE_KEYS.items, items);
-  }, [items]);
+    else if (loadState === 'ready') {
+      writeStorage(STORAGE_KEYS.cloudItems, { listId: LIST_ID, items });
+    }
+  }, [items, loadState]);
 
-  // ── Cloud: Initialladen + Realtime-Abo ──────────────────────────────────────
+  // ── Cloud: Laden + Realtime-Abo ─────────────────────────────────────────────
+  // Laufende Nummer der Abfragen: überholt eine neuere Abfrage eine ältere
+  // (z. B. App-Rückkehr + Reconnect kurz hintereinander), gewinnt stets die
+  // neueste – eine verspätete ältere Antwort überschreibt nichts.
+  const fetchSeq = useRef(0);
   const refetch = useCallback(async () => {
     if (!isCloudEnabled) return;
+    const seq = ++fetchSeq.current;
     try {
       const supabase = await getSupabase();
       const { data, error } = await supabase
@@ -55,16 +81,18 @@ export function useShoppingItems({ onPurchase } = {}) {
         .select('*')
         .eq('list_id', LIST_ID)
         .order('created_at', { ascending: true });
-      if (error) {
-        setStatus('error');
-        return;
-      }
+      if (seq !== fetchSeq.current) return;
+      if (error) throw error;
       setItems(data.map(rowToItem));
+      setLoadState('ready');
       setStatus('live');
     } catch {
-      // Import-/Netzwerkfehler (z. B. offline beim ersten Laden) → Offline-
-      // Status statt unbehandelter Promise-Rejection.
+      // DB-/Import-/Netzwerkfehler (z. B. offline beim ersten Laden) → Offline-
+      // Status statt unbehandelter Promise-Rejection. Ein bereits vorhandener
+      // (gecachter) Stand bleibt stehen.
+      if (seq !== fetchSeq.current) return;
       setStatus('error');
+      setLoadState((prev) => (prev === 'ready' ? prev : 'offline'));
     }
   }, []);
 
@@ -92,7 +120,9 @@ export function useShoppingItems({ onPurchase } = {}) {
     let active = true;
     let channel = null;
     // Initiales Laden vom Server: asynchroner Roundtrip, setState erst nach
-    // der Antwort – kein synchroner Kaskaden-Render.
+    // der Antwort – kein synchroner Kaskaden-Render. Startet bewusst sofort
+    // (schnellster Weg zu frischen Daten); der Abgleich nach dem Abo (s. u.)
+    // schließt die Lücke bis dahin.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refetch();
 
@@ -122,16 +152,35 @@ export function useShoppingItems({ onPurchase } = {}) {
           )
           .subscribe((state) => {
             if (!active) return;
-            if (state === 'SUBSCRIBED') setStatus('live');
-            else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT') setStatus('error');
+            if (state === 'SUBSCRIBED') {
+              setStatus('live');
+              // Realtime liefert nur Änderungen AB dem (erneuten) Abo, keine
+              // verpassten. Daher nach jedem (Wieder-)Verbinden einmal
+              // abgleichen – sonst fehlt z. B. nach Standby oder Funkloch, was
+              // zwischenzeitlich auf dem anderen Gerät geändert wurde.
+              refetch();
+            } else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT') {
+              setStatus('error');
+            }
           });
       })
       .catch(() => {
         if (active) setStatus('error');
       });
 
+    // Zurück in der App (aus dem Hintergrund/Standby) oder wieder online:
+    // sofort abgleichen, statt zu warten, bis Realtime den Verbindungsabbruch
+    // selbst bemerkt (auf Mobilgeräten oft erst nach vielen Sekunden).
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refetch();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', refetch);
+
     return () => {
       active = false;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', refetch);
       // Abräumen, sobald der Client verfügbar ist (gecacht, kein erneuter Import).
       if (channel) {
         getSupabase()
@@ -291,6 +340,7 @@ export function useShoppingItems({ onPurchase } = {}) {
   return {
     items,
     status,
+    loadState,
     addItem,
     toggleItem,
     updateItem,

@@ -102,6 +102,7 @@ function AppContent() {
   const {
     items,
     status,
+    loadState,
     addItem,
     toggleItem,
     updateItem,
@@ -303,6 +304,7 @@ function AppContent() {
       <main className="content">
         <ShoppingList
           items={items}
+          loadState={loadState}
           favoriteSet={favoriteSet}
           editingId={editingId}
           viewMode={viewMode}
