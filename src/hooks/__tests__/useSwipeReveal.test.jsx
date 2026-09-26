@@ -124,3 +124,59 @@ describe('useSwipeReveal – Grün→Rot-Fortschritt (--swipe-progress)', () => 
     expect(backdrop.style.getPropertyValue('--swipe-progress')).toBe('0');
   });
 });
+
+describe('useSwipeReveal – Render-Performance', () => {
+  function CountingHarness({ onRender }) {
+    onRender();
+    const { rowProps, actionsProps, backdropProps } = useSwipeReveal({
+      revealWidth: 156,
+      openThreshold: 56,
+    });
+    return (
+      <div>
+        <div data-testid="backdrop" {...backdropProps} />
+        <div {...actionsProps} />
+        <div data-testid="row" {...rowProps} />
+      </div>
+    );
+  }
+
+  it('rendert während der Wisch-Bewegung nicht neu (nur beim Einrasten)', () => {
+    const onRender = vi.fn();
+    render(<CountingHarness onRender={onRender} />);
+    const row = screen.getByTestId('row');
+    vi.spyOn(row, 'getBoundingClientRect').mockReturnValue(
+      /** @type {DOMRect} */ ({ width: ROW_WIDTH, height: 60, top: 0, left: 0, right: 0, bottom: 0 }),
+    );
+    const rendersBefore = onRender.mock.calls.length;
+
+    fireEvent.touchStart(row, touchAt(300));
+    for (let x = 290; x >= 150; x -= 10) fireEvent.touchMove(row, touchAt(x));
+
+    expect(onRender.mock.calls.length).toBe(rendersBefore); // 15 Bewegungen, 0 Renders
+    expect(row.style.transform).toBe('translateX(-150px)'); // trotzdem sichtbar verschoben
+
+    fireEvent.touchEnd(row);
+    expect(onRender.mock.calls.length).toBe(rendersBefore + 1); // einrasten → einmal
+    expect(row.style.transform).toBe('translateX(-156px)');
+    expect(row).toHaveAttribute('data-animating', 'true');
+  });
+
+  it('gleitet beim Schließen zurück in die Ausgangslage', () => {
+    render(<CountingHarness onRender={() => {}} />);
+    const row = screen.getByTestId('row');
+    vi.spyOn(row, 'getBoundingClientRect').mockReturnValue(
+      /** @type {DOMRect} */ ({ width: ROW_WIDTH, height: 60, top: 0, left: 0, right: 0, bottom: 0 }),
+    );
+
+    fireEvent.touchStart(row, touchAt(300));
+    fireEvent.touchMove(row, touchAt(200));
+    fireEvent.touchEnd(row); // eingerastet
+    fireEvent.touchStart(row, touchAt(200));
+    fireEvent.touchMove(row, touchAt(360)); // weit zurück nach rechts (unter openThreshold)
+    fireEvent.touchEnd(row);
+
+    expect(row).toHaveAttribute('data-revealed', 'false');
+    expect(row.style.transform).toBe('');
+  });
+});

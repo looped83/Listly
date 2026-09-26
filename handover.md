@@ -450,6 +450,9 @@ deployen.
   Die komplette Gesten-/Aufdeck-/Lösch-Logik steckt im Hook
   `useSwipeReveal` – die Zeile selbst bleibt rein präsentational und spreadet
   nur die gelieferten Prop-Bündel (`rowProps`/`actionsProps`/`backdropProps`).
+  Ausschlag (`transform`), `--swipe-progress` und `data-animating` setzt der
+  Hook **direkt am DOM** (über die Refs in den Bündeln) – Wischen löst so
+  keinen React-Render pro Fingerbewegung aus, nur beim Auf-/Zuklappen.
   Bewusst eine reine Touch-Abkürzung: der fokussierbare Löschen-Button bleibt
   unverändert die vollständige, tastatur-/screenreader-taugliche Alternative.
 - **Artikel hinzufügen (`AddItemSheet.jsx`, geöffnet über den FAB):** ein
@@ -592,7 +595,7 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (340 Tests,
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (342 Tests,
   25 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
