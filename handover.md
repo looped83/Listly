@@ -42,7 +42,11 @@ gemeinsam in Echtzeit genutzt.
 - **React 18**
 - **lucide-react** – UI-Icons (Häkchen, Stern, Wallet …). Produkt-Symbole sind
   dagegen **Emoji** (keine Icon-Lib nötig).
-- **@supabase/supabase-js** – Echtzeit-Sync der Liste
+- **@supabase/postgrest-js** + **@supabase/realtime-js** – Echtzeit-Sync der
+  Liste. Bewusst die beiden Einzelpakete statt `@supabase/supabase-js`: die App
+  braucht nur Tabellenzugriff + Realtime, das Komplettpaket brächte Auth,
+  Storage und Functions mit (Chunk 55 → 21 KB gzip). Versionen beider Pakete
+  gemeinsam aktualisieren.
 - **qrcode** + **jsbarcode** – Code-Erzeugung für Kundenkarten (Client-seitig)
 - **vite-plugin-pwa** – Manifest + Service Worker (Registrierung inline im
   `<head>`, keine eigene `registerSW.js`). Der Precache lässt die
@@ -54,7 +58,8 @@ gemeinsam in Echtzeit genutzt.
   Code-Eingabe) kommt aus der Systemschrift – keine eigene Mono-Schrift.
 - **ESLint** (Flat Config, `eslint.config.js`): @eslint/js recommended +
   react-hooks-Regeln; läuft lokal (`npm run lint`) und im Deploy-Workflow.
-- **Code-Splitting:** `@supabase/supabase-js` (nur im Cloud-Modus) und das
+- **Code-Splitting:** der Supabase-Client (`lib/supabaseClient.js`, nur im
+  Cloud-Modus) und das
   Kundenkarten-Modul mit `qrcode`/`jsbarcode` (nur beim Öffnen der Karten) werden
   **lazy** als eigene Chunks geladen – das initiale JS bleibt schlank.
 
@@ -103,7 +108,8 @@ src/
 │   └── useTheme.js         #   automatischer Dark Mode (prefers-color-scheme)
 ├── lib/
 │   ├── storage.js          #   localStorage-Keys + read/write
-│   ├── supabase.js         #   Supabase-Client, lazy per dynamischem Import (getSupabase)
+│   ├── supabase.js         #   Cloud-Modus, Zeilen-Mapping, lazy Client (getSupabase)
+│   ├── supabaseClient.js   #   schlanker Client: PostgREST + Realtime (eigener Chunk)
 │   ├── syncQueue.js        #   Offline-Warteschlange: idempotente Cloud-Operationen (anwenden/senden)
 │   ├── supabaseConfig.js   #   ← URL, anon-Key, LIST_ID
 │   ├── history.js          #   Kaufverlauf (Häufigkeit verbuchen)
@@ -166,9 +172,12 @@ Platzhalter). Normalisierung: `lib/itemFields.js` (siehe §8, §12).
   `SUPABASE_ANON_KEY`, `LIST_ID` (aktuell `"rene-und-lutz"`).
 - Sind URL + Key gesetzt → **Cloud-Modus** (`isCloudEnabled` in `lib/supabase.js`).
   Sonst automatischer Fallback auf `localStorage`.
-- **Lazy geladen:** `@supabase/supabase-js` wird erst im Cloud-Modus per
-  dynamischem Import geholt (`getSupabase()`, Ergebnis gecacht) → eigener Chunk,
-  kleiner Initial-Bundle. Alle DB-Zugriffe in `useShoppingItems` sind daher `async`.
+- **Lazy geladen:** `lib/supabaseClient.js` (schlanke Fassade über
+  `PostgrestClient` + `RealtimeClient`, gleich konfiguriert wie `createClient()`
+  von supabase-js für anonymen Zugriff; Oberfläche: `from`, `channel`,
+  `removeChannel`) wird erst im Cloud-Modus per dynamischem Import geholt
+  (`getSupabase()`, Ergebnis gecacht) → eigener Chunk, kleiner Initial-Bundle.
+  Alle DB-Zugriffe in `useShoppingItems` sind daher `async`.
 - **`useShoppingItems.js`** kapselt beides: Initialladen (`select`), Realtime-Abo
   (`postgres_changes` gefiltert auf `list_id`), optimistische Updates, sowie
   `addItem`, `toggleItem`, `updateItem`, `removeItem`, `restoreItems` (Undo) und
@@ -190,7 +199,7 @@ Platzhalter). Normalisierung: `lib/itemFields.js` (siehe §8, §12).
   `loading` (noch keiner, Abfrage läuft → Platzhalterzeilen) oder `offline`
   (noch keiner, Abfrage gescheitert → „Keine Verbindung“) – so erscheint
   „Deine Liste ist leer“ nur, wenn die Liste wirklich leer ist. Hinweis:
-  supabase-js wiederholt gescheiterte GET-Abfragen selbst (1 s/2 s/4 s), der
+  postgrest-js wiederholt gescheiterte GET-Abfragen selbst (1 s/2 s/4 s), der
   Offline-Hinweis erscheint beim allerersten Start ohne Netz daher nach ~7 s.
 - **Offline-Warteschlange (`lib/syncQueue.js`):** Jede Änderung wird als
   kleine, serialisierbare Operation (`upsert` / `update` / `delete`) unter

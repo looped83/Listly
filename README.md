@@ -204,7 +204,7 @@ Details zu Architektur, Datenfluss und Betrieb: siehe [`handover.md`](handover.m
 
 - [Vite 5](https://vitejs.dev) + [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react)
 - [React 18](https://react.dev)
-- [@supabase/supabase-js](https://supabase.com/docs/reference/javascript) – Echtzeit-Sync (lazy geladen)
+- [@supabase/postgrest-js](https://github.com/supabase/supabase-js/tree/master/packages/core/postgrest-js) + [@supabase/realtime-js](https://github.com/supabase/supabase-js/tree/master/packages/core/realtime-js) – Echtzeit-Sync (lazy geladen, ohne das komplette supabase-js)
 - [lucide-react](https://lucide.dev) (UI-Icons)
 - [qrcode](https://github.com/soldair/node-qrcode) + [jsbarcode](https://github.com/lindell/JsBarcode) – Kundenkarten-Codes (lazy geladen)
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app) (Manifest + Service Worker)
