@@ -264,7 +264,6 @@ textarea {
 }
 
 .suggestion__tag {
-  font-family: var(--font-mono);
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -340,7 +339,7 @@ textarea {
 }
 
 .chip__count {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.7rem;
   color: var(--text-muted);
 }
@@ -368,7 +367,7 @@ textarea {
 }
 
 .list-section__count {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.8rem;
   color: var(--text-muted);
 }
@@ -1325,7 +1324,7 @@ textarea {
 .shop-progress__label {
   display: block;
   margin-bottom: var(--space-2);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-muted);

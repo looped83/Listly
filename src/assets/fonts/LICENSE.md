@@ -8,4 +8,3 @@ stammen von Google Fonts und stehen unter der **SIL Open Font License 1.1**
 | ------------- | --------------------------------------------------- |
 | Fraunces      | https://fonts.google.com/specimen/Fraunces          |
 | Inter         | https://fonts.google.com/specimen/Inter             |
-| IBM Plex Mono | https://fonts.google.com/specimen/IBM+Plex+Mono     |

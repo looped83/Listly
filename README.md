@@ -41,7 +41,7 @@ zwischen mehreren Geräten geteilt.
   Dialogen/Sheets, aria-live-Statusmeldungen, sichtbare Fokusindikatoren,
   `prefers-reduced-motion` wird respektiert.
 - **PWA** – installierbar, Standalone-Modus, Offline-Support via Service Worker.
-- **Lokale Fonts** – Fraunces, Inter & IBM Plex Mono sind selbst gehostet
+- **Lokale Fonts** – Fraunces & Inter sind selbst gehostet
   (kein CDN), für schnelle Ladezeiten und Offline-Fähigkeit.
 
 ## Datenmodell

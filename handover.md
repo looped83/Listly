@@ -47,9 +47,11 @@ gemeinsam in Echtzeit genutzt.
 - **vite-plugin-pwa** – Manifest + Service Worker (Registrierung inline im
   `<head>`, keine eigene `registerSW.js`). Der Precache lässt die
   latin-ext-Schriftschnitte bewusst aus (werden bei deutschem Text praktisch
-  nie gebraucht, ~170 KB); falls doch, cacht `runtimeCaching` Fonts nach dem
+  nie gebraucht, ~145 KB); falls doch, cacht `runtimeCaching` Fonts nach dem
   ersten Laden (`listly-fonts`, CacheFirst).
-- Fonts (Fraunces, Inter, IBM Plex Mono) sind **lokal** eingebunden (kein CDN).
+- Fonts (Fraunces, Inter) sind **lokal** eingebunden (kein CDN). Zahlen in der
+  Oberfläche nutzen Inter mit `tabular-nums`; Monospace (Kartennummer,
+  Code-Eingabe) kommt aus der Systemschrift – keine eigene Mono-Schrift.
 - **ESLint** (Flat Config, `eslint.config.js`): @eslint/js recommended +
   react-hooks-Regeln; läuft lokal (`npm run lint`) und im Deploy-Workflow.
 - **Code-Splitting:** `@supabase/supabase-js` (nur im Cloud-Modus) und das

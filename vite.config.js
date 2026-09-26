@@ -48,7 +48,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,woff2,svg,png,ico}'],
         // latin-ext-Schnitte (Zusatzzeichen wie ő, ł, ş) braucht deutscher Text
         // praktisch nie – der Browser lädt sie dank unicode-range nur bei
-        // Bedarf. Nicht vorab cachen (spart ~170 KB je Installation); falls
+        // Bedarf. Nicht vorab cachen (spart ~145 KB je Installation); falls
         // doch gebraucht, hält runtimeCaching sie danach offline vor.
         globIgnores: ['**/*-latin-ext-*.woff2'],
         runtimeCaching: [
