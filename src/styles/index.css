@@ -206,6 +206,10 @@ textarea {
   color: var(--danger);
 }
 
+.header-sync[data-tone='pending'] {
+  color: var(--amber-text);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .header-sync {
     transition: none;

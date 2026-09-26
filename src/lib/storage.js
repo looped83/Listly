@@ -3,6 +3,7 @@
 //   items         – aktuelle Liste:  [{ id, name, category, checked, createdAt }] (nur lokaler Modus)
 //   cloudItems    – letzter bekannter Server-Stand der geteilten Liste: { listId, items }
 //                   (nur Cloud-Modus; Sofortanzeige beim Start und offline)
+//   pendingOps    – noch nicht gesendete Cloud-Änderungen: { listId, ops } (siehe lib/syncQueue.js)
 //   favorites     – Favoriten:        [name, ...]
 //   history       – Kaufverlauf:      { [normalizedName]: { name, category, count, lastPurchased } }
 //   theme         – 'light' | 'dark' | 'system' (historisch, aktuell ungenutzt)
@@ -13,6 +14,7 @@
 export const STORAGE_KEYS = {
   items: 'listly.items',
   cloudItems: 'listly.cloudItems',
+  pendingOps: 'listly.pendingOps',
   favorites: 'listly.favorites',
   history: 'listly.history',
   theme: 'listly.theme',

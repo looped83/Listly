@@ -103,6 +103,7 @@ function AppContent() {
   const {
     items,
     status,
+    pendingCount,
     loadState,
     findItem,
     addItem,
@@ -288,7 +289,7 @@ function AppContent() {
             <ShoppingBasket size={24} aria-hidden="true" />
           </span>
           <h1 className="header__title">Listly</h1>
-          <SyncStatus status={status} />
+          <SyncStatus status={status} pending={pendingCount} />
         </div>
         <div className="header__actions">
           <ViewToggle view={viewMode} onChange={setViewMode} />

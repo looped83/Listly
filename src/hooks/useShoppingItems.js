@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isCloudEnabled, getSupabase, rowToItem, itemToRow, TABLE, LIST_ID } from '../lib/supabase';
+import { isCloudEnabled, getSupabase, rowToItem, TABLE, LIST_ID } from '../lib/supabase';
+import {
+  applyOps,
+  byCreatedAt,
+  isRetryable,
+  mergeOps,
+  runOp,
+  sanitizeOps,
+} from '../lib/syncQueue';
 import { readStorage, writeStorage, STORAGE_KEYS } from '../lib/storage';
 import { cleanName, normalizeName } from '../lib/history';
 import { getKnownCategory } from '../lib/icons';
@@ -10,8 +18,6 @@ const createId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-const byCreatedAt = (a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
 
 /**
  * Startstand der Liste – oder `null`, wenn noch keiner bekannt ist.
@@ -25,6 +31,13 @@ function readInitialItems() {
   return cached?.listId === LIST_ID ? sanitizeItems(cached.items) : null;
 }
 
+/** Noch nicht gesendete Cloud-Änderungen aus dem letzten Lauf (nur diese Liste). */
+function readPendingOps() {
+  if (!isCloudEnabled) return [];
+  const stored = readStorage(STORAGE_KEYS.pendingOps, null);
+  return stored?.listId === LIST_ID ? sanitizeOps(stored.ops) : [];
+}
+
 /**
  * Verwaltet die Einkaufsliste – geräteübergreifend geteilt via Supabase
  * (Echtzeit) oder rein lokal via localStorage, je nach Konfiguration.
@@ -32,10 +45,11 @@ function readInitialItems() {
  * @param {{ onPurchase?: (items: Array) => void }} options
  *        onPurchase wird beim Verbuchen erledigter Artikel aufgerufen (z. B. um
  *        den lokalen Kaufverlauf zu aktualisieren).
- * @returns Liste, Operationen, Sync-Status und `loadState`: `ready` (ein Stand
- *          liegt vor – gecacht oder vom Server), `loading` (noch keiner, Abfrage
- *          läuft) oder `offline` (noch keiner, Abfrage gescheitert). Nur bei
- *          `ready` bedeutet eine leere Liste wirklich „leer“.
+ * @returns Liste, Operationen, Sync-Status, `pendingCount` (Anzahl noch nicht
+ *          gesendeter Änderungen) und `loadState`: `ready` (ein Stand liegt vor –
+ *          gecacht oder vom Server), `loading` (noch keiner, Abfrage läuft) oder
+ *          `offline` (noch keiner, Abfrage gescheitert). Nur bei `ready`
+ *          bedeutet eine leere Liste wirklich „leer“.
  */
 export function useShoppingItems({ onPurchase } = {}) {
   const [initialItems] = useState(readInitialItems);
@@ -72,6 +86,52 @@ export function useShoppingItems({ onPurchase } = {}) {
     }
   }, [items, loadState]);
 
+  // ── Cloud: Warteschlange ausstehender Änderungen ────────────────────────────
+  // Jede Änderung wird als Operation vorgemerkt (auch über Neustarts hinweg
+  // gespeichert) und der Reihe nach gesendet. Scheitert das am Netz, bleibt
+  // sie stehen und geht beim nächsten Abgleich raus (siehe lib/syncQueue.js).
+  const [initialOps] = useState(readPendingOps);
+  const pendingRef = useRef(initialOps);
+  const [pendingCount, setPendingCount] = useState(initialOps.length);
+
+  const setPending = useCallback((ops) => {
+    pendingRef.current = ops;
+    setPendingCount(ops.length);
+    writeStorage(STORAGE_KEYS.pendingOps, { listId: LIST_ID, ops });
+  }, []);
+
+  /**
+   * Sendet ausstehende Operationen der Reihe nach (nie parallel – so bleibt
+   * z. B. „anlegen, dann abhaken“ in der richtigen Reihenfolge). Bei einem
+   * Netzfehler bricht sie ab und lässt den Rest für später stehen; lehnt die DB
+   * eine Operation inhaltlich ab, wird sie verworfen. Liefert `true`, wenn
+   * etwas verworfen wurde (dann sollte der Serverstand neu geladen werden).
+   */
+  const flushingRef = useRef(false);
+  const flush = useCallback(async () => {
+    if (!isCloudEnabled || flushingRef.current || pendingRef.current.length === 0) return false;
+    flushingRef.current = true;
+    let rejected = false;
+    try {
+      const supabase = await getSupabase();
+      while (pendingRef.current.length > 0) {
+        const op = pendingRef.current[0];
+        const result = await runOp(supabase, op);
+        if (result.error && isRetryable(result)) {
+          setStatus('error');
+          break;
+        }
+        if (result.error) rejected = true;
+        setPending(pendingRef.current.filter((pending) => pending.opId !== op.opId));
+      }
+    } catch {
+      setStatus('error'); // Client nicht ladbar (offline) → beim nächsten Abgleich erneut
+    } finally {
+      flushingRef.current = false;
+    }
+    return rejected;
+  }, [setPending]);
+
   // ── Cloud: Laden + Realtime-Abo ─────────────────────────────────────────────
   // Laufende Nummer der Abfragen: überholt eine neuere Abfrage eine ältere
   // (z. B. App-Rückkehr + Reconnect kurz hintereinander), gewinnt stets die
@@ -81,6 +141,9 @@ export function useShoppingItems({ onPurchase } = {}) {
     if (!isCloudEnabled) return;
     const seq = ++fetchSeq.current;
     try {
+      // Eigene ausstehende Änderungen zuerst senden, dann den Stand holen.
+      await flush();
+      const opsAtStart = pendingRef.current;
       const supabase = await getSupabase();
       const { data, error } = await supabase
         .from(TABLE)
@@ -89,7 +152,11 @@ export function useShoppingItems({ onPurchase } = {}) {
         .order('created_at', { ascending: true });
       if (seq !== fetchSeq.current) return;
       if (error) throw error;
-      setItems(data.map(rowToItem));
+      // Serverstand + alles, was beim Start der Abfrage noch ausstand oder
+      // seither dazukam – so springen eigene, noch nicht (sicher) angekommene
+      // Änderungen nicht zurück. Doppelt Angewandtes schadet nicht (idempotent).
+      const ops = mergeOps(opsAtStart, pendingRef.current);
+      setItems(applyOps(data.map(rowToItem), ops));
       setLoadState('ready');
       setStatus('live');
     } catch {
@@ -100,24 +167,19 @@ export function useShoppingItems({ onPurchase } = {}) {
       setStatus('error');
       setLoadState((prev) => (prev === 'ready' ? prev : 'offline'));
     }
-  }, []);
+  }, [flush]);
 
   /**
-   * Führt eine Schreiboperation im Hintergrund gegen die Cloud aus (no-op im
-   * lokalen Modus). Meldet die DB einen Fehler, wird der Zustand per Refetch
-   * neu vom Server geladen; Import-/Netzwerkfehler enden im Offline-Status
-   * statt in einer unbehandelten Promise-Rejection.
+   * Merkt eine Cloud-Änderung vor und stößt das Senden an (no-op im lokalen
+   * Modus). Hat die DB etwas abgelehnt, wird der Serverstand neu geladen.
    */
-  const runCloudWrite = useCallback(
-    (operation) => {
+  const enqueue = useCallback(
+    (op) => {
       if (!isCloudEnabled) return;
-      (async () => {
-        const supabase = await getSupabase();
-        const { error } = await operation(supabase);
-        if (error) await refetch();
-      })().catch(() => setStatus('error'));
+      setPending([...pendingRef.current, { opId: createId(), ...op }]);
+      flush().then((rejected) => rejected && refetch());
     },
-    [refetch],
+    [setPending, flush, refetch],
   );
 
   useEffect(() => {
@@ -205,9 +267,9 @@ export function useShoppingItems({ onPurchase } = {}) {
 
       applyItems((prev) => prev.map((it) => (it.id === id ? { ...it, checked } : it)));
 
-      runCloudWrite((supabase) => supabase.from(TABLE).update({ checked }).eq('id', id));
+      enqueue({ type: 'update', itemId: id, patch: { checked } });
     },
-    [applyItems, findItem, runCloudWrite],
+    [applyItems, findItem, enqueue],
   );
 
   /**
@@ -262,11 +324,11 @@ export function useShoppingItems({ onPurchase } = {}) {
 
       applyItems((prev) => [...prev, item]); // optimistisch
 
-      runCloudWrite((supabase) => supabase.from(TABLE).insert(itemToRow(item)));
+      enqueue({ type: 'upsert', items: [item] });
 
       return { status: 'added', item };
     },
-    [applyItems, findItem, runCloudWrite, toggleItem],
+    [applyItems, findItem, enqueue, toggleItem],
   );
 
   // Aktualisiert Felder eines Artikels (Name, Kategorie, Menge).
@@ -275,15 +337,13 @@ export function useShoppingItems({ onPurchase } = {}) {
     (id, patch) => {
       applyItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
 
-      runCloudWrite((supabase) => {
-        const dbPatch = {};
-        if ('name' in patch) dbPatch.name = patch.name;
-        if ('category' in patch) dbPatch.category = patch.category;
-        if ('quantity' in patch) dbPatch.quantity = patch.quantity;
-        return supabase.from(TABLE).update(dbPatch).eq('id', id);
-      });
+      const dbPatch = {};
+      if ('name' in patch) dbPatch.name = patch.name;
+      if ('category' in patch) dbPatch.category = patch.category;
+      if ('quantity' in patch) dbPatch.quantity = patch.quantity;
+      enqueue({ type: 'update', itemId: id, patch: dbPatch });
     },
-    [applyItems, runCloudWrite],
+    [applyItems, enqueue],
   );
 
   // Entfernt einen Artikel und liefert die entfernte Kopie zurück – so kann der
@@ -295,11 +355,11 @@ export function useShoppingItems({ onPurchase } = {}) {
 
       applyItems((prev) => prev.filter((it) => it.id !== id));
 
-      runCloudWrite((supabase) => supabase.from(TABLE).delete().eq('id', id));
+      enqueue({ type: 'delete', itemIds: [id] });
 
       return removed;
     },
-    [applyItems, findItem, runCloudWrite],
+    [applyItems, findItem, enqueue],
   );
 
   // Stellt zuvor entfernte/archivierte Artikel vollständig wieder her (inkl.
@@ -314,11 +374,11 @@ export function useShoppingItems({ onPurchase } = {}) {
         return merged.sort(byCreatedAt);
       });
 
-      // itemToRow überträgt auch die Menge – die Wiederherstellung bleibt
-      // dadurch geräteübergreifend verlustfrei.
-      runCloudWrite((supabase) => supabase.from(TABLE).insert(restored.map(itemToRow)));
+      // Beim Senden überträgt itemToRow auch die Menge – die Wiederherstellung
+      // bleibt dadurch geräteübergreifend verlustfrei.
+      enqueue({ type: 'upsert', items: restored });
     },
-    [applyItems, runCloudWrite],
+    [applyItems, enqueue],
   );
 
   // Schließt den Einkauf ab: verbucht die betroffenen Artikel im Kaufverlauf und
@@ -336,16 +396,17 @@ export function useShoppingItems({ onPurchase } = {}) {
       const completedIds = new Set(completed.map((it) => it.id));
       applyItems((prev) => prev.filter((it) => !completedIds.has(it.id)));
 
-      runCloudWrite((supabase) => supabase.from(TABLE).delete().in('id', [...completedIds]));
+      enqueue({ type: 'delete', itemIds: [...completedIds] });
 
       return completed;
     },
-    [applyItems, onPurchase, runCloudWrite],
+    [applyItems, onPurchase, enqueue],
   );
 
   return {
     items,
     status,
+    pendingCount,
     loadState,
     findItem,
     addItem,

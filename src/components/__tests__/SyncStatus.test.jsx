@@ -69,3 +69,25 @@ describe('SyncStatus – dezenter Hinweis hinter dem Titel', () => {
     expect(icon).toHaveAttribute('tabIndex', '0');
   });
 });
+
+describe('SyncStatus – ausstehende eigene Änderungen', () => {
+  it('zeigt ein dauerhaft sichtbares Upload-Icon mit Anzahl im Tooltip', () => {
+    vi.useFakeTimers();
+    render(<SyncStatus status="error" pending={2} />);
+
+    const icon = document.querySelector('.header-sync');
+    expect(icon).toHaveAttribute('data-tone', 'pending');
+    expect(icon.getAttribute('aria-label')).toContain('2 Änderungen noch nicht geteilt');
+
+    act(() => vi.advanceTimersByTime(10000));
+    expect(icon).toHaveAttribute('data-visible', 'true'); // verblasst nicht
+  });
+
+  it('verschwindet, sobald alles gesendet ist und die Verbindung steht', () => {
+    const { rerender } = render(<SyncStatus status="error" pending={1} />);
+    expect(document.querySelector('.header-sync')).toHaveAttribute('data-tone', 'pending');
+
+    rerender(<SyncStatus status="live" pending={0} />);
+    expect(document.querySelector('.header-sync')).not.toBeInTheDocument();
+  });
+});

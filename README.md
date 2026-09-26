@@ -54,6 +54,7 @@ lokal pro Gerät:
 | ---------------------- | ------------------------------------------------------------------------- |
 | `listly.items`         | Liste (nur im lokalen Modus): `[{ id, name, category, checked, createdAt, quantity? }]` |
 | `listly.cloudItems`    | Cloud-Modus: letzter Server-Stand `{ listId, items }` (Sofortanzeige beim Start, offline) |
+| `listly.pendingOps`    | Cloud-Modus: noch nicht gesendete Änderungen `{ listId, ops }` (Offline-Warteschlange) |
 | `listly.favorites`     | Favoriten: `["Hafermilch", …]`                                            |
 | `listly.history`       | Kaufverlauf: `{ [name]: { name, category, count, lastPurchased } }`        |
 | `listly.cards`         | Kundenkarten: `[{ id, retailer, name, code, codeType }]`                   |

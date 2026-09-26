@@ -104,6 +104,7 @@ src/
 ├── lib/
 │   ├── storage.js          #   localStorage-Keys + read/write
 │   ├── supabase.js         #   Supabase-Client, lazy per dynamischem Import (getSupabase)
+│   ├── syncQueue.js        #   Offline-Warteschlange: idempotente Cloud-Operationen (anwenden/senden)
 │   ├── supabaseConfig.js   #   ← URL, anon-Key, LIST_ID
 │   ├── history.js          #   Kaufverlauf (Häufigkeit verbuchen)
 │   ├── suggestions.js      #   Autocomplete: Kandidaten (Verlauf/Favorit/Basis) + Scoring
@@ -135,6 +136,7 @@ Alle Keys in `src/lib/storage.js` (`STORAGE_KEYS`).
 | **Supabase**   | Tabelle `list_items` | Geteilte Liste: `{ id, list_id, name, category, checked, created_at, quantity? }` |
 | localStorage   | `listly.items`     | Liste **nur im lokalen Modus** (wenn Supabase nicht konfiguriert)   |
 | localStorage   | `listly.cloudItems` | **Cloud-Modus:** letzter bekannter Server-Stand `{ listId, items }` – Sofortanzeige beim Start und offline (siehe §5) |
+| localStorage   | `listly.pendingOps` | **Cloud-Modus:** noch nicht gesendete Änderungen `{ listId, ops }` (Offline-Warteschlange, siehe §5) |
 | localStorage   | `listly.favorites` | Favoriten `["Hafermilch", …]` (pro Gerät)                           |
 | localStorage   | `listly.history`   | Kaufverlauf `{ [name]: { name, category, count, lastPurchased } }`   |
 | localStorage   | `listly.cards`     | Kundenkarten `[{ id, retailer, name, code, codeType, number? }]` (pro Gerät) |
@@ -190,8 +192,19 @@ Platzhalter). Normalisierung: `lib/itemFields.js` (siehe §8, §12).
   „Deine Liste ist leer“ nur, wenn die Liste wirklich leer ist. Hinweis:
   supabase-js wiederholt gescheiterte GET-Abfragen selbst (1 s/2 s/4 s), der
   Offline-Hinweis erscheint beim allerersten Start ohne Netz daher nach ~7 s.
-  **Offline-Änderungen** werden (noch) nicht nachgesendet – beim nächsten
-  Abgleich gilt der Server-Stand.
+- **Offline-Warteschlange (`lib/syncQueue.js`):** Jede Änderung wird als
+  kleine, serialisierbare Operation (`upsert` / `update` / `delete`) unter
+  `listly.pendingOps` vorgemerkt (übersteht Neustarts) und der Reihe nach
+  gesendet – nie parallel, damit z. B. „anlegen, dann abhaken“ in der
+  richtigen Reihenfolge ankommt. Netzfehler/Timeout (10 s), 5xx, 408, 429 →
+  Operation bleibt stehen und geht beim nächsten Abgleich (Reconnect,
+  App-Rückkehr, `online`) raus; inhaltliche DB-Ablehnung (4xx) → verwerfen
+  und Serverstand laden. Alle Operationen sind **idempotent** (Upsert statt
+  Insert, Update/Delete per id), Wiederholungen sind also gefahrlos. Beim
+  Abgleich wird der Serverstand mit allen noch ausstehenden eigenen
+  Operationen verrechnet (`applyOps`), damit Offline-Häkchen nicht
+  zurückspringen. Konflikte: die zuletzt gesendete Änderung gewinnt
+  (feldweise, da nur geänderte Felder gesendet werden).
 - **Schema:** `supabase/schema.sql` (idempotent). Legt Tabelle + die optionalen
   Spalte `quantity` an (`add column if not exists`), aktiviert
   `REPLICA IDENTITY FULL` (nötig, damit Realtime-DELETE mit `list_id`-Filter
@@ -215,7 +228,10 @@ Titel „Listly“ kurz auf (3 s) und verblasst dann von selbst – bleibt aber 
 Hover/Fokus weiter abrufbar (Tooltip). Jeder Wechsel zwischen `error` und
 `local` lässt es erneut aufblitzen (State-Reset beim Rendern statt im Effekt,
 siehe Kommentar in der Komponente – vermeidet den
-`react-hooks/set-state-in-effect`-Lint-Fehler).
+`react-hooks/set-state-in-effect`-Lint-Fehler). Ausnahme: Solange eigene
+Änderungen ausstehen (`pendingCount` > 0), bleibt ein Upload-Icon (Amber)
+**dauerhaft** sichtbar – mit Anzahl im Tooltip – und verschwindet, sobald
+alles gesendet ist.
 
 ---
 
@@ -557,8 +573,8 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (298 Tests,
-  23 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (321 Tests,
+  24 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).

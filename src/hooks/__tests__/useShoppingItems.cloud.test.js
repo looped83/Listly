@@ -17,7 +17,19 @@ const mocks = vi.hoisted(() => {
   const calls = { inserts: [], updates: [], deletes: [], selects: 0 };
   // selectQueue: optionale, der Reihe nach verbrauchte Antworten für select
   // (z. B. verzögerte Promises); leer → aktueller Tabelleninhalt.
-  const db = { rows: [], selectQueue: [], onState: null };
+  // offline: alle Anfragen scheitern wie ohne Netz (status 0);
+  // reject: Schreibzugriffe lehnt die DB inhaltlich ab (status 400).
+  const db = { rows: [], selectQueue: [], onState: null, offline: false, reject: false };
+  const NETWORK_ERROR = { error: { message: 'TypeError: Failed to fetch' }, status: 0 };
+  const DB_ERROR = { error: { message: 'violates policy' }, status: 400 };
+  // Schreibzugriff simulieren: offline/abgelehnt → Fehler, sonst Tabelle ändern.
+  const write = (record, apply) => {
+    if (db.offline) return Promise.resolve(NETWORK_ERROR);
+    record();
+    if (db.reject) return Promise.resolve(DB_ERROR);
+    apply();
+    return Promise.resolve({ error: null, status: 200 });
+  };
   const channel = {
     on: () => channel,
     subscribe: (onState) => {
@@ -32,34 +44,38 @@ const mocks = vi.hoisted(() => {
         eq: () => ({
           order: () => {
             calls.selects += 1;
+            if (db.offline) return Promise.resolve({ data: null, ...NETWORK_ERROR });
             const queued = db.selectQueue.shift();
             return queued ?? Promise.resolve({ data: [...db.rows], error: null });
           },
         }),
       }),
-      insert: (rows) => {
-        calls.inserts.push(rows);
-        db.rows.push(...[].concat(rows));
-        return Promise.resolve({ error: null });
-      },
+      upsert: (rows) =>
+        write(
+          () => calls.inserts.push(rows),
+          () => {
+            const incoming = new Map(rows.map((row) => [row.id, row]));
+            db.rows = db.rows.map((row) => incoming.get(row.id) ?? row);
+            for (const row of rows) if (!db.rows.some((r) => r.id === row.id)) db.rows.push(row);
+          },
+        ),
       update: (patch) => ({
-        eq: (_column, id) => {
-          calls.updates.push({ patch, id });
-          db.rows = db.rows.map((row) => (row.id === id ? { ...row, ...patch } : row));
-          return Promise.resolve({ error: null });
-        },
+        eq: (_column, id) =>
+          write(
+            () => calls.updates.push({ patch, id }),
+            () => {
+              db.rows = db.rows.map((row) => (row.id === id ? { ...row, ...patch } : row));
+            },
+          ),
       }),
       delete: () => ({
-        eq: (_column, id) => {
-          calls.deletes.push([id]);
-          db.rows = db.rows.filter((row) => row.id !== id);
-          return Promise.resolve({ error: null });
-        },
-        in: (_column, ids) => {
-          calls.deletes.push(ids);
-          db.rows = db.rows.filter((row) => !ids.includes(row.id));
-          return Promise.resolve({ error: null });
-        },
+        in: (_column, ids) =>
+          write(
+            () => calls.deletes.push(ids),
+            () => {
+              db.rows = db.rows.filter((row) => !ids.includes(row.id));
+            },
+          ),
       }),
     }),
     channel: () => channel,
@@ -108,6 +124,8 @@ beforeEach(() => {
   mocks.db.rows = [];
   mocks.db.selectQueue = [];
   mocks.db.onState = null;
+  mocks.db.offline = false;
+  mocks.db.reject = false;
   mocks.getSupabase.mockImplementation(() => Promise.resolve(mocks.supabase));
   localStorage.clear();
 });
@@ -122,16 +140,17 @@ describe('useShoppingItems – Cloud-Schreiboperationen', () => {
     });
 
     await waitFor(() => expect(mocks.calls.inserts).toHaveLength(1));
-    expect(mocks.calls.inserts[0]).toMatchObject({
+    const [inserted] = mocks.calls.inserts[0];
+    expect(inserted).toMatchObject({
       list_id: LIST_ID,
       name: 'Tofu',
       category: 'proteine',
       checked: false,
       quantity: 3,
     });
-    expect('unit' in mocks.calls.inserts[0]).toBe(false);
-    expect('note' in mocks.calls.inserts[0]).toBe(false);
-    expect(mocks.calls.inserts[0].created_at).toBeTruthy();
+    expect('unit' in inserted).toBe(false);
+    expect('note' in inserted).toBe(false);
+    expect(inserted.created_at).toBeTruthy();
   });
 
   it('stellt bei restoreItems (Undo) die Menge und checked verlustfrei wieder her', async () => {
@@ -342,5 +361,130 @@ describe('useShoppingItems – Laden, Cache und Abgleich', () => {
       await slow.promise;
     });
     expect(result.current.items.map((it) => it.name)).toEqual(['Aktuell']);
+  });
+});
+
+describe('useShoppingItems – Offline-Warteschlange', () => {
+  const pendingInStorage = () =>
+    JSON.parse(localStorage.getItem(STORAGE_KEYS.pendingOps) ?? 'null')?.ops ?? [];
+
+  it('hält Änderungen ohne Netz vor und sendet sie nach dem Wiederverbinden', async () => {
+    mocks.db.rows = [row('s1', 'Tofu')];
+    const { result } = renderHook(() => useShoppingItems());
+    await waitFor(() => expect(result.current.status).toBe('live'));
+
+    mocks.db.offline = true;
+    act(() => result.current.toggleItem('s1'));
+
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.pendingCount).toBe(1);
+    expect(pendingInStorage()).toHaveLength(1);
+    expect(result.current.items[0].checked).toBe(true); // optimistisch bleibt stehen
+
+    mocks.db.offline = false;
+    act(() => mocks.db.onState('SUBSCRIBED'));
+
+    await waitFor(() => expect(result.current.pendingCount).toBe(0));
+    expect(mocks.calls.updates).toEqual([{ patch: { checked: true }, id: 's1' }]);
+    expect(mocks.db.rows[0].checked).toBe(true);
+    expect(result.current.items[0].checked).toBe(true);
+    expect(pendingInStorage()).toEqual([]);
+  });
+
+  it('sendet vorgemerkte Änderungen in der ursprünglichen Reihenfolge', async () => {
+    const { result } = renderHook(() => useShoppingItems());
+    await waitFor(() => expect(result.current.status).toBe('live'));
+
+    mocks.db.offline = true;
+    let added;
+    act(() => {
+      added = result.current.addItem('Brokkoli').item;
+    });
+    act(() => result.current.toggleItem(added.id));
+    await waitFor(() => expect(result.current.pendingCount).toBe(2));
+
+    mocks.db.offline = false;
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+
+    await waitFor(() => expect(result.current.pendingCount).toBe(0));
+    expect(mocks.db.rows).toEqual([
+      expect.objectContaining({ id: added.id, name: 'Brokkoli', checked: true }),
+    ]);
+  });
+
+  it('lässt eigene, noch ausstehende Änderungen beim Abgleich nicht zurückspringen', async () => {
+    mocks.db.rows = [row('s1', 'Tofu'), row('s2', 'Spinat')];
+    const { result } = renderHook(() => useShoppingItems());
+    await waitFor(() => expect(result.current.status).toBe('live'));
+
+    // Schreiben scheitert (Funkloch), Lesen klappt wieder: der Serverstand
+    // kennt das Häkchen noch nicht – es darf trotzdem nicht verschwinden.
+    mocks.db.offline = true;
+    act(() => result.current.toggleItem('s1'));
+    await waitFor(() => expect(result.current.pendingCount).toBe(1));
+    mocks.db.rows.push(row('s3', 'Brokkoli')); // Änderung vom anderen Gerät
+
+    const originalUpdate = mocks.supabase.from;
+    mocks.db.offline = false;
+    mocks.supabase.from = () => ({
+      ...originalUpdate(),
+      update: () => ({ eq: () => Promise.resolve({ error: { message: 'x' }, status: 0 }) }),
+    });
+    try {
+      act(() => mocks.db.onState('SUBSCRIBED'));
+      await waitFor(() =>
+        expect(result.current.items.map((it) => it.name)).toEqual(['Tofu', 'Spinat', 'Brokkoli']),
+      );
+      expect(result.current.items[0].checked).toBe(true);
+      expect(result.current.pendingCount).toBe(1);
+    } finally {
+      mocks.supabase.from = originalUpdate;
+    }
+  });
+
+  it('verwirft eine von der DB abgelehnte Änderung und lädt den Serverstand', async () => {
+    mocks.db.rows = [row('s1', 'Tofu')];
+    const { result } = renderHook(() => useShoppingItems());
+    await waitFor(() => expect(result.current.status).toBe('live'));
+
+    mocks.db.reject = true;
+    act(() => result.current.toggleItem('s1'));
+
+    await waitFor(() => expect(result.current.items[0].checked).toBe(false));
+    expect(result.current.pendingCount).toBe(0);
+    expect(pendingInStorage()).toEqual([]);
+  });
+
+  it('sendet beim Start Änderungen, die aus dem letzten Lauf noch ausstanden', async () => {
+    localStorage.setItem(
+      STORAGE_KEYS.pendingOps,
+      JSON.stringify({
+        listId: LIST_ID,
+        ops: [{ opId: 'op-1', type: 'delete', itemIds: ['s1'] }],
+      }),
+    );
+    mocks.db.rows = [row('s1', 'Tofu'), row('s2', 'Spinat')];
+
+    const { result } = renderHook(() => useShoppingItems());
+    expect(result.current.pendingCount).toBe(1);
+
+    await waitFor(() => expect(result.current.pendingCount).toBe(0));
+    expect(mocks.calls.deletes).toEqual([['s1']]);
+    await waitFor(() =>
+      expect(result.current.items.map((it) => it.name)).toEqual(['Spinat']),
+    );
+  });
+
+  it('ignoriert vorgemerkte Änderungen einer anderen Liste', () => {
+    localStorage.setItem(
+      STORAGE_KEYS.pendingOps,
+      JSON.stringify({ listId: 'andere', ops: [{ opId: 'op-1', type: 'delete', itemIds: ['x'] }] }),
+    );
+    mocks.getSupabase.mockImplementation(() => new Promise(() => {}));
+
+    const { result } = renderHook(() => useShoppingItems());
+    expect(result.current.pendingCount).toBe(0);
   });
 });
