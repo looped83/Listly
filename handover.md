@@ -22,7 +22,7 @@ gemeinsam in Echtzeit genutzt.
 - **Default-Branch:** `main` (Deploy-Quelle) · **Arbeitsbranch:**
   `claude/production-quality-refactor-y49t67`
 - **Geteilte Liste:** in Echtzeit über Supabase synchronisiert
-- **Kundenkarten:** Lidl/Payback/dm/REWE mit QR/Barcode, rein lokal gespeichert
+- **Kundenkarten:** Lidl/Payback/REWE mit QR/Barcode, rein lokal gespeichert
 - **Bedienung:** einheitlicher, einkaufsorientierter Look; Hinzufügen über einen
   schwebenden Plus-Button, der ein **oben angedocktes** Sheet mit Suche +
   Detailfeldern öffnet (bleibt über der eingeblendeten Tastatur sichtbar).
@@ -310,7 +310,7 @@ deployen.
   **nicht** im Repo/Supabase (öffentliches Repo!). Jedes Gerät pflegt seine
   eigenen Karten.
 - **Kartenmodell:** `{ id, retailer, name, code, codeType }`.
-  - `retailer`: `lidl | payback | dm | rewe | custom` (Metadaten/Farbe/Standard-
+  - `retailer`: `lidl | payback | rewe | custom` (Metadaten/Farbe/Standard-
     Typ in `lib/cards.js`, `RETAILERS`).
   - `code`: der **exakte Inhalt**, der in den Code kodiert wird.
   - `codeType`: `qr` oder `barcode` (EAN-13 bei gültiger 13-stelliger Zahl, sonst
@@ -325,8 +325,6 @@ deployen.
   Merkmale je Händler:
   - **Lidl** (QR): gedruckte Kartennummer **plus** eine zusätzliche Prüfziffer.
   - **Payback** (Barcode, CODE128/EAN-13): die 13-stellige Payback-Nummer.
-  - **dm** (QR): langer kombinierter Token (dm + Payback) → **kann zeitlich
-    rotieren**; falls er an der Kasse nicht mehr geht, neuen Screenshot dekodieren.
   - **REWE** (QR): strukturierter Loyalty-Payload mit der Treue-Nummer.
 - **UI:** Akkordeon – nur eine Karte offen (erste per Default), Klick klappt um.
   Löschen sitzt in der farbigen Titelleiste. QR/Barcode werden auf **weißem**
@@ -599,7 +597,6 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
   wieder aufnehmbar (früherer `useWakeLock`-Hook ist in der Git-Historie).
 - **Keine Mengen-Zusammenrechnung:** eine Zusammenführung beim Umbenennen
   (siehe §8) summiert Mengen bewusst **nicht** – der bearbeitete Artikel gewinnt.
-- **dm-Kartentoken** ist evtl. dynamisch (siehe §7).
 - **Kundenkarten sind gerätelokal** – kein Sync (bewusst, Datenschutz). Sync
   wäre nur mit echtem Login sinnvoll.
 - **`npm audit`**: 0 Meldungen (Stand Vite-8-Upgrade). Falls `npm audit fix`

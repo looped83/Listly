@@ -3,13 +3,12 @@
 export const RETAILERS = {
   lidl: { label: 'Lidl Plus', color: '#0050aa', order: 0, codeType: 'qr' },
   payback: { label: 'Payback', color: '#0a4595', order: 1, codeType: 'barcode' },
-  dm: { label: 'dm', color: '#20366b', order: 2, codeType: 'qr' },
-  rewe: { label: 'REWE', color: '#cc071e', order: 3, codeType: 'qr' },
+  rewe: { label: 'REWE', color: '#cc071e', order: 2, codeType: 'qr' },
   custom: { label: 'Kundenkarte', color: '#555555', order: 9, codeType: 'qr' },
 };
 
-// Auswahlreihenfolge im Formular (Wunsch: Lidl, Payback, dm, REWE, dann Eigene).
-export const RETAILER_ORDER = ['lidl', 'payback', 'dm', 'rewe', 'custom'];
+// Auswahlreihenfolge im Formular (Wunsch: Lidl, Payback, REWE, dann Eigene).
+export const RETAILER_ORDER = ['lidl', 'payback', 'rewe', 'custom'];
 
 export function retailerMeta(retailer) {
   return RETAILERS[retailer] ?? RETAILERS.custom;
