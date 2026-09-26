@@ -520,6 +520,16 @@ deployen.
   aus dem Verlauf.
 - **Icons:** Emoji je Produkt/Kategorie (in `products.json`), Auflösung Produkt →
   Kategorie → Standard `🛒` in `lib/icons.js` (`getItemEmoji`).
+- **Automatische Kategorie (`getKnownCategory`, `lib/icons.js`):** dreistufig –
+  (1) exakter Katalogname, (2) gleiche Schreibweise nach den Regeln der Suche
+  (`textMatch`: Umlaute ä ≡ a ≡ ae, Diakritika, Singular je Wort → „Bananen“ =
+  „Banane“, „Äpfel“ = „Apfel“), (3) **Grundwort** deutscher Komposita („Brot“
+  → Vollkornbrot, Dinkelbrot … → Brot & Backwaren), aber nur bei klarer
+  Mehrheit (≥ 2/3 der Treffer in einer Kategorie, Wort ≥ 3 Zeichen; Ergebnis
+  je Wort gecacht). Mehrdeutiges („Butter“, „Bohnen“) bleibt ohne Kategorie.
+  Greift beim Hinzufügen („Automatisch“) und für das Emoji; eine bewusst
+  gewählte „Keine Kategorie“ wird nicht überschrieben (die Liste gruppiert
+  nach der gespeicherten Kategorie).
 - **Easter Eggs (liebevolle Überraschungen 💚):** kleine, versteckte Grüße beim
   Einkaufen. Texte in `lib/love.js` (`CHECKOUT_MESSAGES`, `LOVE_MESSAGES`),
   Herz-Animation in `components/LoveHearts.jsx`, verdrahtet in `App.jsx`:
@@ -573,8 +583,8 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
   Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
   ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
-- **Tests & Linting:** Vitest + React Testing Library, `npm test` (321 Tests,
-  24 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
+- **Tests & Linting:** Vitest + React Testing Library, `npm test` (340 Tests,
+  25 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
   Deployment. Kein E2E/Playwright-Setup.
 - **PWA-Icons** unter `public/icons/` sind Platzhalter („L“-Monogramm).
