@@ -62,7 +62,7 @@ lokal pro Gerät:
 
 ## Setup
 
-Voraussetzung: **Node.js ≥ 18**.
+Voraussetzung: **Node.js ≥ 20.19** (empfohlen 22 LTS).
 
 ```bash
 npm install      # Abhängigkeiten installieren
@@ -202,7 +202,7 @@ Details zu Architektur, Datenfluss und Betrieb: siehe [`handover.md`](handover.m
 
 ## Tech-Stack
 
-- [Vite 5](https://vitejs.dev) + [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react)
+- [Vite 8](https://vitejs.dev) + [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react)
 - [React 18](https://react.dev)
 - [@supabase/postgrest-js](https://github.com/supabase/supabase-js/tree/master/packages/core/postgrest-js) + [@supabase/realtime-js](https://github.com/supabase/supabase-js/tree/master/packages/core/realtime-js) – Echtzeit-Sync (lazy geladen, ohne das komplette supabase-js)
 - [lucide-react](https://lucide.dev) (UI-Icons)
@@ -210,6 +210,3 @@ Details zu Architektur, Datenfluss und Betrieb: siehe [`handover.md`](handover.m
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app) (Manifest + Service Worker)
 - [Vitest](https://vitest.dev) + [Testing Library](https://testing-library.com) (Tests), [ESLint](https://eslint.org) (Linting)
 
-> Hinweis: `npm audit` meldet ggf. eine Dev-Server-Warnung zu esbuild (transitiv
-> über Vite 5). Sie betrifft ausschließlich den lokalen Entwicklungsserver, nicht
-> das ausgelieferte PWA-Bundle.

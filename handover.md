@@ -37,8 +37,15 @@ gemeinsam in Echtzeit genutzt.
 
 ## 2. Tech-Stack & Voraussetzungen
 
-- **Node.js ≥ 18**
-- **Vite 5** + `@vitejs/plugin-react`
+- **Node.js ≥ 20.19** (empfohlen 22 LTS; Deploy-Workflow nutzt 22)
+- **Vite 8** (Rolldown) + `@vitejs/plugin-react` 5 – Build und Vitest nutzen
+  dieselbe Vite-Version. Browser-Ziel ist Vites Standard „Baseline widely
+  available“ (u. a. Safari/iOS ≥ 16, Chrome ≥ 111); CSS-Fallbacks für ältere
+  Browser (z. B. `100vh` vor `100dvh`) entfernt der Minifier daher bewusst.
+  Hinweis zu `@vitejs/plugin-react` 6: dessen optionale Babel-8-Peers
+  kollidieren in npm mit Babel 7 aus `workbox-build` – daher vorerst die 5er-
+  Linie (unterstützt Vite 8 offiziell). Beim nächsten vite-plugin-pwa-/Workbox-
+  Update erneut prüfen, ohne `--legacy-peer-deps`.
 - **React 18**
 - **lucide-react** – UI-Icons (Häkchen, Stern, Wallet …). Produkt-Symbole sind
   dagegen **Emoji** (keine Icon-Lib nötig).
@@ -595,9 +602,11 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 - **dm-Kartentoken** ist evtl. dynamisch (siehe §7).
 - **Kundenkarten sind gerätelokal** – kein Sync (bewusst, Datenschutz). Sync
   wäre nur mit echtem Login sinnvoll.
-- **`npm audit`** meldet Dev-Server-Advisories (esbuild/Vite, transitiv über
-  Vite 5; teils Windows-only). Betrifft nur den lokalen Dev-Server, nicht das
-  ausgelieferte Bundle. Behebbar erst mit einem Vite-Major-Upgrade.
+- **`npm audit`**: 0 Meldungen (Stand Vite-8-Upgrade). Falls `npm audit fix`
+  mit „Cannot read properties of null (reading 'edgesOut')“ abbricht: das ist
+  ein npm-10-Bug beim Auflösen optionaler Peers von Vitest – mit
+  `npx npm@11 audit fix` funktioniert es; das Lockfile bleibt mit npm 10
+  (`npm ci` in der CI) kompatibel.
 - **Tests & Linting:** Vitest + React Testing Library, `npm test` (342 Tests,
   25 Dateien) und ESLint (`npm run lint`, Flat Config mit react-hooks-Regeln).
   Beides läuft als Teil der Deploy-Pipeline (§6) – ein Fehler verhindert das
