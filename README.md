@@ -28,7 +28,7 @@ zwischen mehreren Geräten geteilt.
   Tippfehler), priorisiert nach **Kaufverlauf → Favoriten → veganer Basisliste**.
 - **Geteilte Liste (optional)** – in Echtzeit über Supabase synchronisiert
   (Status-Anzeige oben rechts); ohne Konfiguration arbeitet Listly rein lokal.
-- **Kundenkarten** – Lidl/Payback/dm/REWE u. a. als QR-/Barcode direkt in der App,
+- **Kundenkarten** – Lidl/Payback/REWE u. a. als QR-/Barcode direkt in der App,
   **rein lokal** auf dem Gerät gespeichert.
 - **Vegane Produktdaten** – Kategorien und Produkte (Hafermilch, Tofu,
   Hefeflocken, veganer Käse …) liegen in [`src/data/products.json`](src/data/products.json)
