@@ -23,5 +23,6 @@ export const SUPABASE_ANON_KEY =
 //  Gemeinsame Kennung eurer Liste. Beliebiger, schwer zu erratender Text –
 //  beide Geräte nutzen automatisch denselben Wert, weil er fest in der
 //  veröffentlichten App steht. Bei Bedarf ändern (dann startet ihr mit einer
-//  frischen, leeren Liste).
+//  frischen, leeren Liste) – und denselben Wert in der RLS-Policy in
+//  supabase/schema.sql eintragen, sonst lehnt die Datenbank alle Zugriffe ab.
 export const LIST_ID = 'rene-und-lutz';

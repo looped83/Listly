@@ -227,8 +227,9 @@ Platzhalter). Normalisierung: `lib/itemFields.js` (siehe §8, §12).
 - **Schema:** `supabase/schema.sql` (idempotent). Legt Tabelle + die optionalen
   Spalte `quantity` an (`add column if not exists`), aktiviert
   `REPLICA IDENTITY FULL` (nötig, damit Realtime-DELETE mit `list_id`-Filter
-  funktioniert), RLS mit einer permissiven anon-Policy und die Realtime-
-  Publikation. Bei einem neuen Supabase-Projekt (oder nach einem Spalten-Update
+  funktioniert), RLS mit einer anon-Policy nur für die eigene `list_id`,
+  CHECK-Grenzen (Name 1–200 Zeichen, Kategorie ≤ 50, Menge 1–9999), ein
+  Limit von 1000 Artikeln pro Liste (Trigger) und die Realtime-Publikation. Bei einem neuen Supabase-Projekt (oder nach einem Spalten-Update
   wie den neuen Feldern) einmal im SQL-Editor ausführen – idempotent, also auch
   auf einer bestehenden Tabelle gefahrlos erneut ausführbar. `rowToItem` liest
   die neuen Spalten defensiv (funktioniert auch, falls das Skript noch nicht
@@ -616,7 +617,9 @@ Zum Prüfen (Duplikate/ungültige Kategorien) eignet sich ein kurzes Node-Snippe
 
 - **Neues Produkt:** Eintrag in `src/data/products.json`.
 - **Farbe/Look ändern:** Tokens in `src/styles/tokens.css`.
-- **Frische, leere geteilte Liste:** `LIST_ID` in `supabaseConfig.js` ändern.
+- **Frische, leere geteilte Liste:** `LIST_ID` in `supabaseConfig.js` ändern
+  und denselben Wert in der RLS-Policy in `supabase/schema.sql` eintragen +
+  Skript erneut ausführen (die Policy erlaubt nur diese eine `list_id`).
 - **Anderes Supabase-Projekt:** neues Projekt anlegen, `schema.sql` ausführen,
   URL + anon-Key in `supabaseConfig.js` eintragen.
 - **Deploy anstoßen:** PR nach **`main`** mergen (nur das löst das Deployment
