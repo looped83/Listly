@@ -141,7 +141,9 @@ Anzeige im Hintergrund).
 > ⚠️ **Datenschutz-Hinweis:** Beim gewählten Modell „offener geteilter Link“ (kein
 > Login) sind `SUPABASE_URL`, der anon-Key und die `LIST_ID` in der öffentlich
 > ausgelieferten App enthalten. Wer diese kennt, kann die Liste theoretisch lesen
-> und ändern. Für eine Einkaufsliste ist das meist unkritisch – lege dort keine
+> und ändern. Die Datenbank lässt per Policy nur diese eine `LIST_ID` zu und
+> begrenzt Feldlängen und Artikelanzahl, sodass sich die Datenbank nicht
+> missbräuchlich vollschreiben lässt. Für eine Einkaufsliste ist das meist unkritisch – lege dort keine
 > sensiblen Daten ab. Für echten Zugriffsschutz wäre eine Login-Variante nötig.
 
 ## Icons anpassen
